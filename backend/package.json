@@ -5,12 +5,17 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "start": "npx prisma generate && node src/server.js",
+    "build": "npx prisma generate",
+    "postinstall": "npx prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
     "db:seed": "node src/database/seed.js",
     "db:reset": "prisma migrate reset --force",
-    "test": "jest"
+    "test": "jest",
+    "gcp:deploy": "gcloud app deploy",
+    "gcp:logs": "gcloud app logs tail -s default"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
@@ -43,5 +48,9 @@
     "express"
   ],
   "author": "AI Rookie Team",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0 <21.0.0",
+    "npm": ">=9.0.0"
+  }
 }
