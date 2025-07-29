@@ -15,7 +15,7 @@ if [ ! -f .env ]; then
     echo "   - JWT_SECRET: A secure secret key"
     echo ""
     echo "Example DATABASE_URL format:"
-    echo "DATABASE_URL=\"postgresql://username:password@localhost:5432/ai_rookie_db\""
+    echo "DATABASE_URL=\"mysql://username:password@mysql106.unoeuro.com:3306/databasename\""
     echo ""
 else
     echo "✅ .env file already exists"
