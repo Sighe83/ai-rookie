@@ -3,8 +3,12 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+// Google Cloud optimized imports
+const { databaseService } = require('./config/database');
+const { gcloudService } = require('./config/gcloud');
+const cloudRunMiddleware = require('./middleware/cloudRunOptimized');
 
 const errorHandler = require('./middleware/errorHandler');
 const tutorRoutes = require('./routes/tutors');
@@ -33,20 +37,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-site-mode']
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
-  }
-});
+// Google Cloud optimized rate limiting
+const rateLimitWindow = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100;
+app.use('/api', cloudRunMiddleware.enhancedRateLimit(rateLimitWindow, rateLimitMax));
 
-app.use('/api', limiter);
-
-// Middleware
+// Google Cloud optimized middleware
+app.use(cloudRunMiddleware.tracing);
+app.use(cloudRunMiddleware.requestLogging);
+app.use(cloudRunMiddleware.healthCheck);
+app.use(cloudRunMiddleware.memoryMonitoring);
 app.use(compression());
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -64,13 +65,33 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+// Enhanced health check endpoint with Google Cloud services
+app.get('/health', async (req, res) => {
+  try {
+    const dbHealthy = await databaseService.healthCheck();
+    const gcloudHealth = await gcloudService.healthCheck();
+    
+    const health = {
+      status: dbHealthy ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.K_REVISION || '1.0.0',
+      service: process.env.K_SERVICE || 'ai-rookie-backend',
+      environment: process.env.NODE_ENV || 'development',
+      database: dbHealthy,
+      googleCloud: gcloudHealth,
+      memory: process.memoryUsage(),
+      uptime: process.uptime()
+    };
+    
+    const statusCode = dbHealthy ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // API routes
@@ -88,26 +109,45 @@ app.use('*', (req, res) => {
   });
 });
 
-// Global error handler
-app.use(errorHandler);
+// Google Cloud optimized error handler
+app.use(cloudRunMiddleware.errorHandler);
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  process.exit(0);
-});
+// Google Cloud optimized graceful shutdown
+cloudRunMiddleware.gracefulShutdown();
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  process.exit(0);
-});
+// Initialize Google Cloud services and start server
+async function startServer() {
+  try {
+    // Initialize database
+    await databaseService.initialize();
+    
+    // Start server
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+      console.log(`☁️  Google Cloud Project: ${process.env.GOOGLE_CLOUD_PROJECT || 'local'}`);
+    });
+    
+    // Log startup
+    await gcloudService.log('info', 'Server started successfully', {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.K_REVISION || '1.0.0'
+    });
+    
+    return server;
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    await gcloudService.log('error', 'Server startup failed', {
+      error: error.message,
+      stack: error.stack
+    });
+    process.exit(1);
+  }
+}
 
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-});
+startServer();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
