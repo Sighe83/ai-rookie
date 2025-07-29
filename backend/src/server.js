@@ -24,7 +24,9 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://airookie.dk'
+    'http://airookie.dk',
+    'https://storage.googleapis.com',
+    'https://ai-rookie-frontend-arcane-fire-467421-d1.storage.googleapis.com'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
