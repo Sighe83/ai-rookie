@@ -29,19 +29,19 @@ else
     echo "✅ Backend dependencies already installed"
 fi
 
-# Check if database is set up
-echo "🗄️ Checking database setup..."
+
+# Kør Prisma migration og generate automatisk
 if [ -f .env ]; then
-    echo "🔧 To set up the database, run these commands:"
-    echo "   1. npx prisma generate"
-    echo "   2. npx prisma migrate dev"
-    echo "   3. npm run seed"
-    echo ""
-    echo "🚀 To start the backend server:"
-    echo "   npm run dev"
+    echo "�️ Migrating database (production mode)..."
+    npx prisma generate
+    npx prisma migrate deploy
+    echo "✅ Database migrated!"
 else
     echo "❌ Please create .env file first"
 fi
+
+echo "🚀 To start the backend server:"
+echo "   npm run start"
 
 echo ""
 echo "✅ Backend setup complete!"
