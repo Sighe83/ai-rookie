@@ -14,8 +14,11 @@
     "db:seed": "node src/database/seed.js",
     "db:reset": "prisma migrate reset --force",
     "test": "jest",
-    "gcp:deploy": "gcloud app deploy",
-    "gcp:logs": "gcloud app logs tail -s default"
+    "gcp:deploy": "gcloud run deploy ai-rookie-backend --source . --platform managed --region us-central1 --allow-unauthenticated",
+    "gcp:build": "gcloud builds submit --config cloudbuild.yaml ..",
+    "gcp:logs": "gcloud run services logs read ai-rookie-backend --region us-central1",
+    "docker:build": "docker build -t ai-rookie-backend .",
+    "docker:run": "docker run -p 8080:8080 --env-file .env ai-rookie-backend"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
