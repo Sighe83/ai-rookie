@@ -1,5 +1,6 @@
-// API Service for AI Rookie Backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// API Service for AI Rookie Backend - Vercel + Supabase
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import { supabase, authHelpers } from './supabase.js';
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -10,40 +11,34 @@ class ApiError extends Error {
   }
 }
 
-// Safe localStorage for tokens
+// Token management using Supabase session
 const tokenStorage = {
-  get: () => {
+  get: async () => {
     try {
-      return localStorage.getItem('ai-rookie-token');
+      const session = await authHelpers.getCurrentSession();
+      return session?.access_token || null;
     } catch (error) {
       console.warn('Token storage get failed:', error);
       return null;
     }
   },
-  set: (token) => {
-    try {
-      if (token) {
-        localStorage.setItem('ai-rookie-token', token);
-      } else {
-        localStorage.removeItem('ai-rookie-token');
-      }
-    } catch (error) {
-      console.warn('Token storage set failed:', error);
-    }
+  set: () => {
+    // Supabase handles token storage automatically
+    console.log('Token storage is handled by Supabase');
   },
-  remove: () => {
+  remove: async () => {
     try {
-      localStorage.removeItem('ai-rookie-token');
+      await authHelpers.signOut();
     } catch (error) {
       console.warn('Token storage remove failed:', error);
     }
   }
 };
 
-// API request helper
+// API request helper with Supabase auth
 const apiRequest = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
-  const token = tokenStorage.get();
+  const token = await tokenStorage.get();
   
   const config = {
     headers: {
@@ -81,30 +76,34 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 };
 
-// Auth API
+// Auth API using Supabase + Vercel API
 export const authApi = {
   login: async (email, password) => {
+    // Use Supabase auth directly
+    const authData = await authHelpers.signIn(email, password);
+    
+    // Also call API endpoint for any additional processing
     const response = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
     
-    if (response.success && response.data.token) {
-      tokenStorage.set(response.data.token);
-    }
-    
-    return response;
+    return {
+      success: true,
+      data: {
+        user: authData.user,
+        session: authData.session,
+        ...response.data
+      }
+    };
   },
 
   register: async (userData) => {
+    // Register via API endpoint (which handles both Supabase auth and profile creation)
     const response = await apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
-    
-    if (response.success && response.data.token) {
-      tokenStorage.set(response.data.token);
-    }
     
     return response;
   },
@@ -120,26 +119,33 @@ export const authApi = {
     });
   },
 
-  changePassword: async (currentPassword, newPassword) => {
-    return await apiRequest('/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
+  changePassword: async (newPassword) => {
+    await authHelpers.updatePassword(newPassword);
+    return { success: true, message: 'Password updated successfully' };
+  },
+
+  resetPassword: async (email) => {
+    await authHelpers.resetPassword(email);
+    return { success: true, message: 'Password reset email sent' };
   },
 
   logout: async () => {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
     } catch (error) {
-      // Continue with logout even if API call fails
       console.warn('Logout API call failed:', error);
     } finally {
-      tokenStorage.remove();
+      await authHelpers.signOut();
     }
   },
 
-  isAuthenticated: () => {
-    return !!tokenStorage.get();
+  isAuthenticated: async () => {
+    const session = await authHelpers.getCurrentSession();
+    return !!session;
+  },
+
+  onAuthStateChange: (callback) => {
+    return authHelpers.onAuthStateChange(callback);
   }
 };
 
@@ -223,12 +229,22 @@ export const bookingsApi = {
   }
 };
 
-// Health check
+// Health check for Vercel
 export const healthApi = {
   check: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
-      return await response.json();
+      // Check Supabase connection
+      const { data, error } = await supabase.from('users').select('count').limit(1);
+      if (error) throw error;
+      
+      return {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        services: {
+          supabase: 'connected',
+          vercel: 'running'
+        }
+      };
     } catch (error) {
       throw new ApiError('Health check failed', 0, { originalError: error.message });
     }
@@ -236,7 +252,7 @@ export const healthApi = {
 };
 
 // Export utilities
-export { ApiError, tokenStorage };
+export { ApiError, tokenStorage, supabase, authHelpers };
 
 // Default export
 const api = {
