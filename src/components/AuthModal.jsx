@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { X, Eye, EyeOff, Mail, Lock, User, Building, Briefcase } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
 
-const AuthModal = ({ isOpen, onClose, initialMode = 'login', siteMode = 'b2b' }) => {
+const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }) => {
   const [mode, setMode] = useState(initialMode); // 'login' or 'signup'
   const [showPassword, setShowPassword] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false); // Track if user needs to create account
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -89,6 +90,14 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login', siteMode = 'b2b' })
       let result;
       if (mode === 'login') {
         result = await login(formData.email, formData.password);
+        
+        // If login fails due to user not found, suggest signup
+        if (!result.success && result.error?.includes('Ugyldig email eller adgangskode')) {
+          setErrors({ email: 'Email ikke fundet. Vil du oprette en konto?' });
+          setIsNewUser(true);
+          setIsSubmitting(false);
+          return;
+        }
       } else {
         result = await register({
           email: formData.email,
@@ -111,21 +120,37 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login', siteMode = 'b2b' })
     }
   };
 
+  const handleCreateAccount = () => {
+    setMode('signup');
+    setIsNewUser(false);
+    setErrors({});
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-slate-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
-          <h2 className="text-xl font-bold text-white">
-            {mode === 'login' ? 'Log ind' : `Opret ${isB2B ? 'virksomheds' : 'personlig'} konto`}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+        <div className="p-6 border-b border-slate-700">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold text-white">
+              {mode === 'login' ? 'Velkommen tilbage' : `Kom i gang med AI Rookie${isB2B ? ' Enterprise' : ''}`}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <p className="text-slate-400 text-sm">
+            {mode === 'login' 
+              ? 'Log ind for at fortsætte din AI-rejse'
+              : isB2B 
+                ? 'Få adgang til ekspertviden og workshops der driver resultater'
+                : 'Start din personlige AI-læring med erfarne tutorer'
+            }
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -178,7 +203,18 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login', siteMode = 'b2b' })
               />
             </div>
             {errors.email && (
-              <p className="text-red-400 text-xs mt-1">{errors.email}</p>
+              <div className="mt-1">
+                <p className="text-red-400 text-xs">{errors.email}</p>
+                {isNewUser && (
+                  <button
+                    type="button"
+                    onClick={handleCreateAccount}
+                    className={`mt-2 text-xs ${isB2B ? 'text-green-400 hover:text-green-300' : 'text-blue-400 hover:text-blue-300'} underline`}
+                  >
+                    Ja, opret en konto med denne email
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -278,20 +314,20 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login', siteMode = 'b2b' })
                 {mode === 'login' ? 'Logger ind...' : 'Opretter konto...'}
               </>
             ) : (
-              mode === 'login' ? 'Log ind' : 'Opret konto'
+              mode === 'login' ? 'Log ind' : 'Kom i gang nu'
             )}
           </button>
 
           {/* Switch mode */}
           <div className="text-center border-t border-slate-700 pt-4">
             <p className="text-slate-400 text-sm">
-              {mode === 'login' ? 'Har du ikke en konto?' : 'Har du allerede en konto?'}
+              {mode === 'login' ? 'Ny bruger?' : 'Har du allerede en konto?'}
               <button
                 type="button"
                 onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                className={`${isB2B ? 'text-green-400 hover:text-green-300' : 'text-blue-400 hover:text-blue-300'} ml-2 font-medium`}
+                className={`${isB2B ? 'text-green-400 hover:text-green-300' : 'text-blue-400 hover:text-blue-300'} ml-2 font-medium underline`}
               >
-                {mode === 'login' ? 'Opret konto' : 'Log ind'}
+                {mode === 'login' ? 'Kom i gang her' : 'Log ind her'}
               </button>
             </p>
           </div>
