@@ -279,30 +279,32 @@ export const AuthProvider = ({ children }) => {
 
       if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
 
-      // Create user profile in database
+      // User profile is automatically created by database trigger
+      // Update profile with additional fields if needed
       if (data.user) {
         try {
-          const { error: profileError } = await supabase
-            .from('users')
-            .insert([{
-              id: data.user.id,
-              email: userData.email.trim(),
-              name: userData.name.trim(),
-              phone: userData.phone?.trim() || null,
-              company: userData.company?.trim() || null,
-              department: userData.department?.trim() || null,
-              role: 'USER',
-              site_mode: userData.siteMode || 'B2C',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }]);
+          const updateData = {};
+          if (userData.phone?.trim()) updateData.phone = userData.phone.trim();
+          if (userData.company?.trim()) updateData.company = userData.company.trim();
+          if (userData.department?.trim()) updateData.department = userData.department.trim();
+          if (userData.siteMode) updateData.site_mode = userData.siteMode;
 
-          if (profileError) {
-            console.warn('Profile creation failed:', profileError);
-            // Don't fail registration if profile creation fails
+          // Only update if we have additional data to add
+          if (Object.keys(updateData).length > 0) {
+            const { error: updateError } = await supabase
+              .from('users')
+              .update({
+                ...updateData,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', data.user.id);
+
+            if (updateError) {
+              console.warn('Profile update failed:', updateError);
+            }
           }
         } catch (profileError) {
-          console.warn('Profile creation error:', profileError);
+          console.warn('Profile update error:', profileError);
         }
       }
 
