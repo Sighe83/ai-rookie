@@ -40,7 +40,9 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
 
   React.useEffect(() => {
     setErrors({});
+    setIsNewUser(false);
     clearError();
+    // Don't clear form data when switching modes to preserve email
   }, [mode, clearError]);
 
   const validateForm = () => {
@@ -89,12 +91,22 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     try {
       let result;
       if (mode === 'login') {
+        console.log('Attempting login with:', { email: formData.email });
         result = await login(formData.email, formData.password);
+        console.log('Login result:', result);
         
         // If login fails due to user not found, suggest signup
         if (!result.success && result.error?.includes('Ugyldig email eller adgangskode')) {
           setErrors({ email: 'Email ikke fundet. Vil du oprette en konto?' });
           setIsNewUser(true);
+          setIsSubmitting(false);
+          return;
+        }
+        
+        // If login failed for other reasons, show the actual error
+        if (!result.success) {
+          console.error('Login failed with error:', result.error);
+          setErrors({ general: result.error || 'Login fejlede' });
           setIsSubmitting(false);
           return;
         }
@@ -158,6 +170,12 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           {authError && (
             <div className="bg-red-900/50 border border-red-600 rounded-lg p-3">
               <p className="text-red-200 text-sm">{authError}</p>
+            </div>
+          )}
+          
+          {errors.general && (
+            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3">
+              <p className="text-red-200 text-sm">{errors.general}</p>
             </div>
           )}
 

@@ -181,9 +181,22 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Email og adgangskode er påkrævet');
       }
       
+      console.log('useAuth: Attempting Supabase login with:', { 
+        email: email.trim(), 
+        passwordLength: password?.length,
+        hasPassword: !!password
+      });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password
+      });
+      
+      console.log('useAuth: Supabase response:', { 
+        success: !error, 
+        error: error?.message,
+        errorCode: error?.code,
+        user: data?.user?.id 
       });
 
       if (error) {
