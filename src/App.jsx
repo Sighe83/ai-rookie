@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { useTutors, useCreateBooking, useBookings } from './hooks/useApi';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
+import AdminGate from './components/AdminGate';
 import {
   Briefcase,
   Users,
@@ -2072,10 +2073,12 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SiteModeProvider>
-        <AppContent />
-      </SiteModeProvider>
-    </AuthProvider>
+    <AdminGate>
+      <AuthProvider>
+        <SiteModeProvider>
+          <AppContent />
+        </SiteModeProvider>
+      </AuthProvider>
+    </AdminGate>
   );
 }
