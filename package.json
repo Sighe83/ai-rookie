@@ -4,6 +4,8 @@
   "private": true,
   "dependencies": {
     "@stripe/stripe-js": "^7.7.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -21,8 +23,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy",
-    "deploy:hosting": "firebase deploy --only hosting"
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:migrate": "supabase db push",
+    "supabase:generate-types": "supabase gen types typescript --local > src/types/supabase.ts"
   },
   "browserslist": {
     "production": [
