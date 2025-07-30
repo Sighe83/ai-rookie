@@ -1,11 +1,12 @@
 import { supabase } from '../config/supabase.js';
+import { setCorsHeaders } from '../middleware/cors.js';
 
 export default async function handler(req, res) {
-  // Handle CORS preflight
+  // Set CORS headers for all responses
+  setCorsHeaders(res);
+  
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.status(200).end();
   }
 

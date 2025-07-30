@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import { supabase } from '../services/supabase';
 
 // Generic hook for API calls
 export const useApi = (apiCall, dependencies = []) => {
@@ -35,9 +36,69 @@ export const useApi = (apiCall, dependencies = []) => {
   return { data, loading, error, refetch };
 };
 
-// Hook for tutors data
+// Hook for tutors data with development fallback
 export const useTutors = (siteMode = 'B2B') => {
-  return useApi(() => api.tutors.getAll(siteMode), [siteMode]);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchTutors = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // In development, use Supabase directly to avoid CORS issues
+        if (import.meta.env.DEV) {
+          const { data: tutorsData, error: supabaseError } = await supabase
+            .from('tutors')
+            .select(`
+              *,
+              sessions(*)
+            `)
+            .eq('is_active', true)
+            .eq('site_mode', siteMode);
+
+          if (supabaseError) throw supabaseError;
+          
+          // Transform data to match API format
+          const transformedData = tutorsData.map(tutor => ({
+            id: tutor.id,
+            userId: tutor.user_id,
+            title: tutor.title,
+            specialty: tutor.specialty,
+            experience: tutor.experience,
+            valueProp: tutor.value_prop,
+            img: tutor.img,
+            basePrice: tutor.base_price,
+            price: tutor.price,
+            isActive: tutor.is_active,
+            name: tutor.title,
+            sessions: tutor.sessions || []
+          }));
+          
+          setData(transformedData);
+        } else {
+          // In production, use API
+          const response = await api.tutors.getAll(siteMode);
+          if (response.success) {
+            setData(response.data);
+          } else {
+            setError(response.error || 'Request failed');
+          }
+        }
+      } catch (error) {
+        console.error('Tutors fetch error:', error);
+        setError(error.message || 'Request failed');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTutors();
+  }, [siteMode]);
+
+  return { data, loading, error };
 };
 
 // Hook for single tutor
