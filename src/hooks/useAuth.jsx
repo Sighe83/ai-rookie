@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { authApi } from '../services/api';
+import { supabase } from '../services/supabase';
 
 const AuthContext = createContext();
 
@@ -16,25 +16,56 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Initialize auth state
+  // Initialize auth state from Supabase
   useEffect(() => {
     const initAuth = async () => {
-      if (authApi.isAuthenticated()) {
-        try {
-          const response = await authApi.getProfile();
-          if (response.success) {
-            setUser(response.data);
-          }
-        } catch (error) {
-          console.warn('Failed to load user profile:', error);
-          // Token might be expired, clear it
-          await authApi.logout();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Get user profile from database
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          setUser({
+            ...session.user,
+            ...profile
+          });
         }
+      } catch (error) {
+        console.warn('Failed to initialize auth:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     initAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          // Get user profile
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          setUser({
+            ...session.user,
+            ...profile
+          });
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email, password) => {
@@ -42,15 +73,29 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setLoading(true);
       
-      const response = await authApi.login(email, password);
-      if (response.success) {
-        setUser(response.data.user);
-        return { success: true, user: response.data.user };
-      }
-      
-      return { success: false, error: response.error };
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      // Get user profile
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      const userData = {
+        ...data.user,
+        ...profile
+      };
+
+      setUser(userData);
+      return { success: true, user: userData };
     } catch (error) {
-      const errorMessage = error.data?.error || error.message || 'Login failed';
+      const errorMessage = error.message || 'Login failed';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -63,15 +108,46 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setLoading(true);
       
-      const response = await authApi.register(userData);
-      if (response.success) {
-        setUser(response.data.user);
-        return { success: true, user: response.data.user };
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name,
+            phone: userData.phone || null,
+            company: userData.company || null,
+            department: userData.department || null
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      // Create user profile in database
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([{
+            id: data.user.id,
+            email: userData.email,
+            name: userData.name,
+            phone: userData.phone || null,
+            company: userData.company || null,
+            department: userData.department || null,
+            role: 'USER',
+            site_mode: userData.siteMode || 'B2C',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]);
+
+        if (profileError) {
+          console.warn('Profile creation failed:', profileError);
+        }
       }
-      
-      return { success: false, error: response.error };
+
+      return { success: true, user: data.user };
     } catch (error) {
-      const errorMessage = error.data?.error || error.message || 'Registration failed';
+      const errorMessage = error.message || 'Registration failed';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -81,26 +157,40 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await authApi.logout();
-    } catch (error) {
-      console.warn('Logout error:', error);
-    } finally {
+      await supabase.auth.signOut();
       setUser(null);
       setError(null);
+    } catch (error) {
+      console.warn('Logout error:', error);
     }
   };
 
   const updateProfile = async (userData) => {
     try {
       setError(null);
-      const response = await authApi.updateProfile(userData);
-      if (response.success) {
-        setUser(response.data);
-        return { success: true, user: response.data };
-      }
-      return { success: false, error: response.error };
+      
+      // Update user profile in database
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          ...userData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const updatedUser = {
+        ...user,
+        ...data
+      };
+
+      setUser(updatedUser);
+      return { success: true, user: updatedUser };
     } catch (error) {
-      const errorMessage = error.data?.error || error.message || 'Profile update failed';
+      const errorMessage = error.message || 'Profile update failed';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     }
