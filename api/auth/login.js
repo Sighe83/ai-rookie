@@ -1,7 +1,14 @@
 import { supabase, dbHelpers } from '../config/supabase.js';
-import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -32,17 +39,6 @@ export default async function handler(req, res) {
     // Get user profile from database
     const userProfile = await dbHelpers.getUserProfile(authData.user.id);
 
-    // Generate custom JWT (if needed for your app logic)
-    const customToken = jwt.sign(
-      {
-        userId: authData.user.id,
-        email: authData.user.email,
-        role: userProfile.role || 'USER'
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
     res.status(200).json({
       success: true,
       data: {
@@ -52,7 +48,6 @@ export default async function handler(req, res) {
           ...userProfile
         },
         session: authData.session,
-        customToken, // For legacy compatibility if needed
         access_token: authData.session.access_token,
         refresh_token: authData.session.refresh_token
       }
