@@ -649,24 +649,33 @@ const SiteModeToggle = ({ onModeChange }) => {
   };
   
   return (
-    <div className="flex items-center gap-2">
-      <span className={`text-sm font-medium ${siteMode === 'b2b' ? 'text-green-400' : 'text-slate-400'}`}>
-        B2B
-      </span>
+    <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
       <button
-        onClick={handleToggle}
-        className="p-1 rounded-full hover:bg-slate-700 transition-colors"
-        title={`Switch to ${siteMode === 'b2b' ? 'B2C' : 'B2B'} mode`}
+        onClick={() => siteMode !== 'b2b' && handleToggle()}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
+          siteMode === 'b2b' 
+            ? 'bg-green-600 text-white shadow-lg shadow-green-600/30' 
+            : 'text-slate-400 hover:text-green-400 hover:bg-slate-700'
+        }`}
+        title={siteMode === 'b2b' ? 'Aktiv: B2B mode' : 'Skift til B2B mode'}
       >
-        {siteMode === 'b2b' ? (
-          <ToggleLeft className="w-6 h-6 text-green-400" />
-        ) : (
-          <ToggleRight className="w-6 h-6 text-blue-400" />
-        )}
+        <Building2 className="w-4 h-4" />
+        B2B
+        {siteMode === 'b2b' && <span className="text-xs bg-green-500 px-1.5 py-0.5 rounded-full">Aktiv</span>}
       </button>
-      <span className={`text-sm font-medium ${siteMode === 'b2c' ? 'text-blue-400' : 'text-slate-400'}`}>
+      <button
+        onClick={() => siteMode !== 'b2c' && handleToggle()}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
+          siteMode === 'b2c' 
+            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+            : 'text-slate-400 hover:text-blue-400 hover:bg-slate-700'
+        }`}
+        title={siteMode === 'b2c' ? 'Aktiv: B2C mode' : 'Skift til B2C mode'}
+      >
+        <UserIcon className="w-4 h-4" />
         B2C
-      </span>
+        {siteMode === 'b2c' && <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded-full">Aktiv</span>}
+      </button>
     </div>
   );
 };
@@ -1022,7 +1031,7 @@ const B2BHomePage = () => {
 
       <section className="bg-slate-800/50 rounded-lg p-10 max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center text-white mb-2">
-          Forretningsresultater på få uger
+          Din bundlinje
         </h2>
         <p className="text-center text-slate-400 mb-10 max-w-3xl mx-auto">
           Uanset om det gælder marketing, salg eller operationel excellence,
@@ -1031,28 +1040,33 @@ const B2BHomePage = () => {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           <div className="border-2 border-green-500 bg-slate-800 p-6 rounded-lg shadow-xl shadow-green-500/20">
-            <Briefcase className="w-10 h-10 mx-auto text-green-400" />
-            <h3 className="text-xl font-bold text-white mt-3">Dokumenteret ROI</h3>
+            <Briefcase className="w-10 h-10 mx-auto text-green-400 mb-2" />
+            <p className="font-bold text-green-400 text-sm mb-1">0‑2 MDR.</p>
+            <h3 className="text-xl font-bold text-white mt-2 mb-1">
+              <span className="text-green-400">ROI</span> • Måleligt afkast
+            </h3>
             <p className="text-slate-300 mt-2 text-sm">
-              Se konkrete business‑cases på 4‑8 ugers payback‑tid.
+              Se konkrete KPI‑løft og en payback‑tid på max 8 uger.
             </p>
           </div>
-          <div className="bg-slate-800 p-6 rounded-lg">
-            <Users className="w-10 h-10 mx-auto text-yellow-400" />
-            <h3 className="text-xl font-bold text-white mt-3">
-              Team‑baseret læring
+          <div className="border-2 border-green-500 bg-slate-800 p-6 rounded-lg">
+            <Users className="w-10 h-10 mx-auto text-green-400 mb-2" />
+            <p className="font-bold text-green-400 text-sm mb-1">6 MDR.</p>
+            <h3 className="text-xl font-bold text-white mt-2 mb-1">
+              <span className="text-green-400">Team</span> • Hurtig adoption
             </h3>
             <p className="text-slate-400 mt-2 text-sm">
-              Workshops designet til hele afdelinger sikrer hurtig adoption.
+              Hele afdelingen arbejder sikkert med AI‑flows og best practices.
             </p>
           </div>
-          <div className="bg-slate-800 p-6 rounded-lg">
-            <TrendingUp className="w-10 h-10 mx-auto text-red-400" />
-            <h3 className="text-xl font-bold text-white mt-3">
-              Skalerbar kompetenceopbygning
+          <div className="border-2 border-green-500 bg-slate-800 p-6 rounded-lg">
+            <TrendingUp className="w-10 h-10 mx-auto text-green-400 mb-2" />
+            <p className="font-bold text-green-400 text-sm mb-1">1 ÅR</p>
+            <h3 className="text-xl font-bold text-white mt-2 mb-1">
+              <span className="text-green-400">Skalering</span> • Vedvarende effekt
             </h3>
             <p className="text-slate-400 mt-2 text-sm">
-              Længere forløb med milepæle garanterer vedvarende effekt.
+              AI‑kompetencer forankret på tværs af organisationen.
             </p>
           </div>
         </div>
@@ -1108,31 +1122,40 @@ const B2CHomePage = () => {
       </section>
       
       <section className="bg-slate-800/50 rounded-lg p-8 max-w-6xl mx-auto">
-        <h2 className="text-3xl font-bold text-center text-white mb-2">Hvorfor din timing er afgørende</h2>
+        <h2 className="text-3xl font-bold text-center text-white mb-2">Din karriere</h2>
         <p className="text-center text-slate-400 mb-10 max-w-3xl mx-auto">
           AI-kompetencer er på en rejse fra at være en unik fordel til at blive en fundamental forventning. Her ser du, hvorfor det er en fordel at handle nu.
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           <div className="border-2 border-blue-500 bg-slate-800 p-6 rounded-lg shadow-xl shadow-blue-500/20">
-            <p className="font-bold text-blue-400 text-sm">I DAG</p>
-            <h3 className="text-xl font-bold text-white mt-2">En klar fordel</h3>
+            <Rocket className="w-10 h-10 mx-auto text-blue-400 mb-2" />
+            <p className="font-bold text-blue-400 text-sm mb-1">0‑2 MDR.</p>
+            <h3 className="text-xl font-bold text-white mt-2 mb-1">
+              <span className="text-blue-400">Kickstart</span> • Synlige sejre
+            </h3>
             <p className="text-slate-300 mt-2 text-sm">
-              Ved at lære AI nu, skiller du dig positivt ud. Du er foran dine konkurrenter og kan vise initiativ og værdi for din virksomhed.
+              Spar 2‑4 timer om ugen og imponer chefen med hurtige AI‑løsninger.
             </p>
           </div>
-          <div className="bg-slate-800 p-6 rounded-lg">
-            <p className="font-bold text-yellow-400 text-sm">NÆR FREMTID</p>
-            <h3 className="text-xl font-bold text-white mt-2">En standardforventning</h3>
+          <div className="border-2 border-blue-500 bg-slate-800 p-6 rounded-lg">
+            <Award className="w-10 h-10 mx-auto text-blue-400 mb-2" />
+            <p className="font-bold text-blue-400 text-sm mb-1">6 MDR.</p>
+            <h3 className="text-xl font-bold text-white mt-2 mb-1">
+              <span className="text-blue-400">Troværdighed</span> • Bliv go‑to‑person
+            </h3>
             <p className="text-slate-400 mt-2 text-sm">
-              Her vil basale AI-færdigheder være et standardkrav i mange roller. At kunne AI er ikke længere en fordel, men en forudsætning.
+              Du er nu "AI‑champ" i teamet og driver små projekter på egne ben.
             </p>
           </div>
-          <div className="bg-slate-800 p-6 rounded-lg">
-            <p className="font-bold text-red-400 text-sm">FREMTID</p>
-            <h3 className="text-xl font-bold text-white mt-2">En grundlæggende nødvendighed</h3>
+          <div className="border-2 border-blue-500 bg-slate-800 p-6 rounded-lg">
+            <TrendingUp className="w-10 h-10 mx-auto text-blue-400 mb-2" />
+            <p className="font-bold text-blue-400 text-sm mb-1">1 ÅR</p>
+            <h3 className="text-xl font-bold text-white mt-2 mb-1">
+              <span className="text-blue-400">Karriereboost</span> • Klar til næste step
+            </h3>
             <p className="text-slate-400 mt-2 text-sm">
-              Her vil manglende AI-kompetencer være en karrieremæssig ulempe, på linje med ikke at kunne bruge en computer i dag.
+              Du har dokumenteret impact og står stærkt til løn‑ eller stillingshop.
             </p>
           </div>
         </div>
@@ -1957,8 +1980,10 @@ const AppContent = () => {
               <span>AI Rookie {isB2B && <span className="font-light">Enterprise</span>}</span>
             </button>
             
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-6">
               <SiteModeToggle onModeChange={() => navigate('/')} />
+              
+              <div className="h-6 w-px bg-slate-600"></div>
               
               <div className="flex items-center gap-2">
                 {navItems.map((item) => (
