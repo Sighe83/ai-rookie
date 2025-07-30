@@ -622,20 +622,13 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => onAuthClick('login')}
-        className="flex items-center gap-1 px-3 py-2 text-slate-300 hover:text-white transition-colors text-sm"
-      >
-        <LogIn className="w-4 h-4" />
-        <span className="hidden sm:block">Log ind</span>
-      </button>
+    <div className="flex items-center">
       <button
         onClick={() => onAuthClick('signup')}
-        className={`flex items-center gap-1 px-3 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm`}
+        className={`flex items-center gap-1 px-4 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
       >
         <UserPlus className="w-4 h-4" />
-        <span className="hidden sm:block">Tilmeld</span>
+        <span>Kom i gang</span>
       </button>
     </div>
   );
@@ -680,10 +673,9 @@ const SiteModeToggle = ({ onModeChange }) => {
   );
 };
 
-const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick }) => {
+const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick, isAuthenticated }) => {
   const navigate = useNavigate();
   const { siteMode } = useSiteMode();
-  const { isAuthenticated } = useAuth();
   const isB2B = siteMode === 'b2b';
   
   const handleNavigation = (page) => {
@@ -694,8 +686,16 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick 
   if (!isOpen) return null;
 
   const navItems = siteMode === 'b2b' 
-    ? [{ label: 'Hjem', key: 'home' }, { label: 'Eksperter', key: 'tutors' }, { label: 'Dashboard', key: 'dashboard' }]
-    : [{ label: 'Hjem', key: 'home' }, { label: 'Find Tutor', key: 'tutors' }, { label: 'Dashboard', key: 'dashboard' }];
+    ? [
+        { label: 'Hjem', key: 'home' }, 
+        { label: 'Eksperter', key: 'tutors' },
+        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard' }] : [])
+      ]
+    : [
+        { label: 'Hjem', key: 'home' }, 
+        { label: 'Find Tutor', key: 'tutors' },
+        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard' }] : [])
+      ];
 
   return (
     <div className="fixed inset-0 z-50 md:hidden">
@@ -741,28 +741,16 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick 
               Min Profil
             </button>
           ) : (
-            <div className="space-y-2">
-              <button
-                onClick={() => {
-                  onAuthClick('login');
-                  onClose();
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700 rounded-lg transition-colors text-sm"
-              >
-                <LogIn className="w-4 h-4" />
-                Log ind
-              </button>
-              <button
-                onClick={() => {
-                  onAuthClick('signup');
-                  onClose();
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm`}
-              >
-                <UserPlus className="w-4 h-4" />
-                Tilmeld dig
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                onAuthClick('signup');
+                onClose();
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
+            >
+              <UserPlus className="w-4 h-4" />
+              Kom i gang
+            </button>
           )}
         </div>
       </div>
@@ -1950,6 +1938,7 @@ const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { siteMode } = useSiteMode();
+  const { isAuthenticated } = useAuth();
 
   const handleAuthClick = (mode) => {
     setAuthModalMode(mode);
@@ -1964,8 +1953,16 @@ const AppContent = () => {
   const isB2B = siteMode === 'b2b';
 
   const navItems = isB2B 
-    ? [{ label: 'Hjem', key: 'home', path: '/' }, { label: 'Eksperter', key: 'tutors', path: '/tutors' }, { label: 'Dashboard', key: 'dashboard', path: '/dashboard' }]
-    : [{ label: 'Hjem', key: 'home', path: '/' }, { label: 'Find Tutor', key: 'tutors', path: '/tutors' }, { label: 'Dashboard', key: 'dashboard', path: '/dashboard' }];
+    ? [
+        { label: 'Hjem', key: 'home', path: '/' }, 
+        { label: 'Eksperter', key: 'tutors', path: '/tutors' },
+        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard', path: '/dashboard' }] : [])
+      ]
+    : [
+        { label: 'Hjem', key: 'home', path: '/' }, 
+        { label: 'Find Tutor', key: 'tutors', path: '/tutors' },
+        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard', path: '/dashboard' }] : [])
+      ];
 
   return (
     <div className="min-h-screen bg-slate-900 font-sans text-slate-300">
@@ -2018,6 +2015,7 @@ const AppContent = () => {
         currentPage={currentPage}
         onAuthClick={handleAuthClick}
         onProfileClick={handleProfileClick}
+        isAuthenticated={isAuthenticated}
       />
 
       <main className="px-4 sm:px-6 lg:px-8">
