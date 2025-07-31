@@ -25,8 +25,11 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
         company: user.company || '',
         department: user.department || ''
       });
+      setIsEditing(false); // Ensure editing is disabled when modal opens
+      setErrors({});
+      setSuccessMessage('');
     }
-  }, [user]);
+  }, [user, isOpen]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -244,7 +247,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Gem
+                        Godkend redigering
                       </>
                     )}
                   </button>
