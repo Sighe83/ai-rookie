@@ -43,11 +43,12 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
   }, [isOpen, clearError, initialMode]);
 
   React.useEffect(() => {
+    console.log('AuthModal: Mode changed to:', mode);
     setErrors({});
     setIsNewUser(false);
-    clearError();
+    // Don't clear authError when switching modes to preserve error messages
     // Don't clear form data when switching modes to preserve email
-  }, [mode, clearError]);
+  }, [mode]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -81,6 +82,10 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    // Clear auth errors when user starts typing
+    if (authError) {
+      clearError();
     }
   };
 
@@ -264,17 +269,10 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Error Messages */}
-          {authError && (
+          {(authError || errors.general) && (
             <div className="bg-red-900/50 border border-red-600 rounded-lg p-3 flex items-start gap-2">
               <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-200 text-sm">{authError}</p>
-            </div>
-          )}
-          
-          {errors.general && (
-            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-200 text-sm">{errors.general}</p>
+              <p className="text-red-200 text-sm">{authError || errors.general}</p>
             </div>
           )}
 
