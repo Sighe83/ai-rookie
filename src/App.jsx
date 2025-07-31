@@ -681,6 +681,11 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
   
+  // Debug: Log user info in mobile menu
+  console.log('MobileMenu Debug - User:', user);
+  console.log('MobileMenu Debug - User role:', user?.role);
+  console.log('MobileMenu Debug - Is tutor:', isTutor);
+  
   const handleNavigation = (page) => {
     navigate(page === 'home' ? '/' : `/${page}`);
     onClose();
@@ -1972,6 +1977,11 @@ const AppContent = () => {
   const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
+  
+  // Debug: Log user info to console
+  console.log('App.jsx Debug - User:', user);
+  console.log('App.jsx Debug - User role:', user?.role);
+  console.log('App.jsx Debug - Is tutor:', isTutor);
 
   const getNavItems = () => {
     if (isTutor) {
