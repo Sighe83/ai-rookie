@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, Building, Briefcase, Lock, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Building, Briefcase, Lock, Save, X, Edit, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
@@ -11,7 +11,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
     phone: user?.phone || '',
     company: user?.company || '',
     department: user?.department || '',
-    userId: user?.id || null
+    lastUserId: user?.id || null // Tracking only, not sent to database
   }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,16 +29,29 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   const passwordTimeoutRef = React.useRef(null);
   const [isFormDirty, setIsFormDirty] = useState(false);
 
+  // Calculate profile completion percentage
+  const getCompletionPercentage = () => {
+    if (!formData) return 0;
+    
+    const fields = ['name', 'phone'];
+    if (isB2B) {
+      fields.push('company', 'department');
+    }
+    
+    const filledFields = fields.filter(field => formData[field]?.trim());
+    return Math.round((filledFields.length / fields.length) * 100);
+  };
+
   // Only update form data when user changes significantly (like login/logout)
   React.useEffect(() => {
-    if (user && user.id !== formData.userId) {
-      setFormData(prevFormData => ({
+    if (user && user.id !== formData.lastUserId) {
+      setFormData({
         name: user.name || '',
         phone: user.phone || '',
         company: user.company || '',
         department: user.department || '',
-        userId: user.id // Track which user this data belongs to
-      }));
+        lastUserId: user.id // Track which user this data belongs to
+      });
     }
   }, [user]);
 
@@ -236,7 +249,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-slate-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-slate-800 rounded-lg w-full max-w-md md:max-w-lg lg:max-w-xl mx-auto max-h-[95vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-slate-700">
           <h2 className="text-xl font-bold text-white">Min Profil</h2>
           <button
@@ -252,6 +265,32 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
           {successMessage && (
             <div className="bg-green-900/50 border border-green-600 rounded-lg p-3">
               <p className="text-green-200 text-sm">{successMessage}</p>
+            </div>
+          )}
+
+          {/* Visual editing indicator */}
+          {isEditing && (
+            <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Edit className="w-4 h-4 text-blue-400" />
+                <p className="text-blue-200 text-sm">Du redigerer din profil</p>
+              </div>
+            </div>
+          )}
+
+          {/* Progress indicator for form completion */}
+          {isEditing && (
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-slate-400 mb-1">
+                <span>Profil fuldendthed</span>
+                <span>{getCompletionPercentage()}%</span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${isB2B ? 'bg-green-500' : 'bg-blue-500'}`}
+                  style={{ width: `${getCompletionPercentage()}%` }}
+                ></div>
+              </div>
             </div>
           )}
 
@@ -288,24 +327,33 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
           )}
 
           {/* Profile Form */}
-          <form onSubmit={handleSave} className="space-y-4">
+          <form onSubmit={handleSave} className="space-y-6 md:space-y-4">
             {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+            <div className={`transition-all duration-200 ${isEditing ? 'ring-1 ring-blue-500/20 rounded-lg p-1' : ''}`}>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 Fulde navn *
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors
+                  ${isEditing ? 'text-blue-400' : 'text-slate-400'}`} />
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   disabled={!isEditing}
-                  className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500 ${
-                    !isEditing ? 'opacity-60 cursor-not-allowed' : ''
-                  } ${errors.name ? 'border border-red-500' : ''}`}
+                  className={`w-full bg-slate-700 rounded-lg py-3 pl-11 pr-12 text-white transition-all duration-200
+                    ${isEditing
+                      ? 'focus:ring-2 focus:ring-blue-500 focus:bg-slate-600 border-transparent'
+                      : 'opacity-60 cursor-not-allowed'
+                    }
+                    ${errors.name ? 'ring-2 ring-red-500' : ''}
+                  `}
                   placeholder="Dit fulde navn"
                 />
+                {/* Success indicator */}
+                {isEditing && formData.name && !errors.name && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-400" />
+                )}
               </div>
               {errors.name && (
                 <p className="text-red-400 text-xs mt-1">{errors.name}</p>
@@ -414,27 +462,40 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
+            {/* Improved Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-slate-600">
               {isEditing ? (
                 <>
+                  {/* Primary Action - Save */}
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className={`flex-1 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 ${isSubmitting ? 'cursor-wait' : ''}`}
+                    disabled={isSubmitting || !isFormDirty || Object.keys(errors).length > 0}
+                    className={`flex-1 min-h-[44px] text-base font-semibold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed
+                      transition-all duration-200 flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2
+                      focus:ring-offset-slate-800 shadow-lg hover:shadow-xl ${isSubmitting ? 'cursor-wait' : ''}
+                      ${Object.keys(errors).length > 0 ? 'bg-red-600 cursor-not-allowed' :
+                        !isFormDirty ? 'bg-gray-600 cursor-not-allowed' :
+                        isB2B ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                      } text-white`}
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                         Gemmer...
                       </>
+                    ) : Object.keys(errors).length > 0 ? (
+                      'Ret fejl først'
+                    ) : !isFormDirty ? (
+                      'Ingen ændringer'
                     ) : (
                       <>
-                        <Save className="w-4 h-4" />
-                        Godkend redigering
+                        <Save className="w-5 h-5" />
+                        Gem ændringer
                       </>
                     )}
                   </button>
+
+                  {/* Secondary Action - Cancel */}
                   <button
                     type="button"
                     onClick={() => {
@@ -449,13 +510,14 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                         phone: user.phone || '',
                         company: user.company || '',
                         department: user.department || '',
-                        userId: user.id
+                        lastUserId: user.id
                       });
                       setErrors({});
                       setSuccessMessage('');
                       setIsFormDirty(false);
                     }}
-                    className="flex-1 bg-slate-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition-colors"
+                    className="flex-1 min-h-[44px] text-base bg-slate-600 hover:bg-slate-500 text-white font-medium py-3 px-6 rounded-lg
+                    transition-all duration-200 focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-800"
                   >
                     Annuller
                   </button>
@@ -464,9 +526,12 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className={`flex-1 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition-colors`}
+                  className={`w-full min-h-[44px] text-base font-semibold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center gap-2
+                  focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 shadow-lg hover:shadow-xl
+                  ${isB2B ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'} text-white`}
                 >
-                  Rediger Profil
+                  <Edit className="w-5 h-5" />
+                  Rediger profil
                 </button>
               )}
             </div>

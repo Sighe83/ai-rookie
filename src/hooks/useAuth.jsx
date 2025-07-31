@@ -88,9 +88,11 @@ export const AuthProvider = ({ children }) => {
             // If profile is missing, create a basic profile from auth data
             if (!profile) {
               console.warn('No profile found during init, using auth data only');
+              const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+              console.log('Setting user name during init to:', userName);
               setUser({
                 ...session.user,
-                name: session.user.user_metadata?.name || session.user.email,
+                name: userName,
                 email: session.user.email,
                 phone: null,
                 company: null,
@@ -99,9 +101,13 @@ export const AuthProvider = ({ children }) => {
                 site_mode: 'B2C'
               });
             } else {
+              // Ensure name is always set, fallback to email if missing from profile
+              const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+              console.log('Setting user name from profile during init to:', userName);
               setUser({
                 ...session.user,
-                ...profile
+                ...profile,
+                name: userName
               });
             }
           }
@@ -141,9 +147,11 @@ export const AuthProvider = ({ children }) => {
               // If profile is missing, create a basic profile from auth data
               if (!profile) {
                 console.warn('No profile found during auth change, using auth data only');
+                const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+                console.log('Setting user name to:', userName);
                 setUser({
                   ...session.user,
-                  name: session.user.user_metadata?.name || session.user.email,
+                  name: userName,
                   email: session.user.email,
                   phone: null,
                   company: null,
@@ -152,9 +160,13 @@ export const AuthProvider = ({ children }) => {
                   site_mode: 'B2C'
                 });
               } else {
+                // Ensure name is always set, fallback to email if missing from profile
+                const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+                console.log('Setting user name from profile to:', userName);
                 setUser({
                   ...session.user,
-                  ...profile
+                  ...profile,
+                  name: userName
                 });
               }
             }
@@ -363,11 +375,10 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Navn er påkrævet');
       }
       
-      // Update user profile in database
+      // Update user profile in database - explicit fields only (no userId)
       const { data, error } = await supabase
         .from('users')
         .update({
-          ...userData,
           name: userData.name?.trim(),
           phone: userData.phone?.trim() || null,
           company: userData.company?.trim() || null,
