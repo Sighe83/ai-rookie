@@ -440,14 +440,28 @@ export const AuthProvider = ({ children }) => {
       if (newPassword.length < 6) {
         throw new Error('Ny adgangskode skal være mindst 6 tegn');
       }
+
+      // First verify current password by attempting to sign in
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      });
+
+      if (verifyError) {
+        if (verifyError.message.includes('Invalid login credentials')) {
+          throw new Error('Nuværende adgangskode er forkert');
+        }
+        throw new Error('Kunne ikke verificere nuværende adgangskode');
+      }
       
+      // Now update to new password
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (error) {
         // Handle specific Supabase auth errors
-        let errorMessage = 'Password change failed';
+        let errorMessage = 'Adgangskode opdatering fejlede';
         if (error.message.includes('New password should be different')) {
           errorMessage = 'Ny adgangskode skal være forskellig fra den nuværende';
         } else if (error.message.includes('Password should be')) {

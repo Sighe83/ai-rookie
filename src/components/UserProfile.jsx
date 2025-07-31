@@ -25,23 +25,36 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   const [passwordErrors, setPasswordErrors] = useState({});
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('');
+  const timeoutRef = React.useRef(null);
+  const passwordTimeoutRef = React.useRef(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
 
   // Only update form data when user changes significantly (like login/logout)
   React.useEffect(() => {
     if (user && user.id !== formData.userId) {
-      setFormData({
+      setFormData(prevFormData => ({
         name: user.name || '',
         phone: user.phone || '',
         company: user.company || '',
         department: user.department || '',
         userId: user.id // Track which user this data belongs to
-      });
+      }));
     }
-  }, [user, formData.userId]);
+  }, [user]);
 
-  // Reset editing state when modal closes
+  // Reset editing state when modal closes and cleanup timeouts
   React.useEffect(() => {
     if (!isOpen) {
+      // Clear any active timeouts
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      if (passwordTimeoutRef.current) {
+        clearTimeout(passwordTimeoutRef.current);
+        passwordTimeoutRef.current = null;
+      }
+      
       // Modal closed - reset for next time
       setIsEditing(false);
       setErrors({});
@@ -53,6 +66,18 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
     }
   }, [isOpen]);
 
+  // Cleanup timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (passwordTimeoutRef.current) {
+        clearTimeout(passwordTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -63,9 +88,15 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
 
     // Phone validation (optional but if provided, must be valid)
     if (formData.phone?.trim()) {
-      const phoneRegex = /^(\+45\s?)?(\d{2}\s?\d{2}\s?\d{2}\s?\d{2}|\d{8})$/;
-      if (!phoneRegex.test(formData.phone.trim())) {
-        newErrors.phone = 'Indtast et gyldigt dansk telefonnummer (f.eks. +45 12 34 56 78 eller 12345678)';
+      // Remove all spaces and non-digit characters except +
+      const cleanPhone = formData.phone.replace(/[^\d+]/g, '');
+      
+      // Danish phone number patterns:
+      // +4512345678, +45 12 34 56 78, 12345678, 12 34 56 78
+      const phoneRegex = /^(\+45)?[2-9]\d{7}$/;
+      
+      if (!phoneRegex.test(cleanPhone)) {
+        newErrors.phone = 'Indtast et gyldigt dansk telefonnummer (8 cifre, evt. med +45)';
       }
     }
 
@@ -74,7 +105,19 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Check if form is dirty (different from original user data)
+      const isDirty = newData.name !== (user?.name || '') ||
+                     newData.phone !== (user?.phone || '') ||
+                     newData.company !== (user?.company || '') ||
+                     newData.department !== (user?.department || '');
+      
+      setIsFormDirty(isDirty);
+      return newData;
+    });
+    
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -94,8 +137,9 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
       
       if (result.success) {
         setIsEditing(false);
+        setIsFormDirty(false);
         setSuccessMessage('Profil opdateret succesfuldt');
-        setTimeout(() => setSuccessMessage(''), 3000);
+        timeoutRef.current = setTimeout(() => setSuccessMessage(''), 3000);
       } else {
         // Handle updateProfile errors
         setErrors({
@@ -157,7 +201,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
       if (result.success) {
         setPasswordSuccessMessage('Adgangskode ændret succesfuldt');
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        setTimeout(() => {
+        passwordTimeoutRef.current = setTimeout(() => {
           setPasswordSuccessMessage('');
           setShowPasswordChange(false);
         }, 2000);
@@ -295,11 +339,29 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  onChange={(e) => {
+                    // Auto-format phone number as user types
+                    let value = e.target.value;
+                    
+                    // Remove all non-digits except +
+                    const cleaned = value.replace(/[^\d+]/g, '');
+                    
+                    // Format Danish phone numbers
+                    if (cleaned.startsWith('+45')) {
+                      const number = cleaned.slice(3);
+                      if (number.length <= 8) {
+                        value = '+45 ' + number.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+                      }
+                    } else if (cleaned.length <= 8) {
+                      value = cleaned.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+                    }
+                    
+                    handleInputChange('phone', value);
+                  }}
                   disabled={!isEditing}
                   className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500 ${
                     !isEditing ? 'opacity-60 cursor-not-allowed' : ''
-                  }`}
+                  } ${errors.phone ? 'border border-red-500' : ''}`}
                   placeholder="+45 12 34 56 78"
                 />
               </div>
@@ -376,6 +438,11 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                   <button
                     type="button"
                     onClick={() => {
+                      if (isFormDirty) {
+                        const confirmReset = window.confirm('Du har ugemte ændringer. Er du sikker på at du vil annullere?');
+                        if (!confirmReset) return;
+                      }
+                      
                       setIsEditing(false);
                       setFormData({
                         name: user.name || '',
@@ -386,6 +453,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                       });
                       setErrors({});
                       setSuccessMessage('');
+                      setIsFormDirty(false);
                     }}
                     className="flex-1 bg-slate-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition-colors"
                   >
@@ -532,7 +600,18 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
 
           {/* Account Info */}
           <div className="text-xs text-slate-400 text-center">
-            Medlem siden {new Date(user.created_at).toLocaleDateString('da-DK')}
+            {(() => {
+              try {
+                const createdDate = user.created_at ? new Date(user.created_at) : null;
+                if (createdDate && !isNaN(createdDate.getTime())) {
+                  return `Medlem siden ${createdDate.toLocaleDateString('da-DK')}`;
+                }
+                return 'Medlem siden ukendt dato';
+              } catch (error) {
+                console.warn('Error formatting created_at date:', error);
+                return 'Medlem siden ukendt dato';
+              }
+            })()}
           </div>
         </div>
       </div>
