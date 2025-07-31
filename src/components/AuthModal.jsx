@@ -114,7 +114,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
             });
           } else if (result.error?.includes('Email not confirmed') || result.error?.includes('ikke bekræftet')) {
             setErrors({ 
-              general: 'Du skal bekræfte din email før du kan logge ind. Tjek din indbakke og klik på bekræftelseslinket.',
+              general: 'Din email er ikke bekræftet endnu. Tjek din indbakke og klik på bekræftelseslinket, så kan du logge ind.',
               email: '',
               password: ''
             });
@@ -149,7 +149,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           phone: formData.phone,
           company: isB2B ? formData.company : '',
           department: isB2B ? formData.department : '',
-          siteMode: siteMode.toUpperCase()
+          siteMode: siteMode
           // Role will default to 'USER' in the database
         });
         
