@@ -85,10 +85,25 @@ export const AuthProvider = ({ children }) => {
           const profile = await fetchUserProfile(session.user.id);
           
           if (mountedRef.current) {
-            setUser({
-              ...session.user,
-              ...profile
-            });
+            // If profile is missing, create a basic profile from auth data
+            if (!profile) {
+              console.warn('No profile found during init, using auth data only');
+              setUser({
+                ...session.user,
+                name: session.user.user_metadata?.name || session.user.email,
+                email: session.user.email,
+                phone: null,
+                company: null,
+                department: null,
+                role: 'USER',
+                site_mode: 'B2C'
+              });
+            } else {
+              setUser({
+                ...session.user,
+                ...profile
+              });
+            }
           }
         }
       } catch (error) {
@@ -123,10 +138,25 @@ export const AuthProvider = ({ children }) => {
             const profile = await fetchUserProfile(session.user.id);
             
             if (mountedRef.current) {
-              setUser({
-                ...session.user,
-                ...profile
-              });
+              // If profile is missing, create a basic profile from auth data
+              if (!profile) {
+                console.warn('No profile found during auth change, using auth data only');
+                setUser({
+                  ...session.user,
+                  name: session.user.user_metadata?.name || session.user.email,
+                  email: session.user.email,
+                  phone: null,
+                  company: null,
+                  department: null,
+                  role: 'USER',
+                  site_mode: 'B2C'
+                });
+              } else {
+                setUser({
+                  ...session.user,
+                  ...profile
+                });
+              }
             }
           } else if (mountedRef.current) {
             setUser(null);
@@ -204,7 +234,7 @@ export const AuthProvider = ({ children }) => {
         if (error.message.includes('Invalid login credentials')) {
           errorMessage = 'Ugyldig email eller adgangskode';
         } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Email ikke bekræftet. Tjek din indbakke.';
+          errorMessage = 'Du skal bekræfte din email før du kan logge ind. Tjek din indbakke og klik på bekræftelseslinket.';
         } else if (error.message.includes('Too many requests')) {
           errorMessage = 'For mange forsøg. Prøv igen senere.';
         } else {
@@ -219,6 +249,23 @@ export const AuthProvider = ({ children }) => {
       const profile = await fetchUserProfile(data.user.id);
       
       if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
+
+      // If profile is missing, create a basic profile from auth data
+      if (!profile) {
+        console.warn('No profile found for user, using auth data only');
+        const basicUserData = {
+          ...data.user,
+          name: data.user.user_metadata?.name || data.user.email,
+          email: data.user.email,
+          phone: null,
+          company: null,
+          department: null,
+          role: 'USER',
+          site_mode: 'B2C'
+        };
+        setUser(basicUserData);
+        return { success: true, user: basicUserData };
+      }
 
       const userData = {
         ...data.user,
@@ -293,36 +340,8 @@ export const AuthProvider = ({ children }) => {
 
       if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
 
-      // User profile is automatically created by database trigger
-      // Update profile with additional fields if needed
-      if (data.user) {
-        try {
-          const updateData = {};
-          if (userData.phone?.trim()) updateData.phone = userData.phone.trim();
-          if (userData.company?.trim()) updateData.company = userData.company.trim();
-          if (userData.department?.trim()) updateData.department = userData.department.trim();
-          if (userData.siteMode) updateData.site_mode = userData.siteMode;
-          // Role is not updated during registration - only set manually in database
-
-          // Only update if we have additional data to add
-          if (Object.keys(updateData).length > 0) {
-            const { error: updateError } = await supabase
-              .from('users')
-              .update({
-                ...updateData,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', data.user.id);
-
-            if (updateError) {
-              console.warn('Profile update failed:', updateError);
-            }
-          }
-        } catch (profileError) {
-          console.warn('Profile update error:', profileError);
-        }
-      }
-
+      // User profile is automatically created by database trigger with all fields
+      // No need for additional update since trigger handles everything
       return { success: true, user: data.user };
     } catch (error) {
       console.error('Registration error:', error);

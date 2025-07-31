@@ -10,7 +10,8 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
     name: user?.name || '',
     phone: user?.phone || '',
     company: user?.company || '',
-    department: user?.department || ''
+    department: user?.department || '',
+    userId: user?.id || null
   }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);

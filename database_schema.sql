@@ -132,11 +132,16 @@ CREATE POLICY "Availability is viewable by everyone" ON public.tutor_availabilit
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.users (id, name, email)
+    INSERT INTO public.users (id, name, email, phone, company, department, site_mode, role)
     VALUES (
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
-        NEW.email
+        NEW.email,
+        NEW.raw_user_meta_data->>'phone',
+        NEW.raw_user_meta_data->>'company',
+        NEW.raw_user_meta_data->>'department',
+        UPPER(COALESCE(NEW.raw_user_meta_data->>'siteMode', 'B2C')),
+        'USER'
     );
     RETURN NEW;
 END;
