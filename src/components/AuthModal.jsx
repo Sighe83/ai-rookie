@@ -19,11 +19,17 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, register, error: authError, clearError } = useAuth();
+  const { login, register, error: authError, clearError, user, isAuthenticated } = useAuth();
   
   const isB2B = siteMode === 'b2b';
 
-  // Reset form when modal closes or mode changes
+  // Initialize mode on first mount
+  React.useEffect(() => {
+    setMode(initialMode);
+    console.log('AuthModal: Initialized with mode:', initialMode);
+  }, []); // Only run once on mount
+
+  // Reset form when modal closes - but preserve mode for better UX
   React.useEffect(() => {
     if (!isOpen) {
       setFormData({
@@ -36,11 +42,15 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
       });
       setErrors({});
       setIsSubmitting(false);
-      setMode(initialMode); // Reset to initial mode
+      // ✅ DON'T reset mode - let user return to their last chosen mode
+      // Only reset mode if coming from email confirmation
+      if (mode === 'email-confirmation') {
+        setMode('login'); // After email confirmation, show login
+      }
       setConfirmationEmail(''); // Reset confirmation email
       clearError();
     }
-  }, [isOpen, clearError, initialMode]);
+  }, [isOpen, clearError, mode]);
 
   React.useEffect(() => {
     console.log('AuthModal: Mode changed to:', mode);
@@ -49,6 +59,14 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     // Don't clear authError when switching modes to preserve error messages
     // Don't clear form data when switching modes to preserve email
   }, [mode]);
+
+  // Close modal when user becomes authenticated
+  React.useEffect(() => {
+    if (isAuthenticated && isOpen) {
+      console.log('AuthModal: User is authenticated, closing modal.');
+      onClose();
+    }
+  }, [isAuthenticated, isOpen, onClose]);
 
 
   const handleInputChange = (field, value) => {
@@ -115,6 +133,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
 
     try {
       let result;
+      let shouldKeepSubmitting = false;
       if (mode === 'login') {
         result = await login(actualEmail, actualPassword);
         
@@ -211,14 +230,19 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
         }
       }
 
-      // Only close modal for successful login (not signup)
+      // Login successful - let the useEffect handle closing the modal when user state updates
       if (result.success && mode === 'login') {
-        onClose();
+        console.log('AuthModal: Login successful, waiting for user state to update');
+        // Keep isSubmitting true so the useEffect can detect when to close the modal
+        shouldKeepSubmitting = true;
       }
     } catch (error) {
       console.error('Auth error:', error);
     } finally {
-      setIsSubmitting(false);
+      // Reset isSubmitting for all cases except successful login
+      if (!shouldKeepSubmitting) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -229,6 +253,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
   };
 
   const handleBackToLogin = () => {
+    console.log('AuthModal: handleBackToLogin called, switching to login mode');
     setMode('login');
     setConfirmationEmail('');
     setErrors({});
@@ -458,7 +483,11 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
               {mode === 'login' ? 'Ny bruger?' : 'Har du allerede en konto?'}
               <button
                 type="button"
-                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                onClick={() => {
+                  const newMode = mode === 'login' ? 'signup' : 'login';
+                  console.log('AuthModal: Mode switch button clicked, changing from', mode, 'to', newMode);
+                  setMode(newMode);
+                }}
                 className={`${isB2B ? 'text-green-400 hover:text-green-300' : 'text-blue-400 hover:text-blue-300'} ml-2 font-medium underline`}
               >
                 {mode === 'login' ? 'Kom i gang her' : 'Log ind her'}
