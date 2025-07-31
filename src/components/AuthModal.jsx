@@ -149,7 +149,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           phone: formData.phone,
           company: isB2B ? formData.company : '',
           department: isB2B ? formData.department : '',
-          siteMode: siteMode.toUpperCase()
+          siteMode: siteMode
           // Role will default to 'USER' in the database
         });
         
