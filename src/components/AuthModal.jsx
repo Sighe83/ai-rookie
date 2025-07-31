@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { X, Eye, EyeOff, Mail, Lock, User, Building, Briefcase } from 'lucide-react';
+import { X, Eye, EyeOff, Mail, Lock, User, Building, Briefcase, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
+import EmailConfirmation from './EmailConfirmation.jsx';
 
 const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }) => {
-  const [mode, setMode] = useState(initialMode); // 'login' or 'signup'
+  const [mode, setMode] = useState(initialMode); // 'login', 'signup', or 'email-confirmation'
   const [showPassword, setShowPassword] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false); // Track if user needs to create account
+  const [confirmationEmail, setConfirmationEmail] = useState(''); // Store email for confirmation page
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -95,18 +97,42 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
         result = await login(formData.email, formData.password);
         console.log('Login result:', result);
         
-        // If login fails due to user not found, suggest signup
-        if (!result.success && result.error?.includes('Ugyldig email eller adgangskode')) {
-          setErrors({ email: 'Email ikke fundet. Vil du oprette en konto?' });
-          setIsNewUser(true);
-          setIsSubmitting(false);
-          return;
-        }
-        
-        // If login failed for other reasons, show the actual error
+        // Handle login errors with better UX
         if (!result.success) {
           console.error('Login failed with error:', result.error);
-          setErrors({ general: result.error || 'Login fejlede' });
+          
+          if (result.error?.includes('Invalid login credentials') || result.error?.includes('Ugyldig email eller adgangskode')) {
+            setErrors({ 
+              general: 'Forkert email eller adgangskode. Tjek dine oplysninger og prøv igen.',
+              email: '',
+              password: ''
+            });
+          } else if (result.error?.includes('Email not confirmed') || result.error?.includes('ikke bekræftet')) {
+            setErrors({ 
+              general: 'Du skal bekræfte din email før du kan logge ind. Tjek din indbakke og klik på bekræftelseslinket.',
+              email: '',
+              password: ''
+            });
+          } else if (result.error?.includes('Too many requests') || result.error?.includes('mange forsøg')) {
+            setErrors({ 
+              general: 'For mange login-forsøg. Vent et par minutter og prøv igen.',
+              email: '',
+              password: ''
+            });
+          } else if (result.error?.includes('User not found') || result.error?.includes('ikke fundet')) {
+            setErrors({ 
+              email: 'Denne email er ikke registreret. Vil du oprette en konto?',
+              password: ''
+            });
+            setIsNewUser(true);
+          } else {
+            setErrors({ 
+              general: result.error || 'Login fejlede. Prøv igen.',
+              email: '',
+              password: ''
+            });
+          }
+          
           setIsSubmitting(false);
           return;
         }
@@ -121,9 +147,51 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           siteMode: siteMode.toUpperCase()
           // Role will default to 'USER' in the database
         });
+        
+        // Handle signup success - show email confirmation
+        if (result.success) {
+          setConfirmationEmail(formData.email);
+          setMode('email-confirmation');
+          setIsSubmitting(false);
+          return;
+        }
+        
+        // Handle signup errors with better UX
+        if (!result.success) {
+          if (result.error?.includes('User already registered') || result.error?.includes('allerede registreret')) {
+            setErrors({ 
+              email: 'Denne email er allerede registreret. Prøv at logge ind i stedet.',
+              general: ''
+            });
+          } else if (result.error?.includes('Password should be') || result.error?.includes('Adgangskoden skal')) {
+            setErrors({ 
+              password: 'Adgangskoden skal være mindst 6 tegn lang.',
+              general: ''
+            });
+          } else if (result.error?.includes('Invalid email') || result.error?.includes('Ugyldig email')) {
+            setErrors({ 
+              email: 'Indtast en gyldig email adresse.',
+              general: ''
+            });
+          } else if (result.error?.includes('Signup is disabled')) {
+            setErrors({ 
+              general: 'Kontooprettelse er midlertidigt deaktiveret. Kontakt support.',
+              email: ''
+            });
+          } else {
+            setErrors({ 
+              general: result.error || 'Kontooprettelse fejlede. Prøv igen.',
+              email: ''
+            });
+          }
+          
+          setIsSubmitting(false);
+          return;
+        }
       }
 
-      if (result.success) {
+      // Only close modal for successful login (not signup)
+      if (result.success && mode === 'login') {
         onClose();
       }
     } catch (error) {
@@ -139,7 +207,35 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     setErrors({});
   };
 
+  const handleBackToLogin = () => {
+    setMode('login');
+    setConfirmationEmail('');
+    setErrors({});
+    setIsNewUser(false);
+  };
+
   if (!isOpen) return null;
+
+  // Show email confirmation screen
+  if (mode === 'email-confirmation') {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="relative">
+          <button
+            onClick={onClose}
+            className="absolute -top-2 -right-2 z-10 text-slate-400 hover:text-white transition-colors bg-slate-800 rounded-full p-2"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <EmailConfirmation 
+            email={confirmationEmail}
+            onBackToLogin={handleBackToLogin}
+            siteMode={siteMode}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -169,13 +265,15 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Error Messages */}
           {authError && (
-            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3">
+            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <p className="text-red-200 text-sm">{authError}</p>
             </div>
           )}
           
           {errors.general && (
-            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3">
+            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <p className="text-red-200 text-sm">{errors.general}</p>
             </div>
           )}
