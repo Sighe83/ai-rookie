@@ -424,6 +424,53 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      if (!mountedRef.current || !user) {
+        return { success: false, error: 'Ikke logget ind' };
+      }
+      
+      setError(null);
+      
+      // Validate inputs
+      if (!currentPassword?.trim() || !newPassword?.trim()) {
+        throw new Error('Både nuværende og ny adgangskode er påkrævet');
+      }
+      
+      if (newPassword.length < 6) {
+        throw new Error('Ny adgangskode skal være mindst 6 tegn');
+      }
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        // Handle specific Supabase auth errors
+        let errorMessage = 'Password change failed';
+        if (error.message.includes('New password should be different')) {
+          errorMessage = 'Ny adgangskode skal være forskellig fra den nuværende';
+        } else if (error.message.includes('Password should be')) {
+          errorMessage = 'Adgangskoden skal være mindst 6 tegn';
+        } else {
+          errorMessage = error.message;
+        }
+        throw new Error(errorMessage);
+      }
+
+      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
+
+      return { success: true };
+    } catch (error) {
+      console.error('Password change error:', error);
+      const errorMessage = error.message || 'Adgangskode ændring fejlede';
+      if (mountedRef.current) {
+        setError(errorMessage);
+      }
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -433,6 +480,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    changePassword,
     clearError: () => setError(null)
   };
 
