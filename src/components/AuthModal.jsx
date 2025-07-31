@@ -50,6 +50,33 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     // Don't clear form data when switching modes to preserve email
   }, [mode]);
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Email validation
+    if (!formData.email?.trim()) {
+      newErrors.email = 'Email er påkrævet';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Indtast en gyldig email adresse';
+    }
+
+    // Password validation
+    if (!formData.password?.trim()) {
+      newErrors.password = 'Adgangskode er påkrævet';
+    } else if (mode === 'signup' && formData.password.length < 6) {
+      newErrors.password = 'Adgangskode skal være mindst 6 tegn';
+    }
+
+    // Name validation for signup
+    if (mode === 'signup') {
+      if (!formData.name?.trim()) {
+        newErrors.name = 'Navn er påkrævet';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -65,50 +92,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Get actual DOM values (handles Chrome autofill correctly)
-    const formElement = e.target;
-    const emailInput = formElement.querySelector('input[name="email"]');
-    const passwordInput = formElement.querySelector('input[name="password"]');
-    
-    const actualEmail = emailInput?.value || formData.email;
-    const actualPassword = passwordInput?.value || formData.password;
-    
-    // Update formData with actual values for validation
-    const actualFormData = {
-      ...formData,
-      email: actualEmail,
-      password: actualPassword
-    };
-    
-    // Validate using actual values
-    const newErrors = {};
-    
-    // Email validation
-    if (!actualEmail?.trim()) {
-      newErrors.email = 'Email er påkrævet';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(actualEmail)) {
-      newErrors.email = 'Indtast en gyldig email adresse';
-    }
-
-    // Password validation
-    if (!actualPassword?.trim()) {
-      newErrors.password = 'Adgangskode er påkrævet';
-    } else if (mode === 'signup' && actualPassword.length < 6) {
-      newErrors.password = 'Adgangskode skal være mindst 6 tegn';
-    }
-
-    // Name validation for signup
-    if (mode === 'signup') {
-      if (!actualFormData.name?.trim()) {
-        newErrors.name = 'Navn er påkrævet';
-      }
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      setIsSubmitting(false);
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     clearError();
@@ -116,7 +100,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     try {
       let result;
       if (mode === 'login') {
-        result = await login(actualEmail, actualPassword);
+        result = await login(formData.email, formData.password);
         
         // Handle login errors with better UX
         if (!result.success) {
@@ -159,19 +143,19 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
         }
       } else {
         result = await register({
-          email: actualEmail,
-          password: actualPassword,
-          name: actualFormData.name,
-          phone: actualFormData.phone,
-          company: isB2B ? actualFormData.company : '',
-          department: isB2B ? actualFormData.department : '',
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          phone: formData.phone,
+          company: isB2B ? formData.company : '',
+          department: isB2B ? formData.department : '',
           siteMode: siteMode
           // Role will default to 'USER' in the database
         });
         
         // Handle signup success - show email confirmation
         if (result.success) {
-          setConfirmationEmail(actualEmail);
+          setConfirmationEmail(formData.email);
           setMode('email-confirmation');
           setIsSubmitting(false);
           return;
@@ -325,7 +309,6 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
-                name="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
@@ -359,7 +342,6 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
-                name="password"
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
