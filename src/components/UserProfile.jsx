@@ -6,38 +6,37 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   const { user, updateProfile, logout } = useAuth();
   const isB2B = siteMode === 'b2b';
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     name: user?.name || '',
     phone: user?.phone || '',
     company: user?.company || '',
     department: user?.department || ''
-  });
+  }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Reset form when user changes
+  // Only update form data when user changes significantly (like login/logout)
   React.useEffect(() => {
-    if (user) {
+    if (user && user.id !== formData.userId) {
       setFormData({
         name: user.name || '',
         phone: user.phone || '',
         company: user.company || '',
-        department: user.department || ''
+        department: user.department || '',
+        userId: user.id // Track which user this data belongs to
       });
     }
-  }, [user]);
+  }, [user, formData.userId]);
 
-  // Reset editing state only when modal transitions from closed to open
-  const prevIsOpenRef = React.useRef(isOpen);
+  // Reset editing state when modal closes
   React.useEffect(() => {
-    if (isOpen && !prevIsOpenRef.current) {
-      // Modal just opened
+    if (!isOpen) {
+      // Modal closed - reset for next time
       setIsEditing(false);
       setErrors({});
       setSuccessMessage('');
     }
-    prevIsOpenRef.current = isOpen;
   }, [isOpen]);
 
   const validateForm = () => {
@@ -60,13 +59,6 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    console.log('handleSave called - isEditing:', isEditing);
-    
-    // Only proceed if we're actually in editing mode
-    if (!isEditing) {
-      console.log('Not in editing mode, skipping save');
-      return;
-    }
     
     if (!validateForm()) return;
 
@@ -287,10 +279,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => {
-                    console.log('Edit button clicked');
-                    setIsEditing(true);
-                  }}
+                  onClick={() => setIsEditing(true)}
                   className={`flex-1 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition-colors`}
                 >
                   Rediger Profil
