@@ -204,8 +204,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Component mount check moved to after operations to prevent premature exit
-      
       // Rate limiting check
       const rateLimitKey = `login_${email}`;
       if (!authRateLimit(rateLimitKey)) {
@@ -257,9 +255,20 @@ export const AuthProvider = ({ children }) => {
 
       if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
 
-      // ✅ DON'T set user manually - let onAuthStateChange handle it
-      // This prevents race condition between login and onAuthStateChange
-      console.log('Login successful, waiting for onAuthStateChange to set user state');
+      // Manually set user state after successful login
+      if (data.user) {
+        const profile = await fetchUserProfile(data.user.id);
+        if (mountedRef.current) {
+          const userName = profile?.name || data.user.user_metadata?.name || data.user.email?.split('@')[0] || data.user.email;
+          setUser({
+            ...data.user,
+            ...profile,
+            name: userName
+          });
+          console.log('Login successful, user state updated.');
+        }
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);

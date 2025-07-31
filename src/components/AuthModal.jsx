@@ -133,7 +133,6 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
 
     try {
       let result;
-      let shouldKeepSubmitting = false;
       if (mode === 'login') {
         result = await login(actualEmail, actualPassword);
         
@@ -172,7 +171,6 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
               password: ''
             });
           }
-          
           setIsSubmitting(false);
           return;
         }
@@ -185,10 +183,8 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           company: isB2B ? actualFormData.company : '',
           department: isB2B ? actualFormData.department : '',
           siteMode: siteMode
-          // Role will default to 'USER' in the database
         });
         
-        // Handle signup success - show email confirmation
         if (result.success) {
           setConfirmationEmail(actualEmail);
           setMode('email-confirmation');
@@ -196,7 +192,6 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           return;
         }
         
-        // Handle signup errors with better UX
         if (!result.success) {
           if (result.error?.includes('User already registered') || result.error?.includes('allerede registreret')) {
             setErrors({ 
@@ -224,25 +219,21 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
               email: ''
             });
           }
-          
           setIsSubmitting(false);
           return;
         }
       }
 
-      // Login successful - let the useEffect handle closing the modal when user state updates
       if (result.success && mode === 'login') {
         console.log('AuthModal: Login successful, waiting for user state to update');
-        // Keep isSubmitting true so the useEffect can detect when to close the modal
-        shouldKeepSubmitting = true;
+        // On successful login, we don't need to do anything here.
+        // The useEffect hook will detect the authentication and close the modal.
+        // We leave isSubmitting as true to show the loading spinner until the modal closes.
       }
     } catch (error) {
       console.error('Auth error:', error);
-    } finally {
-      // Reset isSubmitting for all cases except successful login
-      if (!shouldKeepSubmitting) {
-        setIsSubmitting(false);
-      }
+      setErrors({ general: 'Der opstod en uventet fejl. Prøv igen.' });
+      setIsSubmitting(false);
     }
   };
 
