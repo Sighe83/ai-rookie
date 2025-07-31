@@ -36,9 +36,11 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
       });
       setErrors({});
       setIsSubmitting(false);
+      setMode(initialMode); // Reset to initial mode
+      setConfirmationEmail(''); // Reset confirmation email
       clearError();
     }
-  }, [isOpen, clearError]);
+  }, [isOpen, clearError, initialMode]);
 
   React.useEffect(() => {
     setErrors({});
@@ -93,9 +95,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     try {
       let result;
       if (mode === 'login') {
-        console.log('Attempting login with:', { email: formData.email });
         result = await login(formData.email, formData.password);
-        console.log('Login result:', result);
         
         // Handle login errors with better UX
         if (!result.success) {

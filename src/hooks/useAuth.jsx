@@ -151,10 +151,9 @@ export const AuthProvider = ({ children }) => {
     };
   }, [initialized, fetchUserProfile]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount - only cleanup subscription, not mountedRef
   useEffect(() => {
     return () => {
-      mountedRef.current = false;
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
       }
@@ -163,7 +162,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
+      // Component mount check moved to after operations to prevent premature exit
       
       // Rate limiting check
       const rateLimitKey = `login_${email}`;
@@ -244,18 +243,20 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
-      
       // Rate limiting check
       const rateLimitKey = `register_${userData.email}`;
       if (!authRateLimit(rateLimitKey)) {
         const errorMsg = 'For mange registrerings-forsøg. Prøv igen om 1 minut.';
-        setError(errorMsg);
+        if (mountedRef.current) {
+          setError(errorMsg);
+        }
         return { success: false, error: errorMsg };
       }
       
-      setError(null);
-      setLoading(true);
+      if (mountedRef.current) {
+        setError(null);
+        setLoading(true);
+      }
       
       // Validate inputs
       if (!userData.email?.trim() || !userData.password?.trim() || !userData.name?.trim()) {
