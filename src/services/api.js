@@ -1,5 +1,4 @@
-// API Service for AI Rookie Backend - Vercel + Supabase
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Pure Supabase RLS API Service - No Backend JWT Required
 import { supabase, authHelpers } from './supabase.js';
 
 class ApiError extends Error {
@@ -11,221 +10,178 @@ class ApiError extends Error {
   }
 }
 
-// Token management using Supabase session
-const tokenStorage = {
-  get: async () => {
-    try {
-      const session = await authHelpers.getCurrentSession();
-      return session?.access_token || null;
-    } catch (error) {
-      console.warn('Token storage get failed:', error);
-      return null;
-    }
-  },
-  set: () => {
-    // Supabase handles token storage automatically
-    console.log('Token storage is handled by Supabase');
-  },
-  remove: async () => {
-    try {
-      await authHelpers.signOut();
-    } catch (error) {
-      console.warn('Token storage remove failed:', error);
-    }
-  }
-};
+// ✅ REMOVED: JWT token management and Bearer auth
+// Supabase RLS handles authentication automatically via client
+// No need for manual token management or bearer headers
 
-// API request helper with Supabase auth
-const apiRequest = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const token = await tokenStorage.get();
-  
-  const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
-    ...options,
-  };
+// ✅ REMOVED: Dual authentication system eliminated
+// All authentication now handled directly by Supabase RLS
+// This removes JWT backend conflicts and security gaps
 
-  try {
-    const response = await fetch(url, config);
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new ApiError(
-        data.error || 'Request failed',
-        response.status,
-        data
-      );
-    }
-
-    return data;
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    
-    // Network or other errors
-    throw new ApiError(
-      'Network error or server unavailable',
-      0,
-      { originalError: error.message }
-    );
-  }
-};
-
-// Auth API using Supabase + Vercel API
-export const authApi = {
-  login: async (email, password) => {
-    // Use Supabase auth directly
-    const authData = await authHelpers.signIn(email, password);
-    
-    // Also call API endpoint for any additional processing
-    const response = await apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    
-    return {
-      success: true,
-      data: {
-        user: authData.user,
-        session: authData.session,
-        ...response.data
-      }
-    };
-  },
-
-  register: async (userData) => {
-    // Register via API endpoint (which handles both Supabase auth and profile creation)
-    const response = await apiRequest('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
-    
-    return response;
-  },
-
-  getProfile: async () => {
-    return await apiRequest('/auth/me');
-  },
-
-  updateProfile: async (userData) => {
-    return await apiRequest('/auth/profile', {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  },
-
-  changePassword: async (newPassword) => {
-    await authHelpers.updatePassword(newPassword);
-    return { success: true, message: 'Password updated successfully' };
-  },
-
-  resetPassword: async (email) => {
-    await authHelpers.resetPassword(email);
-    return { success: true, message: 'Password reset email sent' };
-  },
-
-  logout: async () => {
-    try {
-      await apiRequest('/auth/logout', { method: 'POST' });
-    } catch (error) {
-      console.warn('Logout API call failed:', error);
-    } finally {
-      await authHelpers.signOut();
-    }
-  },
-
-  isAuthenticated: async () => {
-    const session = await authHelpers.getCurrentSession();
-    return !!session;
-  },
-
-  onAuthStateChange: (callback) => {
-    return authHelpers.onAuthStateChange(callback);
-  }
-};
-
-// Tutors API
+// Tutors API - Direct Supabase queries with RLS
 export const tutorsApi = {
   getAll: async (siteMode = 'B2B') => {
-    return await apiRequest('/tutors', {
-      headers: {
-        'x-site-mode': siteMode
-      }
-    });
+    const { data, error } = await supabase
+      .from('tutors')
+      .select(`
+        *,
+        sessions(*)
+      `)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
   },
 
   getById: async (id, siteMode = 'B2B') => {
-    return await apiRequest(`/tutors/${id}`, {
-      headers: {
-        'x-site-mode': siteMode
-      }
-    });
+    const { data, error } = await supabase
+      .from('tutors')
+      .select(`
+        *,
+        sessions(*)
+      `)
+      .eq('id', id)
+      .eq('is_active', true)
+      .single();
+
+    if (error) throw new ApiError(error.message, 404, error);
+    return { data, success: true };
   }
 };
 
-// Availability API
+// Availability API - Direct Supabase queries with RLS
 export const availabilityApi = {
   getAvailability: async (tutorId, startDate, endDate) => {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    let query = supabase
+      .from('tutor_availability')
+      .select('*')
+      .eq('tutor_id', tutorId);
+
+    if (startDate) query = query.gte('date', startDate);
+    if (endDate) query = query.lte('date', endDate);
+
+    const { data, error } = await query.order('date', { ascending: true });
     
-    const queryString = params.toString();
-    const endpoint = `/availability/${tutorId}${queryString ? `?${queryString}` : ''}`;
-    
-    return await apiRequest(endpoint);
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
   },
 
   updateAvailability: async (tutorId, date, timeSlots) => {
-    return await apiRequest(`/availability/${tutorId}`, {
-      method: 'POST',
-      body: JSON.stringify({ date, timeSlots }),
-    });
+    const { data, error } = await supabase
+      .from('tutor_availability')
+      .upsert([{
+        tutor_id: tutorId,
+        date,
+        time_slots: timeSlots,
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
   },
 
   bookTimeSlot: async (tutorId, date, time) => {
-    return await apiRequest(`/availability/${tutorId}/${date}/book`, {
-      method: 'PATCH',
-      body: JSON.stringify({ time }),
+    // This would typically be handled by booking creation
+    // which updates availability automatically via triggers
+    const { data, error } = await supabase.rpc('book_time_slot', {
+      p_tutor_id: tutorId,
+      p_date: date,
+      p_time: time
     });
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
   }
 };
 
-// Bookings API
+// Bookings API - Direct Supabase queries with RLS
 export const bookingsApi = {
   getBookings: async (filters = {}) => {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value);
-    });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    let query = supabase
+      .from('bookings')
+      .select(`
+        *,
+        tutor:tutors(*),
+        session:sessions(*)
+      `)
+      .eq('user_id', user.id);
+
+    if (filters.status) query = query.eq('status', filters.status.toUpperCase());
+    if (filters.siteMode) query = query.eq('site_mode', filters.siteMode.toUpperCase());
+
+    const { data, error } = await query.order('created_at', { ascending: false });
     
-    const queryString = params.toString();
-    const endpoint = `/bookings${queryString ? `?${queryString}` : ''}`;
-    
-    return await apiRequest(endpoint);
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
   },
 
   createBooking: async (bookingData) => {
-    return await apiRequest('/bookings', {
-      method: 'POST',
-      body: JSON.stringify(bookingData),
-    });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert([{
+        ...bookingData,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select(`
+        *,
+        tutor:tutors(*),
+        session:sessions(*)
+      `)
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
   },
 
   getBooking: async (id) => {
-    return await apiRequest(`/bookings/${id}`);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        tutor:tutors(*),
+        session:sessions(*)
+      `)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) throw new ApiError(error.message, 404, error);
+    return { data, success: true };
   },
 
   updateBookingStatus: async (id, status) => {
-    return await apiRequest(`/bookings/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ 
+        status: status.toUpperCase(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
   }
 };
 
@@ -252,11 +208,10 @@ export const healthApi = {
 };
 
 // Export utilities
-export { ApiError, tokenStorage, supabase, authHelpers };
+export { ApiError, supabase, authHelpers };
 
-// Default export
+// Default export - Pure Supabase RLS API
 const api = {
-  auth: authApi,
   tutors: tutorsApi,
   availability: availabilityApi,
   bookings: bookingsApi,
