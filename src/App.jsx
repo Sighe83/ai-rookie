@@ -681,6 +681,7 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
   
+  
   const handleNavigation = (page) => {
     navigate(page === 'home' ? '/' : `/${page}`);
     onClose();
@@ -1202,6 +1203,7 @@ const TutorsPage = () => {
   // Use API to fetch tutors
   const { data: tutors = [], loading, error } = useTutors(siteMode.toUpperCase());
   const isB2B = siteMode === 'b2b';
+  
   
   const handleSelect = (tutor, session) => {
     navigate('/booking', { state: { tutor, session } });
@@ -1972,6 +1974,7 @@ const AppContent = () => {
   const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
+  
 
   const getNavItems = () => {
     if (isTutor) {
