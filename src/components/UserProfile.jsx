@@ -16,7 +16,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Reset form when user changes or modal opens
+  // Reset form when user changes
   React.useEffect(() => {
     if (user) {
       setFormData({
@@ -25,11 +25,20 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
         company: user.company || '',
         department: user.department || ''
       });
-      setIsEditing(false); // Ensure editing is disabled when modal opens
+    }
+  }, [user]);
+
+  // Reset editing state only when modal transitions from closed to open
+  const prevIsOpenRef = React.useRef(isOpen);
+  React.useEffect(() => {
+    if (isOpen && !prevIsOpenRef.current) {
+      // Modal just opened
+      setIsEditing(false);
       setErrors({});
       setSuccessMessage('');
     }
-  }, [user, isOpen]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const validateForm = () => {
     const newErrors = {};
