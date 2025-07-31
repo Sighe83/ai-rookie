@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Eye, EyeOff, Mail, Lock, User, Building, Briefcase } from 'lucide-react';
+import { X, Eye, EyeOff, Mail, Lock, User, Building, Briefcase, GraduationCap } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }) => {
@@ -12,7 +12,8 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     name: '',
     phone: '',
     company: '',
-    department: ''
+    department: '',
+    role: 'USER' // Default role
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +31,8 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
         name: '',
         phone: '',
         company: '',
-        department: ''
+        department: '',
+        role: 'USER'
       });
       setErrors({});
       setIsSubmitting(false);
@@ -118,7 +120,8 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           phone: formData.phone,
           company: isB2B ? formData.company : '',
           department: isB2B ? formData.department : '',
-          siteMode: siteMode.toUpperCase()
+          siteMode: siteMode.toUpperCase(),
+          role: formData.role
         });
       }
 
@@ -200,6 +203,43 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
               {errors.name && (
                 <p className="text-red-400 text-xs mt-1">{errors.name}</p>
               )}
+            </div>
+          )}
+
+          {/* Role selection (signup only) */}
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Jeg er *
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="USER"
+                    checked={formData.role === 'USER'}
+                    onChange={(e) => handleInputChange('role', e.target.value)}
+                    className={`text-${isB2B ? 'green' : 'blue'}-600 focus:ring-${isB2B ? 'green' : 'blue'}-500`}
+                  />
+                  <User className="w-4 h-4 text-slate-400 ml-2 mr-2" />
+                  <span className="text-slate-300 text-sm">
+                    {isB2B ? 'Medarbejder/Leder der vil lære AI' : 'Person der vil lære AI'}
+                  </span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="TUTOR"
+                    checked={formData.role === 'TUTOR'}
+                    onChange={(e) => handleInputChange('role', e.target.value)}
+                    className={`text-${isB2B ? 'green' : 'blue'}-600 focus:ring-${isB2B ? 'green' : 'blue'}-500`}
+                  />
+                  <GraduationCap className="w-4 h-4 text-slate-400 ml-2 mr-2" />
+                  <span className="text-slate-300 text-sm">AI Tutor/Ekspert der vil undervise</span>
+                </label>
+              </div>
             </div>
           )}
 

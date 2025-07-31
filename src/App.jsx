@@ -5,6 +5,7 @@ import { useTutors, useCreateBooking, useBookings } from './hooks/useApi';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
 import AdminGate from './components/AdminGate';
+import TutorDashboard from './components/TutorDashboard';
 import {
   Briefcase,
   Users,
@@ -674,10 +675,11 @@ const SiteModeToggle = ({ onModeChange }) => {
   );
 };
 
-const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick, isAuthenticated }) => {
+const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick, isAuthenticated, user }) => {
   const navigate = useNavigate();
   const { siteMode } = useSiteMode();
   const isB2B = siteMode === 'b2b';
+  const isTutor = user?.role === 'TUTOR';
   
   const handleNavigation = (page) => {
     navigate(page === 'home' ? '/' : `/${page}`);
@@ -686,17 +688,34 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
 
   if (!isOpen) return null;
 
-  const navItems = siteMode === 'b2b' 
-    ? [
-        { label: 'Hjem', key: 'home' }, 
-        { label: 'Eksperter', key: 'tutors' },
-        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard' }] : [])
-      ]
-    : [
-        { label: 'Hjem', key: 'home' }, 
-        { label: 'Find Tutor', key: 'tutors' },
-        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard' }] : [])
+  const getNavItems = () => {
+    if (isTutor) {
+      // Tutor navigation
+      return [
+        { label: 'Hjem', key: 'home' },
+        { label: 'Tutor Dashboard', key: 'tutor-dashboard' }
       ];
+    }
+    
+    // Regular user navigation
+    const baseItems = siteMode === 'b2b' 
+      ? [
+          { label: 'Hjem', key: 'home' }, 
+          { label: 'Eksperter', key: 'tutors' }
+        ]
+      : [
+          { label: 'Hjem', key: 'home' }, 
+          { label: 'Find Tutor', key: 'tutors' }
+        ];
+    
+    if (isAuthenticated) {
+      baseItems.push({ label: 'Dashboard', key: 'dashboard' });
+    }
+    
+    return baseItems;
+  };
+
+  const navItems = getNavItems();
 
   return (
     <div className="fixed inset-0 z-50 md:hidden">
@@ -1939,7 +1958,7 @@ const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { siteMode } = useSiteMode();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const handleAuthClick = (mode) => {
     setAuthModalMode(mode);
@@ -1952,18 +1971,36 @@ const AppContent = () => {
 
   const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
   const isB2B = siteMode === 'b2b';
+  const isTutor = user?.role === 'TUTOR';
 
-  const navItems = isB2B 
-    ? [
-        { label: 'Hjem', key: 'home', path: '/' }, 
-        { label: 'Eksperter', key: 'tutors', path: '/tutors' },
-        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard', path: '/dashboard' }] : [])
-      ]
-    : [
-        { label: 'Hjem', key: 'home', path: '/' }, 
-        { label: 'Find Tutor', key: 'tutors', path: '/tutors' },
-        ...(isAuthenticated ? [{ label: 'Dashboard', key: 'dashboard', path: '/dashboard' }] : [])
+  const getNavItems = () => {
+    if (isTutor) {
+      // Tutor navigation
+      return [
+        { label: 'Hjem', key: 'home', path: '/' },
+        { label: 'Tutor Dashboard', key: 'tutor-dashboard', path: '/tutor-dashboard' }
       ];
+    }
+    
+    // Regular user navigation
+    const baseItems = isB2B 
+      ? [
+          { label: 'Hjem', key: 'home', path: '/' }, 
+          { label: 'Eksperter', key: 'tutors', path: '/tutors' }
+        ]
+      : [
+          { label: 'Hjem', key: 'home', path: '/' }, 
+          { label: 'Find Tutor', key: 'tutors', path: '/tutors' }
+        ];
+    
+    if (isAuthenticated) {
+      baseItems.push({ label: 'Dashboard', key: 'dashboard', path: '/dashboard' });
+    }
+    
+    return baseItems;
+  };
+
+  const navItems = getNavItems();
 
   return (
     <div className="min-h-screen bg-slate-900 font-sans text-slate-300">
@@ -2017,6 +2054,7 @@ const AppContent = () => {
         onAuthClick={handleAuthClick}
         onProfileClick={handleProfileClick}
         isAuthenticated={isAuthenticated}
+        user={user}
       />
 
       <main className="px-4 sm:px-6 lg:px-8">
@@ -2026,6 +2064,7 @@ const AppContent = () => {
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/booking-success" element={<BookingSuccessPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/tutor-dashboard" element={<TutorDashboard />} />
         </Routes>
       </main>
 
