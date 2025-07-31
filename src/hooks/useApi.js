@@ -13,18 +13,24 @@ export const useSupabaseQuery = (queryFn, dependencies = []) => {
   const requestIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
+    console.log('useSupabaseQuery: fetchData called, mounted:', mountedRef.current);
     if (!mountedRef.current) return;
     
     const currentRequestId = ++requestIdRef.current;
+    console.log('useSupabaseQuery: Starting request', currentRequestId);
     
     try {
+      console.log('useSupabaseQuery: Setting loading true');
       setLoading(true);
       setError(null);
       
+      console.log('useSupabaseQuery: Calling queryFn');
       const result = await queryFn();
+      console.log('useSupabaseQuery: QueryFn returned:', result);
       
       // Only update state if this is still the latest request and component is mounted
       if (currentRequestId === requestIdRef.current && mountedRef.current) {
+        console.log('useSupabaseQuery: Setting data:', result);
         setData(result);
       }
     } catch (error) {
@@ -48,6 +54,7 @@ export const useSupabaseQuery = (queryFn, dependencies = []) => {
       }
     } finally {
       if (currentRequestId === requestIdRef.current && mountedRef.current) {
+        console.log('useSupabaseQuery: Setting loading to false');
         setLoading(false);
       }
     }
@@ -74,37 +81,33 @@ export const useSupabaseQuery = (queryFn, dependencies = []) => {
   return { data, loading, error, refetch };
 };
 
-// Hook for tutors data - simplified to use Supabase directly
+// Hook for tutors data
 export const useTutors = (siteMode = 'B2B') => {
-  return useSupabaseQuery(async () => {
-    // Validate siteMode
-    const validSiteModes = ['B2B', 'B2C'];
-    const normalizedSiteMode = validSiteModes.includes(siteMode) ? siteMode : 'B2C';
-    
-    const { data, error } = await supabase
-      .from('tutors')
-      .select(`
-        *,
-        sessions(*)
-      `)
-      .eq('is_active', true)
-      .eq('site_mode', normalizedSiteMode)
-      .order('created_at', { ascending: false });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    if (error) {
-      console.error('Tutors fetch error:', error);
-      throw error;
-    }
-    
-    if (!data || data.length === 0) {
-      console.warn(`No tutors found for site mode: ${normalizedSiteMode}`);
-      return [];
-    }
-    
-    // Transform data to match expected format with better error handling
-    return data.map(tutor => {
+  useEffect(() => {
+    const fetchTutors = async () => {
       try {
-        return {
+        setLoading(true);
+        setError(null);
+        
+        const { data: rawData, error: fetchError } = await supabase
+          .from('tutors')
+          .select(`
+            *,
+            sessions(*)
+          `)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        // Transform data
+        const transformedTutors = rawData?.map(tutor => ({
           id: tutor.id,
           userId: tutor.user_id,
           title: tutor.title || 'Unavailable',
@@ -115,15 +118,23 @@ export const useTutors = (siteMode = 'B2B') => {
           basePrice: tutor.base_price || tutor.price || 0,
           price: tutor.price || tutor.base_price || 0,
           isActive: tutor.is_active,
-          name: tutor.title || tutor.name || 'Unavailable', // For compatibility
+          name: tutor.title || tutor.name || 'Unavailable',
           sessions: Array.isArray(tutor.sessions) ? tutor.sessions : []
-        };
-      } catch (transformError) {
-        console.warn('Error transforming tutor data:', transformError, tutor);
-        return null;
+        })) || [];
+
+        setData(transformedTutors);
+        
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-    }).filter(Boolean); // Remove any null entries from transformation errors
+    };
+
+    fetchTutors();
   }, [siteMode]);
+  
+  return { data: data || [], loading, error };
 };
 
 // Hook for single tutor

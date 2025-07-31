@@ -55,13 +55,61 @@ BEGIN
     
 END $$;
 
--- Step 4: Verify the setup
+-- Step 4: Create sample sessions for the tutor
+INSERT INTO public.sessions (
+  tutor_id,
+  title,
+  description,
+  duration,
+  price_override,
+  is_active,
+  created_at,
+  updated_at
+) VALUES 
+-- Session 1
+(
+  (SELECT id FROM public.tutors WHERE user_id = (SELECT id FROM public.users WHERE email = 'daniel@airookie.dk')),
+  'AI-drevne business processer',
+  'Lær at identificere og automatisere repetitive processer med AI-værktøjer som Zapier, Make og custom solutions.',
+  90,
+  NULL,
+  true,
+  NOW(),
+  NOW()
+),
+-- Session 2
+(
+  (SELECT id FROM public.tutors WHERE user_id = (SELECT id FROM public.users WHERE email = 'daniel@airookie.dk')),
+  'Intelligent dokumenthåndtering',
+  'Implementér AI-baserede systemer til at behandle, kategorisere og analysere dokumenter automatisk.',
+  60,
+  800,
+  true,
+  NOW(),
+  NOW()
+),
+-- Session 3
+(
+  (SELECT id FROM public.tutors WHERE user_id = (SELECT id FROM public.users WHERE email = 'daniel@airookie.dk')),
+  'Data-drevet beslutningstagning',
+  'Brug AI til at analysere business data og generere actionable insights for bedre beslutninger.',
+  120,
+  1500,
+  true,
+  NOW(),
+  NOW()
+);
+
+-- Step 5: Verify the setup
 SELECT 
     u.name, 
     u.email, 
     u.role, 
     t.title, 
-    t.specialty
+    t.specialty,
+    COUNT(s.id) as session_count
 FROM public.users u
 LEFT JOIN public.tutors t ON u.id = t.user_id
-WHERE u.email = 'daniel@airookie.dk';
+LEFT JOIN public.sessions s ON t.id = s.tutor_id
+WHERE u.email = 'daniel@airookie.dk'
+GROUP BY u.name, u.email, u.role, t.title, t.specialty;
