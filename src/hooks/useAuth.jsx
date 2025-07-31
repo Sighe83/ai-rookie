@@ -301,6 +301,7 @@ export const AuthProvider = ({ children }) => {
           if (userData.company?.trim()) updateData.company = userData.company.trim();
           if (userData.department?.trim()) updateData.department = userData.department.trim();
           if (userData.siteMode) updateData.site_mode = userData.siteMode;
+          // Role is not updated during registration - only set manually in database
 
           // Only update if we have additional data to add
           if (Object.keys(updateData).length > 0) {

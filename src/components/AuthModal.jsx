@@ -119,6 +119,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           company: isB2B ? formData.company : '',
           department: isB2B ? formData.department : '',
           siteMode: siteMode.toUpperCase()
+          // Role will default to 'USER' in the database
         });
       }
 
@@ -202,6 +203,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
               )}
             </div>
           )}
+
 
           {/* Email field */}
           <div>
