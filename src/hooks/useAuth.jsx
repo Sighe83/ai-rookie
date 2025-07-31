@@ -245,35 +245,10 @@ export const AuthProvider = ({ children }) => {
 
       if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
 
-      // Get user profile with error handling
-      const profile = await fetchUserProfile(data.user.id);
-      
-      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
-
-      // If profile is missing, create a basic profile from auth data
-      if (!profile) {
-        console.warn('No profile found for user, using auth data only');
-        const basicUserData = {
-          ...data.user,
-          name: data.user.user_metadata?.name || data.user.email,
-          email: data.user.email,
-          phone: null,
-          company: null,
-          department: null,
-          role: 'USER',
-          site_mode: 'B2C'
-        };
-        setUser(basicUserData);
-        return { success: true, user: basicUserData };
-      }
-
-      const userData = {
-        ...data.user,
-        ...profile
-      };
-
-      setUser(userData);
-      return { success: true, user: userData };
+      // ✅ DON'T set user manually - let onAuthStateChange handle it
+      // This prevents race condition between login and onAuthStateChange
+      console.log('Login successful, waiting for onAuthStateChange to set user state');
+      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
       const errorMessage = error.message || 'Login fejlede';
