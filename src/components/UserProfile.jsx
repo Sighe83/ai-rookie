@@ -60,6 +60,13 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    console.log('handleSave called - isEditing:', isEditing);
+    
+    // Only proceed if we're actually in editing mode
+    if (!isEditing) {
+      console.log('Not in editing mode, skipping save');
+      return;
+    }
     
     if (!validateForm()) return;
 
@@ -280,7 +287,10 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    console.log('Edit button clicked');
+                    setIsEditing(true);
+                  }}
                   className={`flex-1 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg transition-colors`}
                 >
                   Rediger Profil
