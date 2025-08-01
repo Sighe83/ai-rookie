@@ -8,14 +8,14 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String    @id @default(uuid()) @db.Uuid
   email         String    @unique
   name          String
   phone         String?
   company       String?
   department    String?
   role          String    @default("USER")
-  siteMode      String    @default("B2C") @map("site_mode")
+  siteMode      String    @default("B2B") @map("site_mode")
   password      String?
   emailVerified Boolean   @default(false) @map("email_verified")
   isActive      Boolean   @default(true) @map("is_active")
@@ -28,8 +28,8 @@ model User {
 }
 
 model Tutor {
-  id           String              @id @default(cuid())
-  userId       String              @unique @map("user_id")
+  id           String              @id @default(uuid()) @db.Uuid
+  userId       String              @unique @map("user_id") @db.Uuid
   title        String
   specialty    String
   experience   String?
@@ -49,8 +49,8 @@ model Tutor {
 }
 
 model Session {
-  id            String    @id @default(cuid())
-  tutorId       String    @map("tutor_id")
+  id            String    @id @default(uuid()) @db.Uuid
+  tutorId       String    @map("tutor_id") @db.Uuid
   title         String
   description   String
   duration      Int       @default(60)
@@ -66,10 +66,10 @@ model Session {
 }
 
 model Booking {
-  id               String    @id @default(cuid())
-  userId           String    @map("user_id")
-  tutorId          String    @map("tutor_id")
-  sessionId        String    @map("session_id")
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  tutorId          String    @map("tutor_id") @db.Uuid
+  sessionId        String    @map("session_id") @db.Uuid
   format           String
   selectedDateTime DateTime  @map("selected_date_time")
   participants     Int?      @default(1)
@@ -100,8 +100,8 @@ model Booking {
 }
 
 model TutorAvailability {
-  id        String   @id @default(cuid())
-  tutorId   String   @map("tutor_id")
+  id        String   @id @default(uuid()) @db.Uuid
+  tutorId   String   @map("tutor_id") @db.Uuid
   date      DateTime @db.Date
   timeSlots Json     @map("time_slots")
   createdAt DateTime @default(now()) @map("created_at")
@@ -113,9 +113,9 @@ model TutorAvailability {
 }
 
 model SystemSettings {
-  id    String @id @default(cuid())
+  id    String @id @default(uuid()) @db.Uuid
   key   String @unique
-  value String
+  value Json
 
   @@map("system_settings")
 }

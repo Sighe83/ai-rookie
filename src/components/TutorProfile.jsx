@@ -1,47 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Building, Briefcase, DollarSign, Save, Plus, Trash2, Edit } from 'lucide-react';
+import { tutorManagementApi, sessionsApi } from '../services/api.js';
 
 const TutorProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingSessions, setEditingSessions] = useState({});
   const [isAddingSession, setIsAddingSession] = useState(false);
-  
-  const [profile, setProfile] = useState({
-    name: 'Daniel Elkjær',
-    email: 'daniel@airookie.dk',
-    phone: '+45 20 30 40 50',
-    title: 'Senior AI Consultant & Automation Specialist',
-    specialty: 'AI for Business Process Optimization',
-    experience: 'Over 5 års erfaring med at implementere AI-løsninger i danske virksomheder. Specialist i automatisering af workflows og business intelligence.',
-    value_prop: 'Hjælper virksomheder med at identificere og implementere AI-løsninger der reducerer manuelle processer med op til 60%.',
-    img: 'https://placehold.co/200x200/22C55E/FFFFFF?text=DE',
-    base_price: 1200,
-    price: 950
-  });
-
-  const [sessions, setSessions] = useState([
-    {
-      id: 1,
-      title: 'AI-drevne business processer',
-      description: 'Lær at identificere og automatisere repetitive processer med AI-værktøjer som Zapier, Make og custom solutions.',
-      duration: 90,
-      price_override: null
-    },
-    {
-      id: 2,
-      title: 'Intelligent dokumenthåndtering',
-      description: 'Implementér AI-baserede systemer til at behandle, kategorisere og analysere dokumenter automatisk.',
-      duration: 60,
-      price_override: 800
-    },
-    {
-      id: 3,
-      title: 'Data-drevet beslutningstagning',
-      description: 'Brug AI til at analysere business data og generere actionable insights for bedre beslutninger.',
-      duration: 120,
-      price_override: 1500
-    }
-  ]);
+  const [profile, setProfile] = useState({});
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const [newSession, setNewSession] = useState({
     title: '',
@@ -50,36 +19,131 @@ const TutorProfile = () => {
     price_override: null
   });
 
-  const handleProfileSave = () => {
-    // In real app, this would save to API
-    console.log('Saving profile:', profile);
-    setIsEditing(false);
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await tutorManagementApi.getProfile();
+      
+      const tutorProfile = {
+        name: response.data.user?.name || '',
+        email: response.data.user?.email || '',
+        phone: response.data.user?.phone || '',
+        title: response.data.title || '',
+        specialty: response.data.specialty || '',
+        experience: response.data.experience || '',
+        value_prop: response.data.valueProp || '',
+        img: response.data.img || 'https://placehold.co/200x200/22C55E/FFFFFF?text=Profile',
+        base_price: response.data.basePrice || 0,
+        price: response.data.price || 0
+      };
+      
+      setProfile(tutorProfile);
+      setSessions(response.data.sessions || []);
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+      setError('Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSessionSave = (sessionId, updatedSession) => {
-    setSessions(prev => prev.map(session =>
-      session.id === sessionId ? { ...session, ...updatedSession } : session
-    ));
-    setEditingSessions(prev => ({ ...prev, [sessionId]: false }));
+  const handleProfileSave = async () => {
+    try {
+      setSaving(true);
+      
+      // Update tutor profile
+      const tutorData = {
+        title: profile.title,
+        specialty: profile.specialty,
+        experience: profile.experience,
+        valueProp: profile.value_prop,
+        img: profile.img,
+        basePrice: profile.base_price,
+        price: profile.price
+      };
+      
+      await tutorManagementApi.updateProfile(tutorData);
+      await loadProfile(); // Reload to get updated data
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      setError('Failed to save profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleAddSession = () => {
+  const handleSessionSave = async (sessionId, updatedSession) => {
+    try {
+      await sessionsApi.updateSession(sessionId, updatedSession);
+      await loadProfile(); // Reload to get updated data
+      setEditingSessions(prev => ({ ...prev, [sessionId]: false }));
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      setError('Failed to save session');
+    }
+  };
+
+  const handleAddSession = async () => {
     if (!newSession.title || !newSession.description) return;
     
-    const sessionToAdd = {
-      ...newSession,
-      id: Date.now(),
-      price_override: newSession.price_override || null
-    };
-    
-    setSessions(prev => [...prev, sessionToAdd]);
-    setNewSession({ title: '', description: '', duration: 60, price_override: null });
-    setIsAddingSession(false);
+    try {
+      const sessionData = {
+        title: newSession.title,
+        description: newSession.description,
+        duration: newSession.duration,
+        priceOverride: newSession.price_override || null
+      };
+      
+      await sessionsApi.createSession(sessionData);
+      await loadProfile(); // Reload to get updated data
+      setNewSession({ title: '', description: '', duration: 60, price_override: null });
+      setIsAddingSession(false);
+    } catch (error) {
+      console.error('Failed to add session:', error);
+      setError('Failed to add session');
+    }
   };
 
-  const handleDeleteSession = (sessionId) => {
-    setSessions(prev => prev.filter(session => session.id !== sessionId));
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      await sessionsApi.deleteSession(sessionId);
+      await loadProfile(); // Reload to get updated data
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      setError('Failed to delete session');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
+        <p className="text-red-400">{error}</p>
+        <button 
+          onClick={() => { setError(null); loadProfile(); }}
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -99,10 +163,11 @@ const TutorProfile = () => {
             <div className="flex gap-2">
               <button
                 onClick={handleProfileSave}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
-                Gem
+                {saving ? 'Saving...' : 'Gem'}
               </button>
               <button
                 onClick={() => setIsEditing(false)}
