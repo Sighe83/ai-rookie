@@ -675,14 +675,6 @@ const SiteModeToggle = ({ onModeChange }) => {
   
   return (
     <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
-      {/* Lock icon */}
-      <div className="flex items-center justify-center w-8 h-8 mr-2">
-        {isAuthenticated ? (
-          <Lock className="w-4 h-4 text-red-400" title="Låst - Du kan ikke skifte side-type efter login" />
-        ) : (
-          <Unlock className="w-4 h-4 text-green-400" title="Åben - Du kan skifte side-type" />
-        )}
-      </div>
       <button
         onClick={() => siteMode !== 'b2b' && handleToggle()}
         disabled={isAuthenticated}
@@ -697,7 +689,12 @@ const SiteModeToggle = ({ onModeChange }) => {
       >
         <Building2 className="w-4 h-4" />
         B2B
-        {siteMode === 'b2b' && <span className="text-xs bg-green-500 px-1.5 py-0.5 rounded-full">Aktiv</span>}
+        {siteMode === 'b2b' && (
+          <>
+            <span className="text-xs bg-green-500 px-1.5 py-0.5 rounded-full">Aktiv</span>
+            {isAuthenticated && <Lock className="w-4 h-4 text-white" title="Låst - Du kan ikke skifte side-type efter login" />}
+          </>
+        )}
       </button>
       <button
         onClick={() => siteMode !== 'b2c' && handleToggle()}
@@ -713,7 +710,12 @@ const SiteModeToggle = ({ onModeChange }) => {
       >
         <UserIcon className="w-4 h-4" />
         B2C
-        {siteMode === 'b2c' && <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded-full">Aktiv</span>}
+        {siteMode === 'b2c' && (
+          <>
+            <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded-full">Aktiv</span>
+            {isAuthenticated && <Lock className="w-4 h-4 text-white" title="Låst - Du kan ikke skifte side-type efter login" />}
+          </>
+        )}
       </button>
     </div>
   );
