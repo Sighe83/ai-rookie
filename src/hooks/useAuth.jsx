@@ -314,7 +314,8 @@ export const AuthProvider = ({ children }) => {
             name: userData.name?.trim(),
             phone: userData.phone?.trim() || null,
             company: userData.company?.trim() || null,
-            department: userData.department?.trim() || null
+            department: userData.department?.trim() || null,
+            site_mode: userData.siteMode || 'B2C'
           }
         }
       });
@@ -480,6 +481,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const validateUserSiteMode = (currentSiteMode) => {
+    // Check if user should be on this site mode
+    if (user && user.site_mode && user.site_mode !== currentSiteMode.toUpperCase()) {
+      return {
+        shouldRedirect: true,
+        correctSiteMode: user.site_mode.toLowerCase()
+      };
+    }
+    return { shouldRedirect: false };
+  };
+
   const value = {
     user,
     loading,
@@ -490,6 +502,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     changePassword,
+    validateUserSiteMode,
     clearError: () => setError(null)
   };
 

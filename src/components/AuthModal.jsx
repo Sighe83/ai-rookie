@@ -182,7 +182,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           phone: actualFormData.phone,
           company: isB2B ? actualFormData.company : '',
           department: isB2B ? actualFormData.department : '',
-          siteMode: siteMode
+          siteMode: siteMode.toUpperCase()
         });
         
         if (result.success) {

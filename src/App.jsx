@@ -1,4 +1,4 @@
-import React, { useState, useMemo, createContext, useContext } from 'react';
+import React, { useState, useMemo, createContext, useContext, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { useTutors, useCreateBooking, useBookings } from './hooks/useApi';
@@ -94,8 +94,20 @@ const safeJsonParse = (jsonString, fallback = null) => {
 
 const SiteModeProvider = ({ children }) => {
   const [siteMode, setSiteMode] = useState(() => {
+    // Check URL parameters first
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const modeParam = urlParams.get('mode');
+      if (modeParam && (modeParam === 'b2b' || modeParam === 'b2c')) {
+        // Update localStorage with URL parameter
+        safeLocalStorage.setItem('ai-rookie-site-mode', modeParam);
+        return modeParam;
+      }
+    }
+    
+    // Otherwise use saved preference
     const saved = safeLocalStorage.getItem('ai-rookie-site-mode');
-    return saved || 'b2b';
+    return saved || 'b2c';
   });
 
   const toggleSiteMode = useMemo(() => {
@@ -626,10 +638,10 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
   return (
     <div className="flex items-center">
       <button
-        onClick={() => onAuthClick('signup')}
+        onClick={() => onAuthClick('login')}
         className={`flex items-center gap-1 px-4 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
       >
-        <UserPlus className="w-4 h-4" />
+        <LogIn className="w-4 h-4" />
         <span>Kom i gang</span>
       </button>
     </div>
@@ -638,21 +650,27 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
 
 const SiteModeToggle = ({ onModeChange }) => {
   const { siteMode, toggleSiteMode } = useSiteMode();
+  const { isAuthenticated } = useAuth();
   
   const handleToggle = () => {
-    toggleSiteMode(onModeChange);
+    if (!isAuthenticated) {
+      toggleSiteMode(onModeChange);
+    }
   };
   
   return (
     <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
       <button
         onClick={() => siteMode !== 'b2b' && handleToggle()}
+        disabled={isAuthenticated}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
           siteMode === 'b2b' 
             ? 'bg-green-600 text-white shadow-lg shadow-green-600/30' 
-            : 'text-slate-400 hover:text-green-400 hover:bg-slate-700'
+            : isAuthenticated 
+              ? 'text-slate-600 cursor-not-allowed'
+              : 'text-slate-400 hover:text-green-400 hover:bg-slate-700'
         }`}
-        title={siteMode === 'b2b' ? 'Aktiv: B2B mode' : 'Skift til B2B mode'}
+        title={isAuthenticated ? 'Du kan ikke skifte side-type efter login' : siteMode === 'b2b' ? 'Aktiv: B2B mode' : 'Skift til B2B mode'}
       >
         <Building2 className="w-4 h-4" />
         B2B
@@ -660,12 +678,15 @@ const SiteModeToggle = ({ onModeChange }) => {
       </button>
       <button
         onClick={() => siteMode !== 'b2c' && handleToggle()}
+        disabled={isAuthenticated}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
           siteMode === 'b2c' 
             ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-            : 'text-slate-400 hover:text-blue-400 hover:bg-slate-700'
+            : isAuthenticated 
+              ? 'text-slate-600 cursor-not-allowed'
+              : 'text-slate-400 hover:text-blue-400 hover:bg-slate-700'
         }`}
-        title={siteMode === 'b2c' ? 'Aktiv: B2C mode' : 'Skift til B2C mode'}
+        title={isAuthenticated ? 'Du kan ikke skifte side-type efter login' : siteMode === 'b2c' ? 'Aktiv: B2C mode' : 'Skift til B2C mode'}
       >
         <UserIcon className="w-4 h-4" />
         B2C
@@ -764,12 +785,12 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
           ) : (
             <button
               onClick={() => {
-                onAuthClick('signup');
+                onAuthClick('login');
                 onClose();
               }}
               className={`w-full flex items-center gap-2 px-3 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
             >
-              <UserPlus className="w-4 h-4" />
+              <LogIn className="w-4 h-4" />
               Kom i gang
             </button>
           )}
@@ -1974,6 +1995,19 @@ const AppContent = () => {
   const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
+
+  // Validate user site mode and redirect if necessary
+  const { validateUserSiteMode } = useAuth();
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const validation = validateUserSiteMode(siteMode);
+      if (validation.shouldRedirect) {
+        // Force browser to navigate to correct site mode
+        const currentUrl = new URL(window.location);
+        window.location.href = `${currentUrl.origin}${currentUrl.pathname}?mode=${validation.correctSiteMode}`;
+      }
+    }
+  }, [isAuthenticated, user, siteMode, validateUserSiteMode]);
   
 
   const getNavItems = () => {
