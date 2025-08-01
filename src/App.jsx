@@ -1502,15 +1502,30 @@ const BookingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [isBooked, setIsBooked] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
 
   const { tutor, session } = location.state || {};
 
-  // Redirect to home if not authenticated
+  // Redirect to tutors page if no tutor/session data is provided
   React.useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/');
+    if (!tutor || !session) {
+      navigate('/tutors');
     }
-  }, [isAuthenticated, navigate]);
+  }, [tutor, session, navigate]);
+
+  // Show AuthModal if not authenticated instead of redirecting
+  React.useEffect(() => {
+    if (!isAuthenticated && tutor && session) {
+      setAuthModalOpen(true);
+    } else {
+      setAuthModalOpen(false);
+    }
+  }, [isAuthenticated, tutor, session]);
+
+  const handleAuthModalModeChange = (mode) => {
+    setAuthModalMode(mode);
+  };
 
   // Pre-fill form with user data if available
   React.useEffect(() => {
@@ -1975,6 +1990,20 @@ const BookingPage = () => {
           </button>
         </div>
       </form>
+
+      {/* AuthModal for unauthenticated users */}
+      <AuthModal 
+        isOpen={authModalOpen}
+        onClose={() => {
+          setAuthModalOpen(false);
+          // If user closes modal without authenticating, redirect to home
+          if (!isAuthenticated) {
+            navigate('/');
+          }
+        }}
+        initialMode={authModalMode}
+        siteMode={siteMode}
+      />
     </div>
   );
 };
