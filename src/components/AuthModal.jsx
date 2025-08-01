@@ -93,9 +93,10 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     if (isAuthenticated && isOpen) {
       console.log('AuthModal: User is authenticated, closing modal and redirecting to dashboard.');
       onClose();
-      navigate('/dashboard');
+      const isTutor = user?.role === 'TUTOR';
+      navigate(isTutor ? '/tutor-dashboard' : '/dashboard');
     }
-  }, [isAuthenticated, isOpen, onClose, navigate]);
+  }, [isAuthenticated, isOpen, onClose, navigate, user]);
 
 
   const handleInputChange = (field, value) => {

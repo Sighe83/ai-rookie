@@ -1215,9 +1215,10 @@ const B2BHomePage = () => {
   
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard');
+      const isTutor = user?.role === 'TUTOR';
+      navigate(isTutor ? '/tutor-dashboard' : '/dashboard');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, user]);
   
   return (
     <div className="space-y-24 pb-20">
@@ -1314,9 +1315,10 @@ const B2CHomePage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard');
+      const isTutor = user?.role === 'TUTOR';
+      navigate(isTutor ? '/tutor-dashboard' : '/dashboard');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, user]);
 
   return (
     <div className="space-y-20 sm:space-y-28 pb-20">
@@ -1718,7 +1720,10 @@ const BookingPage = () => {
             </div>
           )}
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => {
+              const isTutor = user?.role === 'TUTOR';
+              navigate(isTutor ? '/tutor-dashboard' : '/dashboard');
+            }}
             className={`mt-6 ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
           >
             Se dit Karriere-Dashboard
@@ -2039,7 +2044,10 @@ const BookingSuccessPage = () => {
         </div>
         <div className="flex gap-4 mt-6">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => {
+              const isTutor = user?.role === 'TUTOR';
+              navigate(isTutor ? '/tutor-dashboard' : '/dashboard');
+            }}
             className={`flex-1 ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
           >
             Gå til Dashboard

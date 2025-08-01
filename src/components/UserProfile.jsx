@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { User, Mail, Phone, Building, Briefcase, Lock, Save, X, Edit, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   const { user, updateProfile, logout, changePassword } = useAuth();
+  const navigate = useNavigate();
   const isB2B = siteMode === 'b2b';
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(() => ({
@@ -243,6 +245,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   const handleLogout = async () => {
     await logout();
     onClose();
+    navigate('/');
   };
 
   if (!isOpen || !user) return null;
