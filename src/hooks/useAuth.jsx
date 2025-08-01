@@ -253,7 +253,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorMessage);
       }
 
-      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
+      if (!mountedRef.current) return { success: false, error: null };
 
       // Manually set user state after successful login
       if (data.user) {
@@ -335,7 +335,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorMessage);
       }
 
-      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
+      if (!mountedRef.current) return { success: false, error: null };
 
       // User profile is automatically created by database trigger with all fields
       // No need for additional update since trigger handles everything
@@ -401,7 +401,7 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
 
-      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
+      if (!mountedRef.current) return { success: false, error: null };
 
       const updatedUser = {
         ...user,
@@ -468,7 +468,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorMessage);
       }
 
-      if (!mountedRef.current) return { success: false, error: 'Component unmounted' };
+      if (!mountedRef.current) return { success: false, error: null };
 
       return { success: true };
     } catch (error) {

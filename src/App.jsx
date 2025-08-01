@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, createContext, useContext, useEf
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { useTutors, useCreateBooking, useBookings } from './hooks/useApi';
+import { availabilityApi } from './services/api.js';
 import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
 import AdminGate from './components/AdminGate';
@@ -630,9 +631,37 @@ const generateAvailabilitySlots = (tutorId) => {
   return slots;
 };
 
-// Mock availability data - in a real app, this would come from an API
-const getTutorAvailability = (tutorId) => {
-  return generateAvailabilitySlots(tutorId);
+// Real availability data from API
+const getTutorAvailability = async (tutorId) => {
+  try {
+    // Get availability for next 14 days
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 14);
+    
+    const response = await availabilityApi.getAvailability(
+      tutorId, 
+      startDate.toISOString().split('T')[0], 
+      endDate.toISOString().split('T')[0]
+    );
+    
+    // Transform API response to match expected format
+    return response.data.map(availability => ({
+      date: availability.date,
+      slots: Array.isArray(availability.time_slots) 
+        ? availability.time_slots.map(slot => ({
+            time: slot.startTime,
+            available: !slot.isBooked,
+            booked: slot.isBooked || false,
+            endTime: slot.endTime
+          }))
+        : []
+    }));
+  } catch (error) {
+    console.error('Failed to fetch availability:', error);
+    // Fallback to mock data if API fails
+    return generateAvailabilitySlots(tutorId);
+  }
 };
 
 // Custom hook for booking state
@@ -803,9 +832,8 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
 
   const getNavItems = () => {
     if (isTutor) {
-      // Tutor navigation
+      // Tutor navigation - no home for logged in tutors
       return [
-        { label: 'Hjem', key: 'home' },
         { label: 'Tutor Dashboard', key: 'tutor-dashboard' }
       ];
     }
@@ -813,13 +841,16 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
     // Regular user navigation
     const baseItems = siteMode === 'b2b' 
       ? [
-          { label: 'Hjem', key: 'home' }, 
           { label: 'Eksperter', key: 'tutors' }
         ]
       : [
-          { label: 'Hjem', key: 'home' }, 
           { label: 'Find Tutor', key: 'tutors' }
         ];
+    
+    // Only add Home for non-authenticated users
+    if (!isAuthenticated) {
+      baseItems.unshift({ label: 'Hjem', key: 'home' });
+    }
     
     if (isAuthenticated) {
       baseItems.push({ label: 'Dashboard', key: 'dashboard' });
@@ -973,9 +1004,44 @@ const LoadingSpinner = () => (
 
 const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => {
   const [currentWeek, setCurrentWeek] = useState(0);
+  const [availability, setAvailability] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { siteMode } = useSiteMode();
   const { user } = useAuth();
   const theme = getThemeColors(siteMode, user);
+  
+  // Load availability data when tutor changes
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadAvailability = async () => {
+      if (!tutor?.id) return;
+      
+      if (isMounted) setLoading(true);
+      try {
+        const data = await getTutorAvailability(tutor.id);
+        if (isMounted) {
+          setAvailability(data);
+        }
+      } catch (error) {
+        console.error('Failed to load availability:', error);
+        if (isMounted) {
+          setAvailability([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadAvailability();
+    
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
+  }, [tutor?.id]);
   
   // Validate props
   if (!tutor || !tutor.id) {
@@ -989,15 +1055,16 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
     );
   }
 
-  // Memoize expensive availability calculation
-  const availability = useMemo(() => {
-    try {
-      return getTutorAvailability(tutor.id);
-    } catch (error) {
-      console.error('Failed to get tutor availability:', error);
-      return [];
-    }
-  }, [tutor.id]);
+  if (loading) {
+    return (
+      <div className="bg-slate-800 rounded-lg p-6">
+        <div className="text-center py-8 text-slate-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
+          <p>Indlæser ledige tider...</p>
+        </div>
+      </div>
+    );
+  }
   
   const getWeekDates = (weekOffset) => {
     const dates = [];
@@ -1101,7 +1168,17 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
                   return (
                     <button
                       key={slotIndex}
-                      onClick={() => onSelectDateTime(dateTimeKey)}
+                      onClick={() => {
+                        try {
+                          if (typeof onSelectDateTime === 'function') {
+                            onSelectDateTime(dateTimeKey);
+                          } else {
+                            console.error('onSelectDateTime is not a function');
+                          }
+                        } catch (error) {
+                          console.error('Error selecting datetime:', error);
+                        }
+                      }}
                       className={`p-2 rounded-lg text-sm font-medium transition-colors ${
                         isSelected
                           ? `${theme.primary} text-white`
@@ -1135,6 +1212,12 @@ const B2BHomePage = () => {
   const { siteMode } = useSiteMode();
   const theme = getThemeColors(siteMode, user);
   const minPrice = 850; // Default minimum price for B2B
+  
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
   
   return (
     <div className="space-y-24 pb-20">
@@ -1228,6 +1311,12 @@ const B2CHomePage = () => {
   const { siteMode } = useSiteMode();
   const theme = getThemeColors(siteMode, user);
   const minPrice = 475; // Default minimum price for B2C
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   return (
     <div className="space-y-20 sm:space-y-28 pb-20">
@@ -1551,15 +1640,22 @@ const BookingPage = () => {
           setIsBooked(true);
         }
       } else {
-        setErrors({ 
-          general: result.error || 'Der opstod en fejl ved booking. Prøv igen senere.' 
-        });
+        // Only show error if there's actually an error message
+        if (result.error) {
+          setErrors({ 
+            general: result.error 
+          });
+        }
       }
     } catch (error) {
       console.error('Booking submission error:', error);
-      setErrors({ 
-        general: bookingError || error.message || 'Der opstod en fejl ved booking. Prøv igen senere.' 
-      });
+      // Only show error if there's actually an error message to show
+      const errorMessage = bookingError || error.message;
+      if (errorMessage) {
+        setErrors({ 
+          general: errorMessage
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -2121,9 +2217,8 @@ const AppContent = () => {
 
   const getNavItems = () => {
     if (isTutor) {
-      // Tutor navigation
+      // Tutor navigation - no home for logged in tutors
       return [
-        { label: 'Hjem', key: 'home', path: '/' },
         { label: 'Tutor Dashboard', key: 'tutor-dashboard', path: '/tutor-dashboard' }
       ];
     }
@@ -2131,13 +2226,16 @@ const AppContent = () => {
     // Regular user navigation
     const baseItems = isB2B 
       ? [
-          { label: 'Hjem', key: 'home', path: '/' }, 
           { label: 'Eksperter', key: 'tutors', path: '/tutors' }
         ]
       : [
-          { label: 'Hjem', key: 'home', path: '/' }, 
           { label: 'Find Tutor', key: 'tutors', path: '/tutors' }
         ];
+    
+    // Only add Home for non-authenticated users
+    if (!isAuthenticated) {
+      baseItems.unshift({ label: 'Hjem', key: 'home', path: '/' });
+    }
     
     if (isAuthenticated) {
       baseItems.push({ label: 'Dashboard', key: 'dashboard', path: '/dashboard' });

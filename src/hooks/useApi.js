@@ -251,7 +251,7 @@ export const useMutation = () => {
 
   const mutate = useCallback(async (supabaseCall) => {
     if (!mountedRef.current) {
-      return { success: false, error: 'Component unmounted' };
+      return { success: false, error: null };
     }
     
     // Simple rate limiting - prevent multiple rapid requests
@@ -271,7 +271,7 @@ export const useMutation = () => {
       const result = await supabaseCall();
       
       if (!mountedRef.current) {
-        return { success: false, error: 'Component unmounted' };
+        return { success: false, error: null };
       }
       
       return { success: true, data: result };

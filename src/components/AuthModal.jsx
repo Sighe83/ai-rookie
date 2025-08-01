@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Eye, EyeOff, Mail, Lock, User, Building, Briefcase, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
 import EmailConfirmation from './EmailConfirmation.jsx';
@@ -45,6 +46,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login, register, error: authError, clearError, user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const theme = getThemeColors(siteMode, user);
   
   const isB2B = siteMode === 'b2b';
@@ -86,13 +88,14 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
     // Don't clear form data when switching modes to preserve email
   }, [mode]);
 
-  // Close modal when user becomes authenticated
+  // Close modal and redirect when user becomes authenticated
   React.useEffect(() => {
     if (isAuthenticated && isOpen) {
-      console.log('AuthModal: User is authenticated, closing modal.');
+      console.log('AuthModal: User is authenticated, closing modal and redirecting to dashboard.');
       onClose();
+      navigate('/dashboard');
     }
-  }, [isAuthenticated, isOpen, onClose]);
+  }, [isAuthenticated, isOpen, onClose, navigate]);
 
 
   const handleInputChange = (field, value) => {
