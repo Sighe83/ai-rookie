@@ -15,10 +15,10 @@ const TutorDashboard = () => {
   ];
 
   const stats = [
-    { label: 'Denne uge', value: '3', subtitle: 'Bookinger', icon: Calendar, color: 'blue' },
-    { label: 'Næste uge', value: '5', subtitle: 'Ledige slots', icon: Clock, color: 'green' },
-    { label: 'Denne måned', value: '12.450 kr', subtitle: 'Indtjening', icon: DollarSign, color: 'yellow' },
-    { label: 'Total', value: '47', subtitle: 'Gennemførte sessioner', icon: Users, color: 'purple' }
+    { label: 'Denne uge', value: '0', subtitle: 'Bookinger', icon: Calendar, color: 'blue' },
+    { label: 'Næste uge', value: '0', subtitle: 'Ledige slots', icon: Clock, color: 'green' },
+    { label: 'Denne måned', value: '0 kr', subtitle: 'Indtjening', icon: DollarSign, color: 'yellow' },
+    { label: 'Total', value: '0', subtitle: 'Gennemførte sessioner', icon: Users, color: 'purple' }
   ];
 
   const renderTabContent = () => {
@@ -68,45 +68,10 @@ const TutorDashboard = () => {
                 <BookOpen className="w-5 h-5" />
                 Seneste aktivitet
               </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Ny booking fra Morten K.</p>
-                      <p className="text-slate-400 text-sm">AI for Marketing • I morgen kl. 14:00</p>
-                    </div>
-                  </div>
-                  <span className="text-green-400 text-sm font-medium">Bekræftet</span>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Session gennemført</p>
-                      <p className="text-slate-400 text-sm">Anne P. • AI-drevet salgsoptimering</p>
-                    </div>
-                  </div>
-                  <span className="text-blue-400 text-sm font-medium">Afsluttet</span>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">Nye tidsslots tilføjet</p>
-                      <p className="text-slate-400 text-sm">Næste uge • 5 slots tilgængelige</p>
-                    </div>
-                  </div>
-                  <span className="text-yellow-400 text-sm font-medium">Aktiv</span>
-                </div>
+              <div className="text-center py-8">
+                <BookOpen className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+                <p className="text-slate-400">Ingen aktivitet endnu</p>
+                <p className="text-slate-500 text-sm">Din aktivitet vil blive vist her</p>
               </div>
             </div>
           </div>

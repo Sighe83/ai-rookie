@@ -37,7 +37,7 @@ const TutorProfile = () => {
         specialty: response.data.specialty || '',
         experience: response.data.experience || '',
         value_prop: response.data.valueProp || '',
-        img: response.data.img || 'https://placehold.co/200x200/22C55E/FFFFFF?text=Profile',
+        img: response.data.img || '',
         base_price: response.data.basePrice || 0,
         price: response.data.price || 0
       };
