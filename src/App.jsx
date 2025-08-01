@@ -2255,7 +2255,7 @@ const AppContent = () => {
               onClick={() => navigate('/')}
               className="flex items-center gap-2 text-white text-2xl font-bold"
             >
-              <BrainCircuit className={`${isB2B ? 'text-green-400' : 'text-blue-400'} h-8 w-8`} />
+              <BrainCircuit className={`${isTutor ? 'text-purple-400' : isB2B ? 'text-green-400' : 'text-blue-400'} h-8 w-8`} />
               <span>AI Rookie {isB2B && <span className="font-light">Enterprise</span>}</span>
             </button>
             

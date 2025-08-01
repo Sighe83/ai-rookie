@@ -11,7 +11,7 @@ const TutorBookings = () => {
 
   const statusColors = {
     pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500' },
-    confirmed: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500' },
+    confirmed: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500' },
     completed: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500' },
     cancelled: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500' }
   };
@@ -92,7 +92,7 @@ const TutorBookings = () => {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <p className="text-slate-400">Loading bookings...</p>
         </div>
       </div>
@@ -121,7 +121,7 @@ const TutorBookings = () => {
           onClick={() => setSelectedStatus('all')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             selectedStatus === 'all'
-              ? 'bg-green-600 text-white'
+              ? 'bg-purple-600 text-white'
               : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
@@ -141,7 +141,7 @@ const TutorBookings = () => {
           onClick={() => setSelectedStatus('confirmed')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             selectedStatus === 'confirmed'
-              ? 'bg-green-600 text-white'
+              ? 'bg-purple-600 text-white'
               : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
@@ -222,7 +222,7 @@ const TutorBookings = () => {
                       <button
                         onClick={() => handleStatusChange(booking.id, 'confirmed')}
                         disabled={updating === booking.id}
-                        className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                       >
                         {updating === booking.id ? 'Updating...' : 'Bekræft'}
                       </button>

@@ -437,7 +437,7 @@ const TutorAvailability = () => {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <p className="text-slate-400">Loading availability...</p>
         </div>
       </div>
@@ -470,7 +470,7 @@ const TutorAvailability = () => {
           <div className="flex gap-2">
             <button
               onClick={() => setShowBulkCreate(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
               Masseopret
@@ -501,7 +501,7 @@ const TutorAvailability = () => {
                 onClick={() => setSelectedDate(date)}
                 className={`group relative p-3 rounded-lg text-center transition-colors ${
                   isSelected
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-purple-600 text-white'
                     : isToday
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-600'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -545,7 +545,7 @@ const TutorAvailability = () => {
           </h3>
           <button
             onClick={() => setIsAddingSlot(true)}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Tilføj tidsslot
@@ -595,7 +595,7 @@ const TutorAvailability = () => {
                           endTime: '' // Reset end time when start time changes
                         }));
                       }}
-                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
                       <option value="">Time</option>
                       <optgroup label="Normal arbejdstid (9-17)">
@@ -629,7 +629,7 @@ const TutorAvailability = () => {
                           }));
                         }
                       }}
-                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       disabled={!parseTime(newSlot.startTime).hour}
                     >
                       <option value="">Min</option>
@@ -657,7 +657,7 @@ const TutorAvailability = () => {
                         const endTime = formatTime(hour, minute);
                         setNewSlot(prev => ({ ...prev, endTime }));
                       }}
-                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       disabled={!newSlot.startTime}
                     >
                       <option value="">Time</option>
@@ -688,7 +688,7 @@ const TutorAvailability = () => {
                           setNewSlot(prev => ({ ...prev, endTime }));
                         }
                       }}
-                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       disabled={!newSlot.startTime || !parseTime(newSlot.endTime).hour}
                     >
                       <option value="">Min</option>
@@ -727,7 +727,7 @@ const TutorAvailability = () => {
               </button>
               <button
                 onClick={addTimeSlot}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
               >
                 <Save className="w-4 h-4" />
                 Gem
@@ -751,19 +751,19 @@ const TutorAvailability = () => {
                 className={`flex items-center justify-between p-4 rounded-lg border-2 ${
                   slot.isBooked
                     ? 'bg-blue-500/10 border-blue-500'
-                    : 'bg-green-500/10 border-green-500'
+                    : 'bg-purple-500/10 border-purple-500'
                 }`}
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${
-                    slot.isBooked ? 'bg-blue-400' : 'bg-green-400'
+                    slot.isBooked ? 'bg-blue-400' : 'bg-purple-400'
                   }`} />
                   
                   {editingSlot === slot.id ? (
                     <div className="flex gap-1 items-center">
                       <select
                         defaultValue={parseTime(slot.startTime).hour}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
                         onChange={(e) => {
                           const hour = e.target.value;
                           const minute = parseTime(slot.startTime).minute;
@@ -787,7 +787,7 @@ const TutorAvailability = () => {
                       <span className="text-slate-300">:</span>
                       <select
                         defaultValue={parseTime(slot.startTime).minute}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
                         onChange={(e) => {
                           const minute = e.target.value;
                           const hour = parseTime(slot.startTime).hour;
@@ -801,7 +801,7 @@ const TutorAvailability = () => {
                       <span className="text-slate-300 mx-1">-</span>
                       <select
                         defaultValue={parseTime(slot.endTime).hour}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
                         onChange={(e) => {
                           const hour = e.target.value;
                           const minute = parseTime(slot.endTime).minute;
@@ -825,7 +825,7 @@ const TutorAvailability = () => {
                       <span className="text-slate-300">:</span>
                       <select
                         defaultValue={parseTime(slot.endTime).minute}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
                         onChange={(e) => {
                           const minute = e.target.value;
                           const hour = parseTime(slot.endTime).hour;
@@ -851,7 +851,7 @@ const TutorAvailability = () => {
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     slot.isBooked
                       ? 'bg-blue-600 text-blue-100'
-                      : 'bg-green-600 text-green-100'
+                      : 'bg-purple-600 text-purple-100'
                   }`}>
                     {slot.isBooked ? 'Booket' : 'Ledig'}
                   </span>
@@ -862,7 +862,7 @@ const TutorAvailability = () => {
                     <>
                       <button
                         onClick={() => updateTimeSlot(slot.id, slot)}
-                        className="text-green-400 hover:text-green-300 p-1"
+                        className="text-purple-400 hover:text-purple-300 p-1"
                       >
                         <Save className="w-4 h-4" />
                       </button>
@@ -878,7 +878,7 @@ const TutorAvailability = () => {
                       {!slot.isBooked && (
                         <button
                           onClick={() => setEditingSlot(slot.id)}
-                          className="text-blue-400 hover:text-blue-300 p-1"
+                          className="text-purple-400 hover:text-purple-300 p-1"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -940,7 +940,7 @@ const TutorAvailability = () => {
                             endTime: '' // Reset end time when start time changes
                           }));
                         }}
-                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       >
                         <option value="">Time</option>
                         <optgroup label="Normal arbejdstid (9-17)">
@@ -974,7 +974,7 @@ const TutorAvailability = () => {
                             }));
                           }
                         }}
-                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         disabled={!parseTime(bulkPattern.startTime).hour}
                       >
                         <option value="">Min</option>
@@ -1002,7 +1002,7 @@ const TutorAvailability = () => {
                           const endTime = formatTime(hour, minute);
                           setBulkPattern(prev => ({ ...prev, endTime }));
                         }}
-                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         disabled={!bulkPattern.startTime}
                       >
                         <option value="">Time</option>
@@ -1033,7 +1033,7 @@ const TutorAvailability = () => {
                             setBulkPattern(prev => ({ ...prev, endTime }));
                           }
                         }}
-                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         disabled={!bulkPattern.startTime || !parseTime(bulkPattern.endTime).hour}
                       >
                         <option value="">Min</option>
@@ -1077,7 +1077,7 @@ const TutorAvailability = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={createBulkAvailability}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 Opret
               </button>
@@ -1105,7 +1105,7 @@ const TutorAvailability = () => {
             <div className="space-y-3">
               <button
                 onClick={() => copyAvailabilityToDay(copySource, selectedDate)}
-                className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-left"
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-left"
               >
                 Kopier til valgte dag ({selectedDate.toLocaleDateString('da-DK')})
               </button>
@@ -1115,7 +1115,7 @@ const TutorAvailability = () => {
                   nextWeek.setDate(selectedDate.getDate() + 7);
                   copyAvailabilityToWeek(copySource, nextWeek);
                 }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-left"
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-left"
               >
                 Kopier til næste uge (samme ugedag)
               </button>

@@ -124,7 +124,7 @@ const TutorProfile = () => {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <p className="text-slate-400">Loading profile...</p>
         </div>
       </div>
@@ -154,7 +154,7 @@ const TutorProfile = () => {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <Edit className="w-4 h-4" />
               Rediger profil
@@ -164,7 +164,7 @@ const TutorProfile = () => {
               <button
                 onClick={handleProfileSave}
                 disabled={saving}
-                className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
                 {saving ? 'Saving...' : 'Gem'}
@@ -188,7 +188,7 @@ const TutorProfile = () => {
               className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700"
             />
             {isEditing && (
-              <button className="text-green-400 hover:text-green-300 text-sm">
+              <button className="text-purple-400 hover:text-purple-300 text-sm">
                 Skift billede
               </button>
             )}
@@ -353,7 +353,7 @@ const TutorProfile = () => {
           <h3 className="text-xl font-semibold text-white">Sessions & Emner</h3>
           <button
             onClick={() => setIsAddingSession(true)}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Tilføj session
@@ -398,7 +398,7 @@ const TutorProfile = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleAddSession}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
                 >
                   Gem session
                 </button>
@@ -471,7 +471,7 @@ const TutorProfile = () => {
                     <>
                       <button
                         onClick={() => handleSessionSave(session.id, session)}
-                        className="text-green-400 hover:text-green-300 p-1"
+                        className="text-purple-400 hover:text-purple-300 p-1"
                       >
                         <Save className="w-4 h-4" />
                       </button>

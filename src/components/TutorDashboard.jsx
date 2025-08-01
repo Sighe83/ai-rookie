@@ -15,9 +15,9 @@ const TutorDashboard = () => {
   ];
 
   const stats = [
-    { label: 'Denne uge', value: '0', subtitle: 'Bookinger', icon: Calendar, color: 'blue' },
-    { label: 'Næste uge', value: '0', subtitle: 'Ledige slots', icon: Clock, color: 'green' },
-    { label: 'Denne måned', value: '0 kr', subtitle: 'Indtjening', icon: DollarSign, color: 'yellow' },
+    { label: 'Denne uge', value: '0', subtitle: 'Bookinger', icon: Calendar, color: 'purple' },
+    { label: 'Næste uge', value: '0', subtitle: 'Ledige slots', icon: Clock, color: 'purple' },
+    { label: 'Denne måned', value: '0 kr', subtitle: 'Indtjening', icon: DollarSign, color: 'purple' },
     { label: 'Total', value: '0', subtitle: 'Gennemførte sessioner', icon: Users, color: 'purple' }
   ];
 
@@ -37,14 +37,14 @@ const TutorDashboard = () => {
               {stats.map((stat, index) => {
                 const colorClasses = {
                   blue: 'border-blue-500 bg-blue-500/10',
-                  green: 'border-green-500 bg-green-500/10',
+                  green: 'border-purple-500 bg-purple-500/10',
                   yellow: 'border-yellow-500 bg-yellow-500/10',
                   purple: 'border-purple-500 bg-purple-500/10'
                 };
                 
                 const iconColorClasses = {
                   blue: 'text-blue-400',
-                  green: 'text-green-400',
+                  green: 'text-purple-400',
                   yellow: 'text-yellow-400',
                   purple: 'text-purple-400'
                 };
@@ -94,7 +94,7 @@ const TutorDashboard = () => {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-colors ${
               activeTab === tab.id
-                ? 'bg-green-600 text-white border-b-2 border-green-400'
+                ? 'bg-purple-600 text-white border-b-2 border-purple-400'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700'
             }`}
           >
