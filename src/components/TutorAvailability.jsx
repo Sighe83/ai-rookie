@@ -93,12 +93,41 @@ const TutorAvailability = () => {
     return weekDates;
   };
 
+  const checkTimeSlotOverlap = (startTime, endTime, existingSlots) => {
+    const newStart = new Date(`1970-01-01T${startTime}:00`);
+    const newEnd = new Date(`1970-01-01T${endTime}:00`);
+    
+    if (newStart >= newEnd) {
+      return 'Sluttid skal være efter starttid';
+    }
+    
+    for (const slot of existingSlots) {
+      const existingStart = new Date(`1970-01-01T${slot.startTime}:00`);
+      const existingEnd = new Date(`1970-01-01T${slot.endTime}:00`);
+      
+      // Check for overlap
+      if (newStart < existingEnd && newEnd > existingStart) {
+        return `Overlapper med eksisterende slot ${slot.startTime} - ${slot.endTime}`;
+      }
+    }
+    
+    return null;
+  };
+
   const addTimeSlot = async () => {
     if (!newSlot.startTime || !newSlot.endTime || !tutorId) return;
     
     try {
       const dateKey = formatDate(selectedDate);
       const existingSlots = availability[dateKey] || [];
+      
+      // Check for overlap
+      const overlapError = checkTimeSlotOverlap(newSlot.startTime, newSlot.endTime, existingSlots);
+      if (overlapError) {
+        setError(overlapError);
+        return;
+      }
+      
       const updatedSlots = [
         ...existingSlots,
         {
@@ -141,6 +170,15 @@ const TutorAvailability = () => {
     try {
       const dateKey = formatDate(selectedDate);
       const existingSlots = availability[dateKey] || [];
+      
+      // Check for overlap (exclude the slot being edited)
+      const otherSlots = existingSlots.filter(slot => slot.id !== slotId);
+      const overlapError = checkTimeSlotOverlap(updatedSlot.startTime, updatedSlot.endTime, otherSlots);
+      if (overlapError) {
+        setError(overlapError);
+        return;
+      }
+      
       const updatedSlots = existingSlots.map(slot => 
         slot.id === slotId ? { ...slot, ...updatedSlot } : slot
       );
