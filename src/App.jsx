@@ -94,6 +94,52 @@ const safeJsonParse = (jsonString, fallback = null) => {
   return fallback;
 };
 
+// Helper function to get theme colors based on user type and site mode
+const getThemeColors = (siteMode, user) => {
+  const isTutor = user?.role === 'TUTOR';
+  const isB2B = siteMode === 'b2b';
+  
+  if (isTutor) {
+    return {
+      primary: 'bg-purple-600',
+      primaryHover: 'hover:bg-purple-700',
+      primaryLight: 'bg-purple-500',
+      primaryLightHover: 'hover:bg-purple-500',
+      ring: 'ring-purple-500',
+      focus: 'focus:ring-purple-500',
+      text: 'text-purple-400',
+      textHover: 'hover:text-purple-300',
+      shadow: 'shadow-purple-600/30'
+    };
+  }
+  
+  if (isB2B) {
+    return {
+      primary: 'bg-green-600',
+      primaryHover: 'hover:bg-green-700',
+      primaryLight: 'bg-green-500',
+      primaryLightHover: 'hover:bg-green-500',
+      ring: 'ring-green-500',
+      focus: 'focus:ring-green-500',
+      text: 'text-green-400',
+      textHover: 'hover:text-green-300',
+      shadow: 'shadow-green-600/30'
+    };
+  }
+  
+  return {
+    primary: 'bg-blue-600',
+    primaryHover: 'hover:bg-blue-700',
+    primaryLight: 'bg-blue-500',
+    primaryLightHover: 'hover:bg-blue-500',
+    ring: 'ring-blue-500',
+    focus: 'focus:ring-blue-500',
+    text: 'text-blue-400',
+    textHover: 'hover:text-blue-300',
+    shadow: 'shadow-blue-600/30'
+  };
+};
+
 const SiteModeProvider = ({ children }) => {
   const [siteMode, setSiteMode] = useState(() => {
     // Check URL parameters first
@@ -630,7 +676,7 @@ const useBookingState = () => {
 const AuthButtons = ({ onAuthClick, onProfileClick }) => {
   const { user, isAuthenticated } = useAuth();
   const { siteMode } = useSiteMode();
-  const isB2B = siteMode === 'b2b';
+  const theme = getThemeColors(siteMode, user);
 
   if (isAuthenticated && user) {
     return (
@@ -650,7 +696,7 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
     <div className="flex items-center">
       <button
         onClick={() => onAuthClick('login')}
-        className={`flex items-center gap-1 px-4 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
+        className={`flex items-center gap-1 px-4 py-2 ${theme.primary} ${theme.primaryHover} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
       >
         <LogIn className="w-4 h-4" />
         <span>Kom i gang</span>
@@ -662,6 +708,7 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
 const SiteModeToggle = ({ onModeChange }) => {
   const { siteMode, toggleSiteMode } = useSiteMode();
   const { isAuthenticated, user } = useAuth();
+  const isTutor = user?.role === 'TUTOR';
   
   console.log('SiteModeToggle - isAuthenticated:', isAuthenticated, 'user:', user?.email);
   
@@ -672,6 +719,24 @@ const SiteModeToggle = ({ onModeChange }) => {
       console.log('Toggle blocked - user is authenticated');
     }
   };
+  
+  // If user is a tutor, show tutor-specific toggle
+  if (isTutor) {
+    return (
+      <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
+        <button
+          disabled={true}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 bg-purple-600 text-white shadow-lg shadow-purple-600/30"
+          title="Tutor mode - Aktiv"
+        >
+          <UserCheck className="w-4 h-4" />
+          Tutor
+          <span className="text-xs bg-purple-500 px-1.5 py-0.5 rounded-full">Aktiv</span>
+          <Lock className="w-4 h-4 text-white" title="Låst - Tutor mode" />
+        </button>
+      </div>
+    );
+  }
   
   return (
     <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
@@ -724,6 +789,7 @@ const SiteModeToggle = ({ onModeChange }) => {
 const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick, isAuthenticated, user }) => {
   const navigate = useNavigate();
   const { siteMode } = useSiteMode();
+  const theme = getThemeColors(siteMode, user);
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
   
@@ -813,7 +879,7 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
                 onAuthClick('login');
                 onClose();
               }}
-              className={`w-full flex items-center gap-2 px-3 py-2 ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
+              className={`w-full flex items-center gap-2 px-3 py-2 ${theme.primary} ${theme.primaryHover} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
             >
               <LogIn className="w-4 h-4" />
               Kom i gang
@@ -827,12 +893,14 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
 
 const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
   const { siteMode } = useSiteMode();
+  const { user } = useAuth();
+  const theme = getThemeColors(siteMode, user);
   const isB2B = siteMode === 'b2b';
   
   return (
     <div
       className={`bg-slate-800 rounded-lg overflow-hidden transition-all duration-300 ${
-        isExpanded ? `ring-2 ${isB2B ? 'ring-green-500' : 'ring-blue-500'}` : 'hover:bg-slate-700/50'
+        isExpanded ? `ring-2 ${theme.ring}` : 'hover:bg-slate-700/50'
       }`}
     >
       <div className="p-6 flex flex-col sm:flex-row items-center gap-6">
@@ -857,7 +925,7 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
         <div className="flex-shrink-0 mt-4 sm:mt-0">
           <button
             onClick={() => onExpand(tutor.id)}
-            className={`${isB2B ? 'bg-green-600 hover:bg-green-500' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2`}
+            className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2`}
           >
             {isB2B ? 'Se Workshops' : 'Vælg Session & Se Pris'} <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
@@ -883,7 +951,7 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
                   )}
                   <button
                     onClick={() => onSelect(tutor, session)}
-                    className={`${!isB2B ? 'mt-1' : ''} ${isB2B ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'} text-white text-sm font-bold py-2 px-5 rounded-lg transition-colors flex items-center gap-2`}
+                    className={`${!isB2B ? 'mt-1' : ''} ${theme.primary} ${theme.primaryLightHover} text-white text-sm font-bold py-2 px-5 rounded-lg transition-colors flex items-center gap-2`}
                   >
                     Book <ArrowRight size={16} />
                   </button>
@@ -905,6 +973,9 @@ const LoadingSpinner = () => (
 
 const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => {
   const [currentWeek, setCurrentWeek] = useState(0);
+  const { siteMode } = useSiteMode();
+  const { user } = useAuth();
+  const theme = getThemeColors(siteMode, user);
   
   // Validate props
   if (!tutor || !tutor.id) {
@@ -1033,7 +1104,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
                       onClick={() => onSelectDateTime(dateTimeKey)}
                       className={`p-2 rounded-lg text-sm font-medium transition-colors ${
                         isSelected
-                          ? 'bg-blue-600 text-white'
+                          ? `${theme.primary} text-white`
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                       }`}
                     >
@@ -1060,7 +1131,9 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
 // Pages
 const B2BHomePage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const { siteMode } = useSiteMode();
+  const theme = getThemeColors(siteMode, user);
   const minPrice = 850; // Default minimum price for B2B
   
   return (
@@ -1075,7 +1148,7 @@ const B2BHomePage = () => {
         </p>
         <button
           onClick={() => navigate('/tutors')}
-          className="mt-8 bg-green-600 text-white font-bold text-lg py-4 px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg shadow-green-600/30"
+          className={`mt-8 ${theme.primary} text-white font-bold text-lg py-4 px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg ${theme.shadow}`}
         >
           <Rocket className="inline-block mr-2" /> Udforsk Eksperter
         </button>
@@ -1151,7 +1224,9 @@ const B2BHomePage = () => {
 
 const B2CHomePage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const { siteMode } = useSiteMode();
+  const theme = getThemeColors(siteMode, user);
   const minPrice = 475; // Default minimum price for B2C
 
   return (
@@ -1165,7 +1240,7 @@ const B2CHomePage = () => {
         </p>
         <button
           onClick={() => navigate('/tutors')}
-          className="mt-8 bg-blue-600 text-white font-bold text-lg py-4 px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg shadow-blue-600/30"
+          className={`mt-8 ${theme.primary} text-white font-bold text-lg py-4 px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg ${theme.shadow}`}
         >
           <Rocket className="inline-block mr-2" /> Find Din Vej til AI
         </button>
@@ -1245,6 +1320,8 @@ const TutorsPage = () => {
   const [expandedId, setExpandedId] = useState(null);
   const navigate = useNavigate();
   const { siteMode } = useSiteMode();
+  const { user } = useAuth();
+  const theme = getThemeColors(siteMode, user);
   
   // Use API to fetch tutors
   const { data: tutors = [], loading, error } = useTutors(siteMode.toUpperCase());
@@ -1275,7 +1352,7 @@ const TutorsPage = () => {
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className={`${theme.primary} ${theme.primaryHover} text-white px-6 py-2 rounded-lg transition-colors`}
           >
             Try Again
           </button>
@@ -1318,6 +1395,7 @@ const BookingPage = () => {
   const { siteMode } = useSiteMode();
   const { user, isAuthenticated } = useAuth();
   const { createBooking, loading: bookingLoading, error: bookingError, clearError } = useCreateBooking();
+  const theme = getThemeColors(siteMode, user);
   
   const isB2B = siteMode === 'b2b';
   const [format, setFormat] = useState(isB2B ? 'team' : 'individual');
@@ -1502,7 +1580,7 @@ const BookingPage = () => {
         </h1>
         <button
           onClick={() => navigate('/tutors')}
-          className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-500"
+          className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg`}
         >
           {isB2B ? 'Tilbage til eksperter' : 'Tilbage til Tutorer'}
         </button>
@@ -1545,7 +1623,7 @@ const BookingPage = () => {
           )}
           <button
             onClick={() => navigate('/dashboard')}
-            className="mt-6 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-500 transition-colors"
+            className={`mt-6 ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
           >
             Se dit Karriere-Dashboard
           </button>
@@ -1781,7 +1859,7 @@ const BookingPage = () => {
           <button
             type="submit"
             disabled={isSubmitting || bookingLoading}
-            className={`mt-4 w-full ${isB2B ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 hover:bg-green-500'} text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg flex items-center justify-center gap-2`}
+            className={`mt-4 w-full ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg flex items-center justify-center gap-2`}
           >
             {(isSubmitting || bookingLoading) ? (
               <>
@@ -1803,6 +1881,9 @@ const BookingPage = () => {
 const BookingSuccessPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { siteMode } = useSiteMode();
+  const { user } = useAuth();
+  const theme = getThemeColors(siteMode, user);
   const { booking } = location.state || {};
 
   if (!booking) {
@@ -1811,7 +1892,7 @@ const BookingSuccessPage = () => {
         <h1 className="text-2xl text-white mb-4">Booking ikke fundet</h1>
         <button
           onClick={() => navigate('/')}
-          className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-500"
+          className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg`}
         >
           Tilbage til forsiden
         </button>
@@ -1863,7 +1944,7 @@ const BookingSuccessPage = () => {
         <div className="flex gap-4 mt-6">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex-1 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-500 transition-colors"
+            className={`flex-1 ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
           >
             Gå til Dashboard
           </button>
@@ -1881,6 +1962,8 @@ const BookingSuccessPage = () => {
 
 const DashboardPage = () => {
   const { siteMode } = useSiteMode();
+  const { user } = useAuth();
+  const theme = getThemeColors(siteMode, user);
   const { data: bookings = [], loading, error } = useBookings({ siteMode: siteMode.toUpperCase() });
   const isB2B = siteMode === 'b2b';
 
@@ -1904,7 +1987,7 @@ const DashboardPage = () => {
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className={`${theme.primary} ${theme.primaryHover} text-white px-6 py-2 rounded-lg transition-colors`}
           >
             Try Again
           </button>

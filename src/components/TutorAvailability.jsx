@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Plus, Trash2, Edit, Save, X } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, Edit, Save, X, Copy, RotateCcw, CalendarDays } from 'lucide-react';
 import { availabilityApi, tutorManagementApi } from '../services/api.js';
 
 const TutorAvailability = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
+  const [showBulkCreate, setShowBulkCreate] = useState(false);
+  const [showCopyModal, setShowCopyModal] = useState(false);
   const [newSlot, setNewSlot] = useState({ startTime: '', endTime: '' });
+  const [bulkPattern, setBulkPattern] = useState({ 
+    dayOfWeek: '', 
+    startTime: '', 
+    endTime: '', 
+    weeks: 4 
+  });
+  const [copySource, setCopySource] = useState(null);
   const [availability, setAvailability] = useState({});
   const [loading, setLoading] = useState(true);
   const [tutorId, setTutorId] = useState(null);
@@ -14,6 +24,111 @@ const TutorAvailability = () => {
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
+  };
+
+  // Generate hour options
+  const generateHourOptions = (type = 'all') => {
+    const options = [];
+    const startHour = type === 'business' ? 9 : 0;
+    const endHour = type === 'business' ? 17 : 24;
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      options.push({
+        value: hour.toString().padStart(2, '0'),
+        label: hour.toString().padStart(2, '0')
+      });
+    }
+    return options;
+  };
+
+  // Generate minute options (15-minute increments)
+  const generateMinuteOptions = () => {
+    return [
+      { value: '00', label: '00' },
+      { value: '15', label: '15' },
+      { value: '30', label: '30' },
+      { value: '45', label: '45' }
+    ];
+  };
+
+  // Generate time options in 15-minute increments (for backwards compatibility)
+  const generateTimeOptions = (type = 'all') => {
+    const options = [];
+    const startHour = type === 'business' ? 9 : 0;
+    const endHour = type === 'business' ? 17 : 24;
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        options.push(time);
+      }
+    }
+    return options;
+  };
+
+  // Parse time string into hour and minute
+  const parseTime = (timeString) => {
+    if (!timeString) return { hour: '', minute: '' };
+    const [hour, minute] = timeString.split(':');
+    return { hour, minute };
+  };
+
+  // Format hour and minute into time string
+  const formatTime = (hour, minute) => {
+    if (!hour || !minute) return '';
+    return `${hour}:${minute}`;
+  };
+
+  // Get suggested end times based on start time (minimum 30 min, common durations)
+  const getSuggestedEndTimes = (startTime) => {
+    if (!startTime) return generateTimeOptions('business');
+    
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const startTotalMinutes = startHour * 60 + startMinute;
+    
+    // Common session durations: 30min, 45min, 1h, 1.5h, 2h, 3h
+    const commonDurations = [30, 45, 60, 90, 120, 180];
+    const suggestions = [];
+    
+    commonDurations.forEach(duration => {
+      const endTotalMinutes = startTotalMinutes + duration;
+      const endHour = Math.floor(endTotalMinutes / 60);
+      const endMinute = endTotalMinutes % 60;
+      
+      if (endHour < 24) {
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+        if (!suggestions.includes(endTime)) {
+          suggestions.push(endTime);
+        }
+      }
+    });
+    
+    // Add all other valid times
+    const allTimes = generateTimeOptions('business');
+    allTimes.forEach(time => {
+      const [hour, minute] = time.split(':').map(Number);
+      const totalMinutes = hour * 60 + minute;
+      if (totalMinutes > startTotalMinutes + 30 && !suggestions.includes(time)) {
+        suggestions.push(time);
+      }
+    });
+    
+    return suggestions;
+  };
+
+  // Validate time slot duration (minimum 30 minutes)
+  const validateTimeSlotDuration = (startTime, endTime) => {
+    const start = new Date(`1970-01-01T${startTime}:00`);
+    const end = new Date(`1970-01-01T${endTime}:00`);
+    const durationMs = end - start;
+    const durationMinutes = durationMs / (1000 * 60);
+    return durationMinutes >= 30;
+  };
+
+  // Validate time is in 15-minute increments
+  const validateTimeIncrement = (time) => {
+    const [, minutes] = time.split(':');
+    return ['00', '15', '30', '45'].includes(minutes);
   };
 
   useEffect(() => {
@@ -94,11 +209,25 @@ const TutorAvailability = () => {
   };
 
   const checkTimeSlotOverlap = (startTime, endTime, existingSlots) => {
+    if (!startTime || !endTime) {
+      return 'Start- og sluttid er påkrævet';
+    }
+
+    // Validate 15-minute increments
+    if (!validateTimeIncrement(startTime) || !validateTimeIncrement(endTime)) {
+      return 'Tidspunkter skal være i 15-minutters intervaller (00, 15, 30, 45)';
+    }
+
     const newStart = new Date(`1970-01-01T${startTime}:00`);
     const newEnd = new Date(`1970-01-01T${endTime}:00`);
     
     if (newStart >= newEnd) {
       return 'Sluttid skal være efter starttid';
+    }
+
+    // Validate minimum duration (30 minutes)
+    if (!validateTimeSlotDuration(startTime, endTime)) {
+      return 'Minimum varighed er 30 minutter';
     }
     
     for (const slot of existingSlots) {
@@ -192,6 +321,114 @@ const TutorAvailability = () => {
     }
   };
 
+  // Copy availability functions
+  const copyAvailabilityToDay = async (sourceDate, targetDate) => {
+    if (!tutorId) return;
+    
+    try {
+      const sourceDateKey = formatDate(sourceDate);
+      const targetDateKey = formatDate(targetDate);
+      const sourceSlots = availability[sourceDateKey] || [];
+      
+      if (sourceSlots.length === 0) {
+        setError('Ingen tidsslots at kopiere fra den valgte dag');
+        return;
+      }
+
+      // Create clean slots (remove id and booking info)
+      const cleanSlots = sourceSlots.map(slot => ({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isBooked: false
+      }));
+
+      await availabilityApi.updateAvailability(tutorId, targetDateKey, cleanSlots);
+      await loadAvailability();
+      setShowCopyModal(false);
+      setCopySource(null);
+    } catch (error) {
+      console.error('Failed to copy availability:', error);
+      setError('Kunne ikke kopiere tilgængelighed');
+    }
+  };
+
+  const copyAvailabilityToWeek = async (sourceDate, targetWeekStart) => {
+    if (!tutorId) return;
+    
+    try {
+      const sourceDateKey = formatDate(sourceDate);
+      const sourceSlots = availability[sourceDateKey] || [];
+      
+      if (sourceSlots.length === 0) {
+        setError('Ingen tidsslots at kopiere fra den valgte dag');
+        return;
+      }
+
+      const dayOfWeek = sourceDate.getDay();
+      const targetDate = new Date(targetWeekStart);
+      targetDate.setDate(targetWeekStart.getDate() + dayOfWeek);
+      
+      await copyAvailabilityToDay(sourceDate, targetDate);
+    } catch (error) {
+      console.error('Failed to copy availability to week:', error);
+      setError('Kunne ikke kopiere tilgængelighed til ugen');
+    }
+  };
+
+  // Bulk creation function
+  const createBulkAvailability = async () => {
+    if (!tutorId || !bulkPattern.dayOfWeek || !bulkPattern.startTime || !bulkPattern.endTime) {
+      setError('Alle felter er påkrævet for masseoprettelse');
+      return;
+    }
+
+    // Validate time slot
+    const timeError = checkTimeSlotOverlap(bulkPattern.startTime, bulkPattern.endTime, []);
+    if (timeError) {
+      setError(timeError);
+      return;
+    }
+
+    try {
+      const promises = [];
+      const today = new Date();
+      
+      for (let week = 0; week < bulkPattern.weeks; week++) {
+        const targetDate = new Date(today);
+        const daysToAdd = (parseInt(bulkPattern.dayOfWeek) - today.getDay() + 7) % 7 + (week * 7);
+        targetDate.setDate(today.getDate() + daysToAdd);
+        
+        const dateKey = formatDate(targetDate);
+        const existingSlots = availability[dateKey] || [];
+        
+        // Check if this would overlap with existing slots
+        const overlapError = checkTimeSlotOverlap(bulkPattern.startTime, bulkPattern.endTime, existingSlots);
+        if (!overlapError) {
+          const newSlot = {
+            startTime: bulkPattern.startTime,
+            endTime: bulkPattern.endTime,
+            isBooked: false
+          };
+          
+          const updatedSlots = [...existingSlots, newSlot]
+            .sort((a, b) => a.startTime.localeCompare(b.startTime));
+          
+          promises.push(
+            availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots)
+          );
+        }
+      }
+
+      await Promise.all(promises);
+      await loadAvailability();
+      setShowBulkCreate(false);
+      setBulkPattern({ dayOfWeek: '', startTime: '', endTime: '', weeks: 4 });
+    } catch (error) {
+      console.error('Failed to create bulk availability:', error);
+      setError('Kunne ikke oprette massedisponibilitet');
+    }
+  };
+
   const weekDates = getWeekDates();
   const selectedDateKey = formatDate(selectedDate);
   const daySlots = availability[selectedDateKey] || [];
@@ -223,12 +460,32 @@ const TutorAvailability = () => {
 
   return (
     <div className="space-y-6">
-      {/* Week Navigation */}
+      {/* Header with view controls */}
       <div className="bg-slate-800 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Vælg dag
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Tilgængelighed
+          </h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBulkCreate(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Masseopret
+            </button>
+            <button
+              onClick={() => setViewMode(viewMode === 'week' ? 'month' : 'week')}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <CalendarDays className="w-4 h-4" />
+              {viewMode === 'week' ? 'Månedsvisning' : 'Ugevisning'}
+            </button>
+          </div>
+        </div>
+        
+        <h4 className="text-sm text-slate-300 mb-4">Vælg dag</h4>
         
         <div className="grid grid-cols-7 gap-2">
           {weekDates.map((date, index) => {
@@ -242,7 +499,7 @@ const TutorAvailability = () => {
               <button
                 key={index}
                 onClick={() => setSelectedDate(date)}
-                className={`p-3 rounded-lg text-center transition-colors ${
+                className={`group relative p-3 rounded-lg text-center transition-colors ${
                   isSelected
                     ? 'bg-green-600 text-white'
                     : isToday
@@ -260,6 +517,18 @@ const TutorAvailability = () => {
                   <div className="text-xs mt-1">
                     {slotsCount - bookedCount}/{slotsCount}
                   </div>
+                )}
+                {slotsCount > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCopySource(date);
+                      setShowCopyModal(true);
+                    }}
+                    className="absolute top-1 right-1 bg-slate-600 hover:bg-slate-500 p-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
                 )}
               </button>
             );
@@ -286,45 +555,183 @@ const TutorAvailability = () => {
         {/* Add New Slot Form */}
         {isAddingSlot && (
           <div className="mb-6 p-4 bg-slate-700 rounded-lg">
-            <h4 className="text-white font-medium mb-3">Nyt tidsslot</h4>
-            <div className="flex gap-4 items-end">
-              <div>
-                <label className="block text-sm text-slate-300 mb-1">Fra</label>
-                <input
-                  type="time"
-                  value={newSlot.startTime}
-                  onChange={(e) => setNewSlot(prev => ({ ...prev, startTime: e.target.value }))}
-                  className="bg-slate-600 text-white rounded-md px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-slate-300 mb-1">Til</label>
-                <input
-                  type="time"
-                  value={newSlot.endTime}
-                  onChange={(e) => setNewSlot(prev => ({ ...prev, endTime: e.target.value }))}
-                  className="bg-slate-600 text-white rounded-md px-3 py-2"
-                />
-              </div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-white font-medium">Nyt tidsslot</h4>
               <div className="flex gap-2">
                 <button
-                  onClick={addTimeSlot}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+                  onClick={() => setNewSlot({ startTime: '09:00', endTime: '12:00' })}
+                  className="px-2 py-1 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
                 >
-                  <Save className="w-4 h-4" />
-                  Gem
+                  9-12
                 </button>
                 <button
-                  onClick={() => {
-                    setIsAddingSlot(false);
-                    setNewSlot({ startTime: '', endTime: '' });
-                  }}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+                  onClick={() => setNewSlot({ startTime: '13:00', endTime: '16:00' })}
+                  className="px-2 py-1 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
                 >
-                  <X className="w-4 h-4" />
-                  Annuller
+                  13-16
+                </button>
+                <button
+                  onClick={() => setNewSlot({ startTime: '10:00', endTime: '11:00' })}
+                  className="px-2 py-1 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+                >
+                  10-11
                 </button>
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Starttid</label>
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <select
+                      value={parseTime(newSlot.startTime).hour}
+                      onChange={(e) => {
+                        const hour = e.target.value;
+                        const minute = parseTime(newSlot.startTime).minute || '00';
+                        const startTime = formatTime(hour, minute);
+                        setNewSlot(prev => ({ 
+                          ...prev, 
+                          startTime,
+                          endTime: '' // Reset end time when start time changes
+                        }));
+                      }}
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="">Time</option>
+                      <optgroup label="Normal arbejdstid (9-17)">
+                        {generateHourOptions('business').map(hour => (
+                          <option key={hour.value} value={hour.value}>{hour.label}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Andre timer">
+                        {generateHourOptions().filter(hour => {
+                          const h = parseInt(hour.value);
+                          return h < 9 || h >= 17;
+                        }).map(hour => (
+                          <option key={hour.value} value={hour.value}>{hour.label}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                  <span className="text-slate-300 font-medium">:</span>
+                  <div className="flex-1">
+                    <select
+                      value={parseTime(newSlot.startTime).minute}
+                      onChange={(e) => {
+                        const minute = e.target.value;
+                        const hour = parseTime(newSlot.startTime).hour;
+                        if (hour) {
+                          const startTime = formatTime(hour, minute);
+                          setNewSlot(prev => ({ 
+                            ...prev, 
+                            startTime,
+                            endTime: '' // Reset end time when start time changes
+                          }));
+                        }
+                      }}
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      disabled={!parseTime(newSlot.startTime).hour}
+                    >
+                      <option value="">Min</option>
+                      {generateMinuteOptions().map(minute => (
+                        <option key={minute.value} value={minute.value}>{minute.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">
+                  Sluttid 
+                  {newSlot.startTime && (
+                    <span className="text-xs text-slate-400 ml-1">(min. 30 min)</span>
+                  )}
+                </label>
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <select
+                      value={parseTime(newSlot.endTime).hour}
+                      onChange={(e) => {
+                        const hour = e.target.value;
+                        const minute = parseTime(newSlot.endTime).minute || '00';
+                        const endTime = formatTime(hour, minute);
+                        setNewSlot(prev => ({ ...prev, endTime }));
+                      }}
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      disabled={!newSlot.startTime}
+                    >
+                      <option value="">Time</option>
+                      <optgroup label="Normal arbejdstid (9-17)">
+                        {generateHourOptions('business').map(hour => (
+                          <option key={hour.value} value={hour.value}>{hour.label}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Andre timer">
+                        {generateHourOptions().filter(hour => {
+                          const h = parseInt(hour.value);
+                          return h < 9 || h >= 17;
+                        }).map(hour => (
+                          <option key={hour.value} value={hour.value}>{hour.label}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+                  <span className="text-slate-300 font-medium">:</span>
+                  <div className="flex-1">
+                    <select
+                      value={parseTime(newSlot.endTime).minute}
+                      onChange={(e) => {
+                        const minute = e.target.value;
+                        const hour = parseTime(newSlot.endTime).hour;
+                        if (hour) {
+                          const endTime = formatTime(hour, minute);
+                          setNewSlot(prev => ({ ...prev, endTime }));
+                        }
+                      }}
+                      className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      disabled={!newSlot.startTime || !parseTime(newSlot.endTime).hour}
+                    >
+                      <option value="">Min</option>
+                      {generateMinuteOptions().map(minute => (
+                        <option key={minute.value} value={minute.value}>{minute.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {newSlot.startTime && newSlot.endTime && (
+                  <div className="mt-1 text-xs text-slate-400">
+                    Varighed: {(() => {
+                      const [startHour, startMinute] = newSlot.startTime.split(':').map(Number);
+                      const [endHour, endMinute] = newSlot.endTime.split(':').map(Number);
+                      const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+                      const hours = Math.floor(duration / 60);
+                      const minutes = duration % 60;
+                      return hours > 0 
+                        ? `${hours} time${hours > 1 ? 'r' : ''}${minutes > 0 ? ` og ${minutes} min` : ''}` 
+                        : `${minutes} minutter`;
+                    })()}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setIsAddingSlot(false);
+                  setNewSlot({ startTime: '', endTime: '' });
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <X className="w-4 h-4" />
+                Annuller
+              </button>
+              <button
+                onClick={addTimeSlot}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <Save className="w-4 h-4" />
+                Gem
+              </button>
             </div>
           </div>
         )}
@@ -353,20 +760,82 @@ const TutorAvailability = () => {
                   }`} />
                   
                   {editingSlot === slot.id ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="time"
-                        defaultValue={slot.startTime}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm"
-                        onChange={(e) => slot.startTime = e.target.value}
-                      />
-                      <span className="text-slate-300 self-center">-</span>
-                      <input
-                        type="time"
-                        defaultValue={slot.endTime}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm"
-                        onChange={(e) => slot.endTime = e.target.value}
-                      />
+                    <div className="flex gap-1 items-center">
+                      <select
+                        defaultValue={parseTime(slot.startTime).hour}
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        onChange={(e) => {
+                          const hour = e.target.value;
+                          const minute = parseTime(slot.startTime).minute;
+                          slot.startTime = formatTime(hour, minute);
+                        }}
+                      >
+                        <optgroup label="Normal">
+                          {generateHourOptions('business').map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Andre">
+                          {generateHourOptions().filter(hour => {
+                            const h = parseInt(hour.value);
+                            return h < 9 || h >= 17;
+                          }).map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                      <span className="text-slate-300">:</span>
+                      <select
+                        defaultValue={parseTime(slot.startTime).minute}
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        onChange={(e) => {
+                          const minute = e.target.value;
+                          const hour = parseTime(slot.startTime).hour;
+                          slot.startTime = formatTime(hour, minute);
+                        }}
+                      >
+                        {generateMinuteOptions().map(minute => (
+                          <option key={minute.value} value={minute.value}>{minute.label}</option>
+                        ))}
+                      </select>
+                      <span className="text-slate-300 mx-1">-</span>
+                      <select
+                        defaultValue={parseTime(slot.endTime).hour}
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        onChange={(e) => {
+                          const hour = e.target.value;
+                          const minute = parseTime(slot.endTime).minute;
+                          slot.endTime = formatTime(hour, minute);
+                        }}
+                      >
+                        <optgroup label="Normal">
+                          {generateHourOptions('business').map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Andre">
+                          {generateHourOptions().filter(hour => {
+                            const h = parseInt(hour.value);
+                            return h < 9 || h >= 17;
+                          }).map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                      <span className="text-slate-300">:</span>
+                      <select
+                        defaultValue={parseTime(slot.endTime).minute}
+                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-500"
+                        onChange={(e) => {
+                          const minute = e.target.value;
+                          const hour = parseTime(slot.endTime).hour;
+                          slot.endTime = formatTime(hour, minute);
+                        }}
+                      >
+                        {generateMinuteOptions().map(minute => (
+                          <option key={minute.value} value={minute.value}>{minute.label}</option>
+                        ))}
+                      </select>
                     </div>
                   ) : (
                     <div>
@@ -430,6 +899,241 @@ const TutorAvailability = () => {
           )}
         </div>
       </div>
+
+      {/* Bulk Create Modal */}
+      {showBulkCreate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-white mb-4">Masseopret tilgængelighed</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-300 mb-1">Ugedag</label>
+                <select
+                  value={bulkPattern.dayOfWeek}
+                  onChange={(e) => setBulkPattern(prev => ({ ...prev, dayOfWeek: e.target.value }))}
+                  className="w-full bg-slate-600 text-white rounded-md px-3 py-2"
+                >
+                  <option value="">Vælg ugedag</option>
+                  <option value="1">Mandag</option>
+                  <option value="2">Tirsdag</option>
+                  <option value="3">Onsdag</option>
+                  <option value="4">Torsdag</option>
+                  <option value="5">Fredag</option>
+                  <option value="6">Lørdag</option>
+                  <option value="0">Søndag</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Starttid</label>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <select
+                        value={parseTime(bulkPattern.startTime).hour}
+                        onChange={(e) => {
+                          const hour = e.target.value;
+                          const minute = parseTime(bulkPattern.startTime).minute || '00';
+                          const startTime = formatTime(hour, minute);
+                          setBulkPattern(prev => ({ 
+                            ...prev, 
+                            startTime,
+                            endTime: '' // Reset end time when start time changes
+                          }));
+                        }}
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Time</option>
+                        <optgroup label="Normal arbejdstid (9-17)">
+                          {generateHourOptions('business').map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Andre timer">
+                          {generateHourOptions().filter(hour => {
+                            const h = parseInt(hour.value);
+                            return h < 9 || h >= 17;
+                          }).map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                    <span className="text-slate-300 font-medium">:</span>
+                    <div className="flex-1">
+                      <select
+                        value={parseTime(bulkPattern.startTime).minute}
+                        onChange={(e) => {
+                          const minute = e.target.value;
+                          const hour = parseTime(bulkPattern.startTime).hour;
+                          if (hour) {
+                            const startTime = formatTime(hour, minute);
+                            setBulkPattern(prev => ({ 
+                              ...prev, 
+                              startTime,
+                              endTime: '' // Reset end time when start time changes
+                            }));
+                          }
+                        }}
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={!parseTime(bulkPattern.startTime).hour}
+                      >
+                        <option value="">Min</option>
+                        {generateMinuteOptions().map(minute => (
+                          <option key={minute.value} value={minute.value}>{minute.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">
+                    Sluttid
+                    {bulkPattern.startTime && (
+                      <span className="text-xs text-slate-400 ml-1">(min. 30 min)</span>
+                    )}
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <select
+                        value={parseTime(bulkPattern.endTime).hour}
+                        onChange={(e) => {
+                          const hour = e.target.value;
+                          const minute = parseTime(bulkPattern.endTime).minute || '00';
+                          const endTime = formatTime(hour, minute);
+                          setBulkPattern(prev => ({ ...prev, endTime }));
+                        }}
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={!bulkPattern.startTime}
+                      >
+                        <option value="">Time</option>
+                        <optgroup label="Normal arbejdstid (9-17)">
+                          {generateHourOptions('business').map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Andre timer">
+                          {generateHourOptions().filter(hour => {
+                            const h = parseInt(hour.value);
+                            return h < 9 || h >= 17;
+                          }).map(hour => (
+                            <option key={hour.value} value={hour.value}>{hour.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                    <span className="text-slate-300 font-medium">:</span>
+                    <div className="flex-1">
+                      <select
+                        value={parseTime(bulkPattern.endTime).minute}
+                        onChange={(e) => {
+                          const minute = e.target.value;
+                          const hour = parseTime(bulkPattern.endTime).hour;
+                          if (hour) {
+                            const endTime = formatTime(hour, minute);
+                            setBulkPattern(prev => ({ ...prev, endTime }));
+                          }
+                        }}
+                        className="w-full bg-slate-600 text-white rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={!bulkPattern.startTime || !parseTime(bulkPattern.endTime).hour}
+                      >
+                        <option value="">Min</option>
+                        {generateMinuteOptions().map(minute => (
+                          <option key={minute.value} value={minute.value}>{minute.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {bulkPattern.startTime && bulkPattern.endTime && (
+                    <div className="mt-1 text-xs text-slate-400">
+                      Varighed: {(() => {
+                        const [startHour, startMinute] = bulkPattern.startTime.split(':').map(Number);
+                        const [endHour, endMinute] = bulkPattern.endTime.split(':').map(Number);
+                        const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+                        const hours = Math.floor(duration / 60);
+                        const minutes = duration % 60;
+                        return hours > 0 
+                          ? `${hours} time${hours > 1 ? 'r' : ''}${minutes > 0 ? ` og ${minutes} min` : ''}` 
+                          : `${minutes} minutter`;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-1">Antal uger</label>
+                <select
+                  value={bulkPattern.weeks}
+                  onChange={(e) => setBulkPattern(prev => ({ ...prev, weeks: parseInt(e.target.value) }))}
+                  className="w-full bg-slate-600 text-white rounded-md px-3 py-2"
+                >
+                  <option value={1}>1 uge</option>
+                  <option value={2}>2 uger</option>
+                  <option value={4}>4 uger</option>
+                  <option value={8}>8 uger</option>
+                  <option value={12}>12 uger</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={createBulkAvailability}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Opret
+              </button>
+              <button
+                onClick={() => {
+                  setShowBulkCreate(false);
+                  setBulkPattern({ dayOfWeek: '', startTime: '', endTime: '', weeks: 4 });
+                }}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Annuller
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copy Modal */}
+      {showCopyModal && copySource && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Kopier tilgængelighed fra {copySource.toLocaleDateString('da-DK')}
+            </h3>
+            <div className="space-y-3">
+              <button
+                onClick={() => copyAvailabilityToDay(copySource, selectedDate)}
+                className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-left"
+              >
+                Kopier til valgte dag ({selectedDate.toLocaleDateString('da-DK')})
+              </button>
+              <button
+                onClick={() => {
+                  const nextWeek = new Date(selectedDate);
+                  nextWeek.setDate(selectedDate.getDate() + 7);
+                  copyAvailabilityToWeek(copySource, nextWeek);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-left"
+              >
+                Kopier til næste uge (samme ugedag)
+              </button>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCopyModal(false);
+                  setCopySource(null);
+                }}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Annuller
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

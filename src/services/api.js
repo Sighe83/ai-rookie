@@ -68,42 +68,96 @@ export const availabilityApi = {
   },
 
   updateAvailability: async (tutorId, date, timeSlots) => {
-    // First try to find existing record
-    const { data: existing } = await supabase
-      .from('tutor_availability')
-      .select('id')
-      .eq('tutor_id', tutorId)
-      .eq('date', date)
-      .single();
+    try {
+      // First try to find existing record
+      const { data: existing, error: findError } = await supabase
+        .from('tutor_availability')
+        .select('id')
+        .eq('tutor_id', tutorId)
+        .eq('date', date)
+        .maybeSingle();
 
-    let result;
-    if (existing) {
-      // Update existing record
-      result = await supabase
-        .from('tutor_availability')
-        .update({
-          time_slots: timeSlots,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existing.id)
-        .select()
-        .single();
-    } else {
-      // Insert new record
-      result = await supabase
-        .from('tutor_availability')
-        .insert([{
+      if (findError) {
+        console.error('Error finding existing availability:', findError);
+        throw new ApiError(findError.message, 400, findError);
+      }
+
+      let result;
+      if (existing) {
+        // Update existing record
+        console.log('Updating existing availability record:', existing.id);
+        result = await supabase
+          .from('tutor_availability')
+          .update({
+            time_slots: timeSlots,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
+      } else {
+        // Insert new record
+        console.log('Creating new availability record for tutor:', tutorId, 'date:', date);
+        
+        // Verify user has tutor permissions first
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          throw new ApiError('Authentication required', 401, authError);
+        }
+
+        // Verify the tutorId belongs to the authenticated user
+        const { data: tutorCheck, error: tutorError } = await supabase
+          .from('tutors')
+          .select('id, user_id')
+          .eq('id', tutorId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (tutorError || !tutorCheck) {
+          throw new ApiError('Unauthorized: Tutor not found or access denied', 403, tutorError);
+        }
+
+        // Generate UUID on client side as fallback
+        const generateUUID = () => {
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          // Fallback UUID generation
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        };
+
+        const insertData = {
+          id: generateUUID(), // Explicitly provide UUID
           tutor_id: tutorId,
-          date,
+          date: date,
           time_slots: timeSlots
-        }])
-        .select()
-        .single();
-    }
+        };
+        console.log('Insert data:', insertData);
+        
+        result = await supabase
+          .from('tutor_availability')
+          .insert(insertData)
+          .select()
+          .single();
+      }
 
-    const { data, error } = result;
-    if (error) throw new ApiError(error.message, 400, error);
-    return { data, success: true };
+      const { data, error } = result;
+      if (error) {
+        console.error('Database operation error:', error);
+        throw new ApiError(error.message, 400, error);
+      }
+      
+      console.log('Availability operation successful:', data);
+      return { data, success: true };
+    } catch (err) {
+      console.error('updateAvailability error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Unknown error occurred', 500, err);
+    }
   },
 
   bookTimeSlot: async (tutorId, date, time) => {

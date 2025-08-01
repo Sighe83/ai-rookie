@@ -3,6 +3,31 @@ import { X, Eye, EyeOff, Mail, Lock, User, Building, Briefcase, AlertCircle, Che
 import { useAuth } from '../hooks/useAuth.jsx';
 import EmailConfirmation from './EmailConfirmation.jsx';
 
+// Helper function to get theme colors based on user type and site mode
+const getThemeColors = (siteMode, user) => {
+  const isTutor = user?.role === 'TUTOR';
+  const isB2B = siteMode === 'b2b';
+  
+  if (isTutor) {
+    return {
+      primary: 'bg-purple-600',
+      primaryHover: 'hover:bg-purple-700'
+    };
+  }
+  
+  if (isB2B) {
+    return {
+      primary: 'bg-green-600',
+      primaryHover: 'hover:bg-green-700'
+    };
+  }
+  
+  return {
+    primary: 'bg-blue-600',
+    primaryHover: 'hover:bg-blue-700'
+  };
+};
+
 const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }) => {
   const [mode, setMode] = useState(initialMode); // 'login', 'signup', or 'email-confirmation'
   const [showPassword, setShowPassword] = useState(false);
@@ -20,6 +45,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login, register, error: authError, clearError, user, isAuthenticated } = useAuth();
+  const theme = getThemeColors(siteMode, user);
   
   const isB2B = siteMode === 'b2b';
 
@@ -456,7 +482,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full ${isB2B ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2`}
+            className={`w-full ${theme.primary} ${theme.primaryHover} text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2`}
           >
             {isSubmitting ? (
               <>
