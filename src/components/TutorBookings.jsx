@@ -1,54 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, CheckCircle, XCircle, AlertCircle, Phone, Mail, Building } from 'lucide-react';
+import { tutorManagementApi } from '../services/api.js';
 
 const TutorBookings = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
-
-  // Mock data - in real app this would come from API
-  const bookings = [
-    {
-      id: 1,
-      client: 'Morten Kristensen',
-      email: 'morten@company.dk',
-      phone: '+45 20 30 40 50',
-      company: 'TechStart ApS',
-      session: 'AI for Marketing & Kommunikation',
-      date: '2024-02-15',
-      time: '14:00',
-      duration: 60,
-      status: 'confirmed',
-      price: 950,
-      notes: 'Fokus på social media automation'
-    },
-    {
-      id: 2,
-      client: 'Anne Pedersen',
-      email: 'anne.p@bigcorp.dk',
-      phone: '+45 30 40 50 60',
-      company: 'BigCorp A/S',
-      session: 'AI-drevet salgsoptimering',
-      date: '2024-02-14',
-      time: '10:00',
-      duration: 90,
-      status: 'completed',
-      price: 1200,
-      notes: 'Gennemgået CRM integration'
-    },
-    {
-      id: 3,
-      client: 'Lars Hansen',
-      email: 'lars@startup.dk',
-      phone: '+45 40 50 60 70',
-      company: 'Startup Ltd.',
-      session: 'Introduktion til ChatGPT for ledere',
-      date: '2024-02-16',
-      time: '16:00',
-      duration: 60,
-      status: 'pending',
-      price: 850,
-      notes: 'Første gang med AI tools'
-    }
-  ];
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(null);
 
   const statusColors = {
     pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500' },
@@ -77,14 +36,82 @@ const TutorBookings = () => {
     }
   };
 
-  const handleStatusChange = (bookingId, newStatus) => {
-    // In real app, this would update via API
-    console.log(`Updating booking ${bookingId} to status: ${newStatus}`);
+  useEffect(() => {
+    loadBookings();
+  }, []);
+
+  const loadBookings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await tutorManagementApi.getTutorBookings();
+      
+      // Transform the data to match the expected format
+      const transformedBookings = response.data.map(booking => ({
+        id: booking.id,
+        client: booking.user?.name || booking.contact_name,
+        email: booking.user?.email || booking.contact_email,
+        phone: booking.user?.phone || booking.contact_phone,
+        company: booking.user?.company || booking.company,
+        session: booking.session?.title || 'Unknown Session',
+        date: booking.selected_date_time?.split('T')[0] || booking.selected_date_time,
+        time: new Date(booking.selected_date_time).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' }),
+        duration: booking.session?.duration || 60,
+        status: booking.status?.toLowerCase() || 'pending',
+        price: booking.total_price || 0,
+        notes: booking.notes || ''
+      }));
+      
+      setBookings(transformedBookings);
+    } catch (error) {
+      console.error('Failed to load bookings:', error);
+      setError('Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (bookingId, newStatus) => {
+    try {
+      setUpdating(bookingId);
+      await tutorManagementApi.updateBookingStatus(bookingId, newStatus);
+      await loadBookings(); // Reload to get updated data
+    } catch (error) {
+      console.error('Failed to update booking status:', error);
+      setError('Failed to update booking status');
+    } finally {
+      setUpdating(null);
+    }
   };
 
   const filteredBookings = selectedStatus === 'all' 
     ? bookings 
     : bookings.filter(booking => booking.status === selectedStatus);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading bookings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
+        <p className="text-red-400">{error}</p>
+        <button 
+          onClick={() => { setError(null); loadBookings(); }}
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -194,15 +221,17 @@ const TutorBookings = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        disabled={updating === booking.id}
+                        className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                       >
-                        Bekræft
+                        {updating === booking.id ? 'Updating...' : 'Bekræft'}
                       </button>
                       <button
                         onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        disabled={updating === booking.id}
+                        className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                       >
-                        Aflys
+                        {updating === booking.id ? 'Updating...' : 'Aflys'}
                       </button>
                     </div>
                   )}
@@ -210,9 +239,10 @@ const TutorBookings = () => {
                   {booking.status === 'confirmed' && (
                     <button
                       onClick={() => handleStatusChange(booking.id, 'completed')}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                      disabled={updating === booking.id}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >
-                      Marker som gennemført
+                      {updating === booking.id ? 'Updating...' : 'Marker som gennemført'}
                     </button>
                   )}
                 </div>

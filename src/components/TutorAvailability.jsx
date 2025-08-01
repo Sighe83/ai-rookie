@@ -1,26 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Trash2, Edit, Save, X } from 'lucide-react';
+import { availabilityApi, tutorManagementApi } from '../services/api.js';
 
 const TutorAvailability = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
   const [newSlot, setNewSlot] = useState({ startTime: '', endTime: '' });
-
-  // Mock availability data - in real app this would come from API
-  const [availability, setAvailability] = useState({
-    '2024-02-15': [
-      { id: 1, startTime: '09:00', endTime: '10:00', isBooked: false },
-      { id: 2, startTime: '10:30', endTime: '11:30', isBooked: false },
-      { id: 3, startTime: '14:00', endTime: '15:00', isBooked: true, clientName: 'Morten K.' }
-    ],
-    '2024-02-16': [
-      { id: 4, startTime: '16:00', endTime: '17:00', isBooked: true, clientName: 'Lars H.' }
-    ]
-  });
+  const [availability, setAvailability] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [tutorId, setTutorId] = useState(null);
+  const [error, setError] = useState(null);
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
+  };
+
+  useEffect(() => {
+    loadTutorProfile();
+  }, []);
+
+  useEffect(() => {
+    if (tutorId) {
+      loadAvailability();
+    }
+  }, [tutorId, selectedDate]);
+
+  const loadTutorProfile = async () => {
+    try {
+      const response = await tutorManagementApi.getProfile();
+      setTutorId(response.data.id);
+    } catch (error) {
+      console.error('Failed to load tutor profile:', error);
+      setError('Failed to load tutor profile');
+    }
+  };
+
+  const loadAvailability = async () => {
+    try {
+      setLoading(true);
+      const startOfWeek = new Date(selectedDate);
+      const day = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+      const response = await availabilityApi.getAvailability(
+        tutorId, 
+        formatDate(startOfWeek), 
+        formatDate(endOfWeek)
+      );
+      
+      const availabilityMap = {};
+      response.data.forEach(item => {
+        const slots = Array.isArray(item.time_slots) ? item.time_slots : [];
+        availabilityMap[item.date] = slots.map((slot, index) => ({
+          id: `${item.date}-${index}`,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          isBooked: slot.isBooked || false,
+          clientName: slot.clientName
+        }));
+      });
+      
+      setAvailability(availabilityMap);
+    } catch (error) {
+      console.error('Failed to load availability:', error);
+      setError('Failed to load availability');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getDayName = (date) => {
@@ -42,51 +93,95 @@ const TutorAvailability = () => {
     return weekDates;
   };
 
-  const addTimeSlot = () => {
-    if (!newSlot.startTime || !newSlot.endTime) return;
+  const addTimeSlot = async () => {
+    if (!newSlot.startTime || !newSlot.endTime || !tutorId) return;
     
-    const dateKey = formatDate(selectedDate);
-    const newId = Date.now();
-    
-    setAvailability(prev => ({
-      ...prev,
-      [dateKey]: [
-        ...(prev[dateKey] || []),
+    try {
+      const dateKey = formatDate(selectedDate);
+      const existingSlots = availability[dateKey] || [];
+      const updatedSlots = [
+        ...existingSlots,
         {
-          id: newId,
           startTime: newSlot.startTime,
           endTime: newSlot.endTime,
           isBooked: false
         }
-      ].sort((a, b) => a.startTime.localeCompare(b.startTime))
-    }));
+      ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+      await availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots);
+      await loadAvailability();
+      
+      setNewSlot({ startTime: '', endTime: '' });
+      setIsAddingSlot(false);
+    } catch (error) {
+      console.error('Failed to add time slot:', error);
+      setError('Failed to add time slot');
+    }
+  };
+
+  const deleteTimeSlot = async (slotId) => {
+    if (!tutorId) return;
     
-    setNewSlot({ startTime: '', endTime: '' });
-    setIsAddingSlot(false);
+    try {
+      const dateKey = formatDate(selectedDate);
+      const existingSlots = availability[dateKey] || [];
+      const updatedSlots = existingSlots.filter(slot => slot.id !== slotId);
+
+      await availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots);
+      await loadAvailability();
+    } catch (error) {
+      console.error('Failed to delete time slot:', error);
+      setError('Failed to delete time slot');
+    }
   };
 
-  const deleteTimeSlot = (slotId) => {
-    const dateKey = formatDate(selectedDate);
-    setAvailability(prev => ({
-      ...prev,
-      [dateKey]: prev[dateKey]?.filter(slot => slot.id !== slotId) || []
-    }));
-  };
-
-  const updateTimeSlot = (slotId, updatedSlot) => {
-    const dateKey = formatDate(selectedDate);
-    setAvailability(prev => ({
-      ...prev,
-      [dateKey]: prev[dateKey]?.map(slot => 
+  const updateTimeSlot = async (slotId, updatedSlot) => {
+    if (!tutorId) return;
+    
+    try {
+      const dateKey = formatDate(selectedDate);
+      const existingSlots = availability[dateKey] || [];
+      const updatedSlots = existingSlots.map(slot => 
         slot.id === slotId ? { ...slot, ...updatedSlot } : slot
-      ) || []
-    }));
-    setEditingSlot(null);
+      );
+
+      await availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots);
+      await loadAvailability();
+      setEditingSlot(null);
+    } catch (error) {
+      console.error('Failed to update time slot:', error);
+      setError('Failed to update time slot');
+    }
   };
 
   const weekDates = getWeekDates();
   const selectedDateKey = formatDate(selectedDate);
   const daySlots = availability[selectedDateKey] || [];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading availability...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
+        <p className="text-red-400">{error}</p>
+        <button 
+          onClick={() => { setError(null); loadTutorProfile(); }}
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

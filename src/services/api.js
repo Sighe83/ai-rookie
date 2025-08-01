@@ -207,6 +207,212 @@ export const healthApi = {
   }
 };
 
+// Tutor Management API - For authenticated tutors managing their profile
+export const tutorManagementApi = {
+  getProfile: async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    const { data, error } = await supabase
+      .from('tutors')
+      .select(`
+        *,
+        user:users(*),
+        sessions(*)
+      `)
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) throw new ApiError(error.message, 404, error);
+    return { data, success: true };
+  },
+
+  updateProfile: async (profileData) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    const { data, error } = await supabase
+      .from('tutors')
+      .update({
+        ...profileData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id)
+      .select(`
+        *,
+        user:users(*),
+        sessions(*)
+      `)
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  },
+
+  getTutorBookings: async (filters = {}) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    // First get tutor ID
+    const { data: tutorData, error: tutorError } = await supabase
+      .from('tutors')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (tutorError) throw new ApiError('Tutor not found', 404, tutorError);
+
+    let query = supabase
+      .from('bookings')
+      .select(`
+        *,
+        user:users(name, email, phone, company),
+        session:sessions(title, description, duration)
+      `)
+      .eq('tutor_id', tutorData.id);
+
+    if (filters.status) query = query.eq('status', filters.status.toUpperCase());
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  },
+
+  updateBookingStatus: async (bookingId, status) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    // Get tutor ID
+    const { data: tutorData, error: tutorError } = await supabase
+      .from('tutors')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (tutorError) throw new ApiError('Tutor not found', 404, tutorError);
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ 
+        status: status.toUpperCase(),
+        updated_at: new Date().toISOString(),
+        ...(status.toUpperCase() === 'CONFIRMED' && { confirmed_at: new Date().toISOString() }),
+        ...(status.toUpperCase() === 'CANCELLED' && { cancelled_at: new Date().toISOString() })
+      })
+      .eq('id', bookingId)
+      .eq('tutor_id', tutorData.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  }
+};
+
+// Sessions API - For managing tutor sessions
+export const sessionsApi = {
+  getSessions: async (tutorId) => {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('tutor_id', tutorId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  },
+
+  createSession: async (sessionData) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    // Get tutor ID
+    const { data: tutorData, error: tutorError } = await supabase
+      .from('tutors')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (tutorError) throw new ApiError('Tutor not found', 404, tutorError);
+
+    const { data, error } = await supabase
+      .from('sessions')
+      .insert([{
+        ...sessionData,
+        tutor_id: tutorData.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  },
+
+  updateSession: async (sessionId, sessionData) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    // Get tutor ID
+    const { data: tutorData, error: tutorError } = await supabase
+      .from('tutors')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (tutorError) throw new ApiError('Tutor not found', 404, tutorError);
+
+    const { data, error } = await supabase
+      .from('sessions')
+      .update({
+        ...sessionData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', sessionId)
+      .eq('tutor_id', tutorData.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  },
+
+  deleteSession: async (sessionId) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    // Get tutor ID
+    const { data: tutorData, error: tutorError } = await supabase
+      .from('tutors')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (tutorError) throw new ApiError('Tutor not found', 404, tutorError);
+
+    const { data, error } = await supabase
+      .from('sessions')
+      .update({ is_active: false })
+      .eq('id', sessionId)
+      .eq('tutor_id', tutorData.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  }
+};
+
 // Export utilities
 export { ApiError, supabase, authHelpers };
 
@@ -215,6 +421,8 @@ const api = {
   tutors: tutorsApi,
   availability: availabilityApi,
   bookings: bookingsApi,
+  tutorManagement: tutorManagementApi,
+  sessions: sessionsApi,
   health: healthApi
 };
 
