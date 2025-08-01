@@ -169,6 +169,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
         // Handle login errors with better UX
         if (!result.success) {
           console.error('Login failed with error:', result.error);
+          console.error('Full error details:', result);
           
           if (result.error?.includes('Invalid login credentials') || result.error?.includes('Ugyldig email eller adgangskode')) {
             setErrors({ 
@@ -195,8 +196,10 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
             });
             setIsNewUser(true);
           } else {
+            // More detailed error reporting for debugging
+            console.error('Unhandled login error:', result.error);
             setErrors({ 
-              general: result.error || 'Login fejlede. Prøv igen.',
+              general: `Login fejlede: ${result.error || 'Ukendt fejl'}. Prøv igen.`,
               email: '',
               password: ''
             });

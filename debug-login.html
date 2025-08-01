@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Login</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Login Debug Test</h1>
+    <div id="status">Testing...</div>
+    <form id="loginForm">
+        <div>
+            <label>Email: <input type="email" id="email" value="daniel.elkjaer@gmail.com"></label>
+        </div>
+        <div>
+            <label>Password: <input type="password" id="password" value="test123"></label>
+        </div>
+        <button type="submit">Test Login</button>
+    </form>
+    <pre id="results"></pre>
+
+    <script>
+        const supabaseUrl = 'https://dfovfdluhrdmrhtubomt.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmb3ZmZGx1aHJkbXJodHVib210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4Mjk5NDEsImV4cCI6MjA2OTQwNTk0MX0.pHMloRnImKF8MqQjAJgk6NfGV5PkECJq83_j8ZX3m80';
+        
+        const { createClient } = supabase;
+        const client = createClient(supabaseUrl, supabaseKey);
+        
+        document.getElementById('status').textContent = 'Supabase client created';
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const results = document.getElementById('results');
+            
+            results.textContent = 'Attempting login...';
+            
+            try {
+                const { data, error } = await client.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                results.textContent = JSON.stringify({
+                    success: !error,
+                    error: error,
+                    user: data?.user?.email,
+                    session: !!data?.session
+                }, null, 2);
+                
+            } catch (err) {
+                results.textContent = 'Exception: ' + err.message;
+            }
+        });
+        
+        // Test connection
+        client.from('users').select('count').limit(1).then(({data, error}) => {
+            if (error) {
+                document.getElementById('status').textContent = 'Connection error: ' + error.message;
+            } else {
+                document.getElementById('status').textContent = 'Connection successful';
+            }
+        });
+    </script>
+</body>
+</html>

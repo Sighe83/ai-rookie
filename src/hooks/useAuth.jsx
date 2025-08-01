@@ -42,23 +42,46 @@ export const AuthProvider = ({ children }) => {
   const [initialized, setInitialized] = useState(false);
   const subscriptionRef = useRef(null);
   const mountedRef = useRef(true);
+  const initPromiseRef = useRef(null); // Track initialization promise to prevent multiple inits
 
   // Safe user profile fetch with error handling
   const fetchUserProfile = useCallback(async (userId) => {
     if (!mountedRef.current) return null;
     
     try {
-      const { data: profile, error } = await supabase
+      console.log('fetchUserProfile: Starting profile fetch for userId:', userId);
+      
+      // Add a shorter timeout to prevent hanging
+      const fetchPromise = supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
       
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.warn('Profile fetch error:', error);
-        return null;
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+      );
+      
+      const { data: profile, error } = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      console.log('fetchUserProfile: Profile fetch result:', { 
+        hasProfile: !!profile, 
+        error: error?.message,
+        errorCode: error?.code 
+      });
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned - user profile doesn't exist yet
+          console.log('fetchUserProfile: No profile found (PGRST116), will create from auth data');
+          return null;
+        } else {
+          console.warn('Profile fetch error:', error);
+          return null;
+        }
       }
       
+      console.log('fetchUserProfile: Profile fetch successful, returning profile');
       return profile;
     } catch (error) {
       console.warn('Profile fetch failed:', error);
@@ -68,20 +91,35 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth state from Supabase
   useEffect(() => {
-    if (initialized) return; // Prevent multiple initializations
+    if (initialized || initPromiseRef.current) return; // Prevent multiple initializations
+    
+    console.log('useAuth: Starting initialization...');
     
     const initAuth = async () => {
       try {
         if (!mountedRef.current) return;
         
+        console.log('useAuth: Fetching session from Supabase...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.warn('Session fetch error:', error);
+          if (mountedRef.current) {
+            setLoading(false);
+            setInitialized(true);
+          }
           return;
         }
         
+        console.log('useAuth: Session result:', {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+          userEmail: session?.user?.email
+        });
+        
         if (session?.user && mountedRef.current) {
+          console.log('useAuth: Found existing session, fetching profile...');
           const profile = await fetchUserProfile(session.user.id);
           
           if (mountedRef.current) {
@@ -110,7 +148,10 @@ export const AuthProvider = ({ children }) => {
                 name: userName
               });
             }
+            console.log('useAuth: User state set during initialization');
           }
+        } else {
+          console.log('useAuth: No session found during initialization');
         }
       } catch (error) {
         console.warn('Failed to initialize auth:', error);
@@ -122,10 +163,11 @@ export const AuthProvider = ({ children }) => {
           setLoading(false);
           setInitialized(true);
         }
+        initPromiseRef.current = null;
       }
     };
 
-    initAuth();
+    initPromiseRef.current = initAuth();
 
     // Cleanup any existing subscription
     if (subscriptionRef.current) {
@@ -137,11 +179,22 @@ export const AuthProvider = ({ children }) => {
       async (event, session) => {
         if (!mountedRef.current) return;
         
-        console.log('Auth state change:', event, session?.user?.id);
+        console.log('Auth state change:', event, session?.user?.id, 'initialized:', initialized);
         
         try {
           if (session?.user && mountedRef.current) {
+            // Skip duplicate processing if this is the same user
+            if (user && user.id === session.user.id && event === 'INITIAL_SESSION') {
+              console.log('useAuth: Skipping duplicate INITIAL_SESSION for same user');
+              return;
+            }
+            
+            // Always update user state for authenticated sessions
+            // This handles login, token refresh, and page reload scenarios
+            console.log('useAuth: Processing authenticated session in auth state change');
             const profile = await fetchUserProfile(session.user.id);
+            
+            console.log('useAuth: Profile fetch completed, mountedRef.current:', mountedRef.current);
             
             if (mountedRef.current) {
               // If profile is missing, create a basic profile from auth data
@@ -149,7 +202,7 @@ export const AuthProvider = ({ children }) => {
                 console.warn('No profile found during auth change, using auth data only');
                 const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
                 console.log('Setting user name to:', userName);
-                setUser({
+                const userState = {
                   ...session.user,
                   name: userName,
                   email: session.user.email,
@@ -158,20 +211,36 @@ export const AuthProvider = ({ children }) => {
                   department: null,
                   role: 'USER',
                   site_mode: 'B2C'
-                });
+                };
+                console.log('useAuth: Setting user state (no profile):', { id: userState.id, name: userState.name, email: userState.email });
+                setUser(userState);
               } else {
                 // Ensure name is always set, fallback to email if missing from profile
                 const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
                 console.log('Setting user name from profile to:', userName);
-                setUser({
+                const userState = {
                   ...session.user,
                   ...profile,
                   name: userName
-                });
+                };
+                console.log('useAuth: Setting user state (with profile):', { id: userState.id, name: userState.name, email: userState.email });
+                setUser(userState);
               }
+              console.log('useAuth: User state updated in auth state change');
+            } else {
+              console.warn('useAuth: Component unmounted after profile fetch, skipping user state update');
             }
           } else if (mountedRef.current) {
-            setUser(null);
+            // Only clear user state on explicit SIGNED_OUT events
+            // Don't clear on INITIAL_SESSION or TOKEN_REFRESHED with null session
+            if (event === 'SIGNED_OUT') {
+              console.log('User signed out, clearing user state');
+              setUser(null);
+            } else if (!session && event !== 'INITIAL_SESSION') {
+              console.log('No session in auth change event:', event, '- may need to clear user state');
+              // Be more careful about clearing user state - only if we're sure the user is logged out
+              setUser(null);
+            }
           }
         } catch (error) {
           console.warn('Auth state change error:', error);
@@ -193,14 +262,18 @@ export const AuthProvider = ({ children }) => {
     };
   }, [initialized, fetchUserProfile]);
 
-  // Cleanup on unmount - only cleanup subscription, not mountedRef
+  // Cleanup on unmount - set mountedRef to false and cleanup subscription
   useEffect(() => {
     return () => {
+      console.log('useAuth: Component unmounting, setting mountedRef to false');
+      mountedRef.current = false;
+      initPromiseRef.current = null;
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
       }
     };
-  }, []);
+  }, []); // Empty dependency array - only run on final unmount
 
   const login = async (email, password) => {
     try {
@@ -235,7 +308,8 @@ export const AuthProvider = ({ children }) => {
         success: !error, 
         error: error?.message,
         errorCode: error?.code,
-        user: data?.user?.id 
+        user: data?.user?.id,
+        fullError: error
       });
 
       if (error) {
@@ -253,19 +327,28 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorMessage);
       }
 
-      if (!mountedRef.current) return { success: false, error: null };
+      console.log('useAuth: Checking if component is mounted:', mountedRef.current);
+      if (!mountedRef.current) {
+        console.warn('useAuth: Component unmounted during login, but continuing with login process');
+        // Don't abort - let the login complete and rely on the auth state change listener
+        // to update the user state when the component remounts
+      }
 
-      // Manually set user state after successful login
+      // Set user state if component is still mounted, otherwise let auth state change handle it
       if (data.user) {
-        const profile = await fetchUserProfile(data.user.id);
         if (mountedRef.current) {
-          const userName = profile?.name || data.user.user_metadata?.name || data.user.email?.split('@')[0] || data.user.email;
-          setUser({
-            ...data.user,
-            ...profile,
-            name: userName
-          });
-          console.log('Login successful, user state updated.');
+          const profile = await fetchUserProfile(data.user.id);
+          if (mountedRef.current) {
+            const userName = profile?.name || data.user.user_metadata?.name || data.user.email?.split('@')[0] || data.user.email;
+            setUser({
+              ...data.user,
+              ...profile,
+              name: userName
+            });
+            console.log('Login successful, user state updated.');
+          }
+        } else {
+          console.log('Login successful, but component unmounted. Auth state change listener will handle user state.');
         }
       }
       
