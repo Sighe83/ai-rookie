@@ -2071,6 +2071,16 @@ const DashboardPage = () => {
   const { data: bookings = [], loading, error } = useBookings({ siteMode: siteMode.toUpperCase() });
   const isB2B = siteMode === 'b2b';
 
+  // Debug logging for troubleshooting
+  console.log('Dashboard render:', {
+    user: user ? { id: user.id, email: user.email, name: user.name } : null,
+    siteMode,
+    isB2B,
+    bookingsData: bookings ? `${bookings.length} bookings` : 'No bookings',
+    loading,
+    error: error ? error.toString() : null
+  });
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto py-12 sm:py-20">
@@ -2086,15 +2096,30 @@ const DashboardPage = () => {
       <div className="max-w-6xl mx-auto py-12 sm:py-20">
         <div className="text-center">
           <div className="text-red-400 mb-4">
-            <h2 className="text-2xl font-bold">Failed to load bookings</h2>
-            <p className="text-slate-400 mt-2">{error}</p>
+            <h2 className="text-2xl font-bold">Kunne ikke indlæse dashboard</h2>
+            <p className="text-slate-400 mt-2">
+              {error.includes('relation') && error.includes('does not exist') 
+                ? 'Database tabeller ikke fundet. Kontakt support.'
+                : error.includes('JWT') || error.includes('authentication')
+                ? 'Login session udløbet. Log ind igen.'
+                : `Fejl: ${error}`
+              }
+            </p>
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            className={`${theme.primary} ${theme.primaryHover} text-white px-6 py-2 rounded-lg transition-colors`}
-          >
-            Try Again
-          </button>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className={`${theme.primary} ${theme.primaryHover} text-white px-6 py-2 rounded-lg transition-colors`}
+            >
+              Prøv igen
+            </button>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Tilbage til forsiden
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -2171,12 +2196,18 @@ const DashboardPage = () => {
           <ClipboardCheck className="w-14 h-14 text-slate-400" />
           <div className="text-center">
             <p className="text-slate-300 text-lg mb-2">Ingen bookings endnu</p>
-            <p className="text-slate-400 max-w-xl">
+            <p className="text-slate-400 max-w-xl mb-6">
               {isB2B 
                 ? 'Når I har booket jeres første workshop, vil I kunne følge progression og resultater her.'
                 : 'Når du har booket din første session, vil du kunne følge din progression og resultater her.'
               }
             </p>
+            <button
+              onClick={() => navigate('/tutors')}
+              className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
+            >
+              {isB2B ? 'Find eksperter' : 'Find en tutor'}
+            </button>
           </div>
         </div>
       )}

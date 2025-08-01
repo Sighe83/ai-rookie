@@ -13,39 +13,48 @@ export const useSupabaseQuery = (queryFn, dependencies = []) => {
   const requestIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
-    console.log('useSupabaseQuery: fetchData called, mounted:', mountedRef.current);
     if (!mountedRef.current) return;
     
+    // Generate unique request ID to handle race conditions
     const currentRequestId = ++requestIdRef.current;
+    console.log('useSupabaseQuery: fetchData called, mounted:', mountedRef.current);
+    
     console.log('useSupabaseQuery: Starting request', currentRequestId);
     
-    try {
+    // Only set loading if this is the latest request and component is mounted
+    if (currentRequestId === requestIdRef.current && mountedRef.current) {
       console.log('useSupabaseQuery: Setting loading true');
       setLoading(true);
       setError(null);
-      
-      console.log('useSupabaseQuery: Calling queryFn');
+    }
+    
+    console.log('useSupabaseQuery: Calling queryFn');
+    try {
       const result = await queryFn();
       console.log('useSupabaseQuery: QueryFn returned:', result);
       
       // Only update state if this is still the latest request and component is mounted
       if (currentRequestId === requestIdRef.current && mountedRef.current) {
-        console.log('useSupabaseQuery: Setting data:', result);
+        console.log('useSupabaseQuery: Setting data and clearing loading');
         setData(result);
+        setError(null); // Clear any previous errors
+        setLoading(false); // Set loading false here too
       }
     } catch (error) {
       console.error('Supabase query error:', error);
       
       // Only update error state if this is still the latest request and component is mounted
       if (currentRequestId === requestIdRef.current && mountedRef.current) {
-        let errorMessage = 'Query failed';
+        let errorMessage = 'Der opstod en fejl';
         
-        if (error.message?.includes('JWT expired')) {
-          errorMessage = 'Session udløbet. Log ind igen.';
+        if (error.message?.includes('JWT') || error.message?.includes('expired')) {
+          errorMessage = 'Login session udløbet';
         } else if (error.message?.includes('permission denied')) {
-          errorMessage = 'Adgang nægtet. Tjek dine rettigheder.';
+          errorMessage = 'Adgang nægtet';
         } else if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
-          errorMessage = 'Database tabel ikke fundet.';
+          errorMessage = 'Database tabel ikke fundet';
+        } else if (error.message?.includes('fetch')) {
+          errorMessage = 'Netværksfejl - tjek din internetforbindelse';
         } else if (error.message) {
           errorMessage = error.message;
         }
@@ -53,6 +62,7 @@ export const useSupabaseQuery = (queryFn, dependencies = []) => {
         setError(errorMessage);
       }
     } finally {
+      // Always set loading to false when request completes
       if (currentRequestId === requestIdRef.current && mountedRef.current) {
         console.log('useSupabaseQuery: Setting loading to false');
         setLoading(false);
@@ -163,17 +173,24 @@ export const useTutor = (id, siteMode = 'B2B') => {
 // Hook for bookings using direct Supabase with better error handling
 export const useBookings = (filters = {}) => {
   return useSupabaseQuery(async () => {
+    console.log('useBookings: Starting fetch with filters:', filters);
+    
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError) {
       console.error('User fetch error:', userError);
-      throw new Error('Authentication fejlede');
+      if (userError.message?.includes('JWT')) {
+        throw new Error('Login session udløbet');
+      }
+      throw new Error('Autentificering fejlede');
     }
     
     if (!user) {
       console.warn('No authenticated user found');
       return [];
     }
+
+    console.log('useBookings: User authenticated:', user.id);
 
     let query = supabase
       .from('bookings')
@@ -199,16 +216,32 @@ export const useBookings = (filters = {}) => {
       }
     }
 
+    console.log('useBookings: Executing query...');
+    
     const { data, error } = await query.order('created_at', { ascending: false });
     
     if (error) {
       console.error('Bookings fetch error:', error);
-      throw error;
+      
+      if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
+        throw new Error('Database tabeller ikke fundet');
+      }
+      
+      if (error.message?.includes('permission denied') || error.message?.includes('RLS')) {
+        throw new Error('Adgang nægtet til bookings data');
+      }
+      
+      throw new Error(error.message || 'Kunne ikke hente bookings');
     }
     
+    console.log('useBookings: Query successful, data length:', data?.length || 0);
+    
     if (!data) {
+      console.log('useBookings: No data returned, returning empty array');
       return [];
     }
+    
+    console.log('useBookings: Transforming', data.length, 'bookings');
     
     // Transform data with error handling
     return data.map(booking => {
