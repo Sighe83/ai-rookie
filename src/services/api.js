@@ -68,19 +68,40 @@ export const availabilityApi = {
   },
 
   updateAvailability: async (tutorId, date, timeSlots) => {
-    const { data, error } = await supabase
+    // First try to find existing record
+    const { data: existing } = await supabase
       .from('tutor_availability')
-      .upsert([{
-        tutor_id: tutorId,
-        date,
-        time_slots: timeSlots,
-        updated_at: new Date().toISOString()
-      }], {
-        onConflict: 'tutor_id,date'
-      })
-      .select()
+      .select('id')
+      .eq('tutor_id', tutorId)
+      .eq('date', date)
       .single();
 
+    let result;
+    if (existing) {
+      // Update existing record
+      result = await supabase
+        .from('tutor_availability')
+        .update({
+          time_slots: timeSlots,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+    } else {
+      // Insert new record
+      result = await supabase
+        .from('tutor_availability')
+        .insert([{
+          tutor_id: tutorId,
+          date,
+          time_slots: timeSlots
+        }])
+        .select()
+        .single();
+    }
+
+    const { data, error } = result;
     if (error) throw new ApiError(error.message, 400, error);
     return { data, success: true };
   },
