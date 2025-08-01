@@ -1,20 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// SQLite doesn't support enums, using String with default values
-// UserRole: USER, TUTOR, ADMIN
-// SiteMode: B2B, B2C
-// BookingStatus: PENDING, CONFIRMED, CANCELLED, COMPLETED
-// SessionFormat: INDIVIDUAL, TEAM, PROGRAM, GROUP
 
 model User {
   id            String    @id @default(cuid())
@@ -24,13 +15,12 @@ model User {
   company       String?
   department    String?
   role          String    @default("USER")
-  siteMode      String    @default("B2B")
-  password      String?   // Optional for guest bookings
-  emailVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
+  siteMode      String    @default("B2C") @map("site_mode")
+  password      String?
+  emailVerified Boolean   @default(false) @map("email_verified")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
   bookings      Booking[]
   tutor         Tutor?
 
@@ -38,93 +28,84 @@ model User {
 }
 
 model Tutor {
-  id           String  @id @default(cuid())
-  userId       String  @unique
+  id           String              @id @default(cuid())
+  userId       String              @unique @map("user_id")
   title        String
   specialty    String
   experience   String?
-  valueProp    String?
+  valueProp    String?             @map("value_prop")
   img          String?
-  basePrice    Int     // Price in øre (cents)
-  isActive     Boolean @default(true)
-  
-  // B2C specific
-  price        Int?    // B2C individual session price
-
-  // Relations
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions     Session[]
+  basePrice    Int                 @map("base_price")
+  price        Int
+  isActive     Boolean             @default(true) @map("is_active")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
   bookings     Booking[]
+  sessions     Session[]
   availability TutorAvailability[]
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("tutors")
 }
 
 model Session {
-  id          String @id @default(cuid())
-  tutorId     String
-  title       String
-  description String
-  duration    Int    @default(60) // minutes
-  isActive    Boolean @default(true)
+  id            String    @id @default(cuid())
+  tutorId       String    @map("tutor_id")
+  title         String
+  description   String
+  duration      Int       @default(60)
+  priceOverride Int?      @map("price_override")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  bookings      Booking[]
+  tutor         Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 
-  // Relations
-  tutor       Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  bookings    Booking[]
-
+  @@index([tutorId])
   @@map("sessions")
 }
 
 model Booking {
-  id               String        @id @default(cuid())
-  userId           String
-  tutorId          String
-  sessionId        String
-  
-  // Booking details
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  tutorId          String    @map("tutor_id")
+  sessionId        String    @map("session_id")
   format           String
-  selectedDateTime DateTime
-  participants     Int?          // For team bookings
-  totalPrice       Int           // Price in øre (cents)
-  status           String        @default("PENDING")
-  siteMode         String
-  
-  // Contact information (for guest bookings)
-  contactName      String
-  contactEmail     String
-  contactPhone     String?
+  selectedDateTime DateTime  @map("selected_date_time")
+  participants     Int?      @default(1)
+  totalPrice       Int       @map("total_price")
+  status           String?   @default("PENDING")
+  siteMode         String    @map("site_mode")
+  contactName      String    @map("contact_name")
+  contactEmail     String    @map("contact_email")
+  contactPhone     String?   @map("contact_phone")
   company          String?
   department       String?
-  
-  // Payment information
-  paymentStatus    String?       @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
-  paymentIntentId  String?       // Stripe payment intent ID
-  paidAt           DateTime?     // When payment was completed
-  
-  // Metadata
+  paymentStatus    String?   @default("PENDING") @map("payment_status")
+  paymentIntentId  String?   @map("payment_intent_id")
+  paidAt           DateTime? @map("paid_at")
   notes            String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  confirmedAt      DateTime?
-  cancelledAt      DateTime?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  confirmedAt      DateTime? @map("confirmed_at")
+  cancelledAt      DateTime? @map("cancelled_at")
+  session          Session   @relation(fields: [sessionId], references: [id])
+  tutor            Tutor     @relation(fields: [tutorId], references: [id])
+  user             User      @relation(fields: [userId], references: [id])
 
-  // Relations
-  user             User          @relation(fields: [userId], references: [id])
-  tutor            Tutor         @relation(fields: [tutorId], references: [id])
-  session          Session       @relation(fields: [sessionId], references: [id])
-
+  @@index([sessionId])
+  @@index([tutorId])
+  @@index([userId])
   @@map("bookings")
 }
 
 model TutorAvailability {
   id        String   @id @default(cuid())
-  tutorId   String
-  date      DateTime
-  timeSlots String   // JSON string of time slots: [{ time: "09:00", available: true, booked: false }]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
+  tutorId   String   @map("tutor_id")
+  date      DateTime @db.Date
+  timeSlots Json     @map("time_slots")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 
   @@unique([tutorId, date])
@@ -134,7 +115,7 @@ model TutorAvailability {
 model SystemSettings {
   id    String @id @default(cuid())
   key   String @unique
-  value String // JSON string
-  
+  value String
+
   @@map("system_settings")
 }
