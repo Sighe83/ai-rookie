@@ -1,4 +1,4 @@
-import React, { useState, useMemo, createContext, useContext, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, createContext, useContext, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
 import { useTutors, useCreateBooking, useBookings } from './hooks/useApi';
@@ -38,6 +38,8 @@ import {
   UserPlus,
   User as UserIcon,
   LogOut,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 
 // Site Mode Context
@@ -110,6 +112,14 @@ const SiteModeProvider = ({ children }) => {
     return saved || 'b2c';
   });
 
+  // Function to set site mode programmatically (for user site mode enforcement)
+  const setSiteModeDirectly = useCallback((newMode) => {
+    if (newMode && (newMode === 'b2b' || newMode === 'b2c')) {
+      setSiteMode(newMode);
+      safeLocalStorage.setItem('ai-rookie-site-mode', newMode);
+    }
+  }, []);
+
   const toggleSiteMode = useMemo(() => {
     return (onModeChange) => {
       const newMode = siteMode === 'b2b' ? 'b2c' : 'b2b';
@@ -125,8 +135,9 @@ const SiteModeProvider = ({ children }) => {
 
   const contextValue = useMemo(() => ({
     siteMode,
-    toggleSiteMode
-  }), [siteMode, toggleSiteMode]);
+    toggleSiteMode,
+    setSiteModeDirectly
+  }), [siteMode, toggleSiteMode, setSiteModeDirectly]);
 
   return (
     <SiteModeContext.Provider value={contextValue}>
@@ -650,16 +661,28 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
 
 const SiteModeToggle = ({ onModeChange }) => {
   const { siteMode, toggleSiteMode } = useSiteMode();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  
+  console.log('SiteModeToggle - isAuthenticated:', isAuthenticated, 'user:', user?.email);
   
   const handleToggle = () => {
     if (!isAuthenticated) {
       toggleSiteMode(onModeChange);
+    } else {
+      console.log('Toggle blocked - user is authenticated');
     }
   };
   
   return (
     <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
+      {/* Lock icon */}
+      <div className="flex items-center justify-center w-8 h-8 mr-2">
+        {isAuthenticated ? (
+          <Lock className="w-4 h-4 text-red-400" title="Låst - Du kan ikke skifte side-type efter login" />
+        ) : (
+          <Unlock className="w-4 h-4 text-green-400" title="Åben - Du kan skifte side-type" />
+        )}
+      </div>
       <button
         onClick={() => siteMode !== 'b2b' && handleToggle()}
         disabled={isAuthenticated}
@@ -1996,18 +2019,19 @@ const AppContent = () => {
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
 
-  // Validate user site mode and redirect if necessary
+  // Validate user site mode and update state if necessary
   const { validateUserSiteMode } = useAuth();
+  const { setSiteModeDirectly } = useSiteMode();
   useEffect(() => {
     if (isAuthenticated && user) {
       const validation = validateUserSiteMode(siteMode);
       if (validation.shouldRedirect) {
-        // Force browser to navigate to correct site mode
-        const currentUrl = new URL(window.location);
-        window.location.href = `${currentUrl.origin}${currentUrl.pathname}?mode=${validation.correctSiteMode}`;
+        // Update site mode state directly instead of full page reload
+        console.log(`User site mode mismatch: switching from ${siteMode} to ${validation.correctSiteMode}`);
+        setSiteModeDirectly(validation.correctSiteMode);
       }
     }
-  }, [isAuthenticated, user, siteMode, validateUserSiteMode]);
+  }, [isAuthenticated, user, siteMode, validateUserSiteMode, setSiteModeDirectly]);
   
 
   const getNavItems = () => {
