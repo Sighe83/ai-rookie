@@ -42,6 +42,7 @@ CREATE TABLE public.sessions (
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   duration INTEGER DEFAULT 60, -- minutes
+  price_override INTEGER,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

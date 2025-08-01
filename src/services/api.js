@@ -75,7 +75,9 @@ export const availabilityApi = {
         date,
         time_slots: timeSlots,
         updated_at: new Date().toISOString()
-      }])
+      }], {
+        onConflict: 'tutor_id,date'
+      })
       .select()
       .single();
 
