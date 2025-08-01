@@ -2324,7 +2324,7 @@ const AppContent = () => {
               className="flex items-center gap-2 text-white text-2xl font-bold"
             >
               <BrainCircuit className={`${isTutor ? 'text-purple-400' : isB2B ? 'text-green-400' : 'text-blue-400'} h-8 w-8`} />
-              <span>AI Rookie {isB2B && <span className="font-light">Enterprise</span>}</span>
+              <span>{isTutor ? 'AI Superstar' : 'AI Rookie'} {isB2B && !isTutor && <span className="font-light">Enterprise</span>}</span>
             </button>
             
             <div className="hidden md:flex items-center gap-6">
