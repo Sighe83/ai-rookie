@@ -1,16 +1,15 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { databaseService } = require('../config/database');
 const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // GET /api/tutors - Get all tutors with their sessions
 router.get('/', optionalAuth, async (req, res) => {
   try {
     const siteMode = req.header('x-site-mode') || 'B2B';
     
-    const tutors = await prisma.tutor.findMany({
+    const tutors = await databaseService.findMany('tutor', {
       where: {
         isActive: true
       },
@@ -79,7 +78,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     const { id } = req.params;
     const siteMode = req.header('x-site-mode') || 'B2B';
 
-    const tutor = await prisma.tutor.findUnique({
+    const tutor = await databaseService.findUnique('tutor', {
       where: {
         id: id,
         isActive: true

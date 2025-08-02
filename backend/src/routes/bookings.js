@@ -1,9 +1,8 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { databaseService } = require('../config/database');
 const { authMiddleware, optionalAuth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // GET /api/bookings - Get user's bookings or all bookings (admin)
 router.get('/', authMiddleware, async (req, res) => {
@@ -28,7 +27,7 @@ router.get('/', authMiddleware, async (req, res) => {
       whereClause.siteMode = siteMode;
     }
 
-    const bookings = await prisma.booking.findMany({
+    const bookings = await databaseService.findMany('booking', {
       where: whereClause,
       include: {
         tutor: {
@@ -100,7 +99,7 @@ router.post('/', optionalAuth, async (req, res) => {
     }
 
     // Validate tutor and session exist
-    const tutor = await prisma.tutor.findUnique({
+    const tutor = await databaseService.findUnique('tutor', {
       where: { id: tutorId, isActive: true }
     });
 
@@ -111,7 +110,7 @@ router.post('/', optionalAuth, async (req, res) => {
       });
     }
 
-    const session = await prisma.session.findUnique({
+    const session = await databaseService.findUnique('session', {
       where: { id: sessionId, isActive: true }
     });
 
@@ -135,14 +134,14 @@ router.post('/', optionalAuth, async (req, res) => {
       userId = req.user.id;
     } else {
       // Create guest user
-      const existingUser = await prisma.user.findUnique({
+      const existingUser = await databaseService.findUnique('user', {
         where: { email: contactEmail }
       });
 
       if (existingUser) {
         userId = existingUser.id;
       } else {
-        const newUser = await prisma.user.create({
+        const newUser = await databaseService.create('user', {
           data: {
             email: contactEmail,
             name: contactName,
@@ -161,7 +160,7 @@ router.post('/', optionalAuth, async (req, res) => {
     const timeString = bookingDate.toTimeString().slice(0, 5); // HH:MM format
     const dateOnly = new Date(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate());
 
-    const availability = await prisma.tutorAvailability.findUnique({
+    const availability = await databaseService.findUnique('tutorAvailability', {
       where: {
         tutorId_date: {
           tutorId: tutorId,
@@ -186,7 +185,7 @@ router.post('/', optionalAuth, async (req, res) => {
     }
 
     // Create booking
-    const booking = await prisma.booking.create({
+    const booking = await databaseService.create('booking', {
       data: {
         userId: userId,
         tutorId: tutorId,
@@ -230,7 +229,7 @@ router.post('/', optionalAuth, async (req, res) => {
       slot.time === timeString ? { ...slot, booked: true } : slot
     );
 
-    await prisma.tutorAvailability.update({
+    await databaseService.update('tutorAvailability', {
       where: {
         tutorId_date: {
           tutorId: tutorId,
@@ -269,7 +268,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
       });
     }
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await databaseService.findUnique('booking', {
       where: { id: id },
       include: {
         tutor: {
@@ -314,7 +313,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
       const timeString = bookingDate.toTimeString().slice(0, 5);
       const dateOnly = new Date(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate());
 
-      const availability = await prisma.tutorAvailability.findUnique({
+      const availability = await databaseService.findUnique('tutorAvailability', {
         where: {
           tutorId_date: {
             tutorId: booking.tutorId,
@@ -328,7 +327,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
           slot.time === timeString ? { ...slot, booked: false } : slot
         );
 
-        await prisma.tutorAvailability.update({
+        await databaseService.update('tutorAvailability', {
           where: {
             tutorId_date: {
               tutorId: booking.tutorId,
@@ -342,7 +341,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
       }
     }
 
-    const updatedBooking = await prisma.booking.update({
+    const updatedBooking = await databaseService.update('booking', {
       where: { id: id },
       data: updateData,
       include: {
@@ -385,7 +384,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { user } = req;
 
-    const booking = await prisma.booking.findUnique({
+    const booking = await databaseService.findUnique('booking', {
       where: { id: id },
       include: {
         tutor: {

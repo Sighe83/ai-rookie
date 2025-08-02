@@ -1,23 +1,38 @@
-const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const { createClient } = require('@supabase/supabase-js');
+const { databaseService } = require('../config/database');
 
-const prisma = new PrismaClient();
+// Initialize Supabase client for server-side operations
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    if (!token) {
+    const authHeader = req.header('Authorization');
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
         error: 'No token, authorization denied'
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+    const token = authHeader.replace('Bearer ', '');
+
+    // Verify JWT token with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token'
+      });
+    }
+
+    // Get user data from our database using the Supabase user ID
+    const dbUser = await databaseService.findUnique('user', {
+      where: { id: user.id },
       select: {
         id: true,
         email: true,
@@ -28,44 +43,51 @@ const authMiddleware = async (req, res, next) => {
       }
     });
 
-    if (!user) {
+    if (!dbUser) {
       return res.status(401).json({
         success: false,
-        error: 'Token is not valid'
+        error: 'User not found in database'
       });
     }
 
-    req.user = user;
+    req.user = dbUser;
+    req.supabaseUser = user;
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
     res.status(401).json({
       success: false,
-      error: 'Token is not valid'
+      error: 'Authentication failed'
     });
   }
 };
 
 const optionalAuth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const authHeader = req.header('Authorization');
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      
+      const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          siteMode: true,
-          createdAt: true
+      if (!error && user) {
+        const dbUser = await databaseService.findUnique('user', {
+          where: { id: user.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            siteMode: true,
+            createdAt: true
+          }
+        });
+
+        if (dbUser) {
+          req.user = dbUser;
+          req.supabaseUser = user;
         }
-      });
-
-      if (user) {
-        req.user = user;
       }
     }
 

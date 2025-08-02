@@ -1,170 +1,138 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const { createClient } = require('@supabase/supabase-js');
+const { databaseService } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validation');
+const { asyncHandler } = require('../middleware/errorHandler');
+const { authLimiter, passwordLimiter } = require('../middleware/rateLimiting');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
-// POST /api/auth/register - Register new user
-router.post('/register', async (req, res) => {
-  console.log('REGISTER BODY:', req.body);
-  try {
-    const {
-      email,
-      password,
-      name,
-      phone,
-      company,
-      department,
-      siteMode = 'B2B'
-    } = req.body;
+// Initialize Supabase client for server-side operations
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-    // Validate required fields
-    if (!email || !password || !name) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email, password, and name are required'
-      });
+// POST /api/auth/register - Register new user via Supabase
+router.post('/register', authLimiter, validate(schemas.userRegistration), asyncHandler(async (req, res) => {
+  const {
+    email,
+    password,
+    name,
+    phone,
+    company,
+    department,
+    siteMode
+  } = req.body;
+
+  // Create user in Supabase Auth
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: email.toLowerCase(),
+    password: password,
+    email_confirm: true,
+    user_metadata: {
+      name: name,
+      phone: phone,
+      company: company,
+      department: department,
+      site_mode: siteMode
     }
+  });
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: 'User already exists with this email'
-      });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        name: name,
-        phone: phone,
-        company: company,
-        department: department,
-        siteMode: siteMode
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        company: true,
-        department: true,
-        role: true,
-        siteMode: true,
-        createdAt: true
-      }
-    });
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    res.status(201).json({
-      success: true,
-      data: {
-        user: user,
-        token: token
-      }
-    });
-  } catch (error) {
-    console.error('Error registering user:', error);
-    res.status(500).json({
+  if (authError) {
+    return res.status(400).json({
       success: false,
-      error: 'Failed to register user'
+      error: authError.message
     });
   }
-});
 
-// POST /api/auth/login - Login user
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email and password are required'
-      });
+  // Create user profile in our database
+  const user = await databaseService.create('user', {
+    data: {
+      id: authData.user.id,
+      email: email.toLowerCase(),
+      name: name,
+      phone: phone,
+      company: company,
+      department: department,
+      siteMode: siteMode,
+      emailVerified: true
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      phone: true,
+      company: true,
+      department: true,
+      role: true,
+      siteMode: true,
+      createdAt: true
     }
+  });
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-      include: {
-        tutor: {
-          select: {
-            id: true,
-            title: true,
-            specialty: true
-          }
+  res.status(201).json({
+    success: true,
+    data: {
+      user: user,
+      supabaseUser: authData.user
+    }
+  });
+}));
+
+// POST /api/auth/login - Login user via Supabase
+router.post('/login', authLimiter, validate(schemas.userLogin), asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  // Sign in with Supabase
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: email.toLowerCase(),
+    password: password
+  });
+
+  if (authError) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid credentials'
+    });
+  }
+
+  // Get user profile from our database
+  const user = await databaseService.findUnique('user', {
+    where: { id: authData.user.id },
+    include: {
+      tutor: {
+        select: {
+          id: true,
+          title: true,
+          specialty: true
         }
       }
-    });
-
-    if (!user || !user.password) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid credentials'
-      });
     }
+  });
 
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid credentials'
-      });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
-
-    res.json({
-      success: true,
-      data: {
-        user: userWithoutPassword,
-        token: token
-      }
-    });
-  } catch (error) {
-    console.error('Error logging in user:', error);
-    res.status(500).json({
+  if (!user) {
+    return res.status(401).json({
       success: false,
-      error: 'Failed to login'
+      error: 'User profile not found'
     });
   }
-});
+
+  res.json({
+    success: true,
+    data: {
+      user: user,
+      session: authData.session,
+      supabaseUser: authData.user
+    }
+  });
+}));
 
 // GET /api/auth/me - Get current user profile
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await databaseService.findUnique('user', {
       where: { id: req.user.id },
       select: {
         id: true,
@@ -205,7 +173,10 @@ router.get('/me', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      data: user
+      data: {
+        user: user,
+        supabaseUser: req.supabaseUser
+      }
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);
@@ -217,7 +188,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 });
 
 // PUT /api/auth/profile - Update user profile
-router.put('/profile', authMiddleware, async (req, res) => {
+router.put('/profile', authMiddleware, validate(schemas.userProfileUpdate), asyncHandler(async (req, res) => {
   try {
     const {
       name,
@@ -234,7 +205,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
     if (department) updateData.department = department;
     if (siteMode) updateData.siteMode = siteMode;
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await databaseService.update('user', {
       where: { id: req.user.id },
       data: updateData,
       select: {
@@ -265,15 +236,15 @@ router.put('/profile', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/auth/change-password - Change user password
-router.post('/change-password', authMiddleware, async (req, res) => {
+// POST /api/auth/change-password - Change user password via Supabase
+router.post('/change-password', passwordLimiter, authMiddleware, validate(schemas.passwordChange), asyncHandler(async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    if (!newPassword) {
       return res.status(400).json({
         success: false,
-        error: 'Current password and new password are required'
+        error: 'New password is required'
       });
     }
 
@@ -284,38 +255,18 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       });
     }
 
-    // Get user with password
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id }
-    });
+    // Update password in Supabase Auth
+    const { error } = await supabase.auth.admin.updateUserById(
+      req.user.id,
+      { password: newPassword }
+    );
 
-    if (!user || !user.password) {
+    if (error) {
       return res.status(400).json({
         success: false,
-        error: 'User not found or no password set'
+        error: error.message
       });
     }
-
-    // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-
-    if (!isCurrentPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Current password is incorrect'
-      });
-    }
-
-    // Hash new password
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password
-    await prisma.user.update({
-      where: { id: req.user.id },
-      data: {
-        password: hashedNewPassword
-      }
-    });
 
     res.json({
       success: true,
@@ -330,12 +281,27 @@ router.post('/change-password', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/auth/logout - Logout user (client-side token removal)
-router.post('/logout', authMiddleware, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+// POST /api/auth/logout - Logout user via Supabase
+router.post('/logout', authMiddleware, async (req, res) => {
+  try {
+    // Sign out from Supabase (invalidates the session)
+    const { error } = await supabase.auth.admin.signOut(req.supabaseUser.id);
+    
+    if (error) {
+      console.warn('Error signing out from Supabase:', error.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Error during logout:', error);
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  }
 });
 
 module.exports = router;

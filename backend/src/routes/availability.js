@@ -1,9 +1,8 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { databaseService } = require('../config/database');
 const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // GET /api/availability/:tutorId - Get tutor availability for a date range
 router.get('/:tutorId', optionalAuth, async (req, res) => {
@@ -16,7 +15,7 @@ router.get('/:tutorId', optionalAuth, async (req, res) => {
     const end = endDate ? new Date(endDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
     // Validate tutor exists
-    const tutor = await prisma.tutor.findUnique({
+    const tutor = await databaseService.findUnique('tutor', {
       where: { id: tutorId, isActive: true }
     });
 
@@ -27,7 +26,7 @@ router.get('/:tutorId', optionalAuth, async (req, res) => {
       });
     }
 
-    const availability = await prisma.tutorAvailability.findMany({
+    const availability = await databaseService.findMany('tutorAvailability', {
       where: {
         tutorId: tutorId,
         date: {
@@ -77,7 +76,7 @@ router.post('/:tutorId', async (req, res) => {
     }
 
     // Validate tutor exists
-    const tutor = await prisma.tutor.findUnique({
+    const tutor = await databaseService.findUnique('tutor', {
       where: { id: tutorId, isActive: true }
     });
 
@@ -102,7 +101,7 @@ router.post('/:tutorId', async (req, res) => {
       });
     }
 
-    const availability = await prisma.tutorAvailability.upsert({
+    const availability = await databaseService.upsert('tutorAvailability', {
       where: {
         tutorId_date: {
           tutorId: tutorId,
@@ -149,7 +148,7 @@ router.patch('/:tutorId/:date/book', optionalAuth, async (req, res) => {
     }
 
     // Get current availability
-    const availability = await prisma.tutorAvailability.findUnique({
+    const availability = await databaseService.findUnique('tutorAvailability', {
       where: {
         tutorId_date: {
           tutorId: tutorId,
@@ -186,7 +185,7 @@ router.patch('/:tutorId/:date/book', optionalAuth, async (req, res) => {
     timeSlots[slotIndex].booked = true;
 
     // Update availability
-    const updatedAvailability = await prisma.tutorAvailability.update({
+    const updatedAvailability = await databaseService.update('tutorAvailability', {
       where: {
         tutorId_date: {
           tutorId: tutorId,

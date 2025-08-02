@@ -1,10 +1,9 @@
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { PrismaClient } = require('@prisma/client');
+const { databaseService } = require('../config/database');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Create payment intent
 router.post('/create-payment-intent', auth, async (req, res) => {
@@ -19,7 +18,7 @@ router.post('/create-payment-intent', auth, async (req, res) => {
     }
 
     // Verify booking exists and belongs to user
-    const booking = await prisma.booking.findFirst({
+    const booking = await databaseService.findMany('booking', {
       where: {
         id: bookingId,
         userId: req.user.id
@@ -55,7 +54,7 @@ router.post('/create-payment-intent', auth, async (req, res) => {
     });
 
     // Update booking with payment intent ID
-    await prisma.booking.update({
+    await databaseService.update('booking', {
       where: { id: bookingId },
       data: { 
         paymentIntentId: paymentIntent.id,
@@ -93,7 +92,7 @@ router.post('/confirm-payment', auth, async (req, res) => {
 
     if (paymentIntent.status === 'succeeded') {
       // Update booking payment status
-      const booking = await prisma.booking.update({
+      const booking = await databaseService.update('booking', {
         where: { paymentIntentId },
         data: { 
           paymentStatus: 'COMPLETED',
@@ -151,7 +150,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const paymentIntent = event.data.object;
         
         // Update booking status
-        await prisma.booking.updateMany({
+        await databaseService.getPrismaClient().booking.updateMany({
           where: { paymentIntentId: paymentIntent.id },
           data: { 
             paymentStatus: 'COMPLETED',
@@ -166,7 +165,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const failedPayment = event.data.object;
         
         // Update booking status
-        await prisma.booking.updateMany({
+        await databaseService.getPrismaClient().booking.updateMany({
           where: { paymentIntentId: failedPayment.id },
           data: { paymentStatus: 'FAILED' }
         });
@@ -190,7 +189,7 @@ router.get('/status/:bookingId', auth, async (req, res) => {
   try {
     const { bookingId } = req.params;
 
-    const booking = await prisma.booking.findFirst({
+    const booking = await databaseService.findMany('booking', {
       where: {
         id: parseInt(bookingId),
         userId: req.user.id

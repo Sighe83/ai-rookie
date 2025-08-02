@@ -1006,50 +1006,76 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
   const [currentWeek, setCurrentWeek] = useState(0);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(null);
   const { siteMode } = useSiteMode();
   const { user } = useAuth();
   const theme = getThemeColors(siteMode, user);
-  
-  // Load availability data when tutor changes
+
   useEffect(() => {
     let isMounted = true;
-    
     const loadAvailability = async () => {
       if (!tutor?.id) return;
-      
       if (isMounted) setLoading(true);
       try {
         const data = await getTutorAvailability(tutor.id);
-        if (isMounted) {
-          setAvailability(data);
-        }
+        if (isMounted) setAvailability(data);
       } catch (error) {
         console.error('Failed to load availability:', error);
-        if (isMounted) {
-          setAvailability([]);
-        }
+        if (isMounted) setAvailability([]);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
-
     loadAvailability();
-    
-    // Cleanup function to prevent state updates on unmounted component
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [tutor?.id]);
-  
-  // Validate props
+
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+    // Reset time selection when changing date
+    const dateKey = formatDateKey(date);
+    if (!selectedDateTime || !selectedDateTime.startsWith(dateKey)) {
+      onSelectDateTime('');
+    }
+  };
+
+  const getWeekDates = useMemo(() => {
+    const dates = [];
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + 1 + (currentWeek * 7));
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  }, [currentWeek]);
+
+  const maxWeeks = 2;
+
+  const formatDate = (date) => date.toLocaleDateString('da-DK', { weekday: 'short', day: 'numeric' });
+  const formatDateKey = (date) => date.toISOString().split('T')[0];
+  const formatFullDate = (date) => date.toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const availabilityMap = useMemo(() => {
+    const map = new Map();
+    availability.forEach(a => map.set(a.date, a.slots));
+    return map;
+  }, [availability]);
+
+  const slotsForSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateKey = formatDateKey(selectedDate);
+    return availabilityMap.get(dateKey) || [];
+  }, [selectedDate, availabilityMap]);
+
   if (!tutor || !tutor.id) {
     return (
       <div className="bg-slate-800 rounded-lg p-6">
         <div className="text-center py-8 text-slate-400">
           <CalendarDays className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>Tutor information ikke tilgængelig</p>
+          <p>Tutor-information ikke tilgængelig.</p>
         </div>
       </div>
     );
@@ -1057,148 +1083,98 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
 
   if (loading) {
     return (
-      <div className="bg-slate-800 rounded-lg p-6">
-        <div className="text-center py-8 text-slate-400">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
-          <p>Indlæser ledige tider...</p>
-        </div>
+      <div className="bg-slate-800 rounded-lg p-6 text-center py-8 text-slate-400">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
+        <p>Indlæser ledige tider...</p>
       </div>
     );
   }
-  
-  const getWeekDates = (weekOffset) => {
-    const dates = [];
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() + 1 + (weekOffset * 7));
-    
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      dates.push(date);
-    }
-    
-    return dates;
-  };
-  
-  const weekDates = getWeekDates(currentWeek);
-  const maxWeeks = 2; // Show 2 weeks ahead
-  
-  const formatDate = (date) => {
-    return date.toLocaleDateString('da-DK', { 
-      weekday: 'short', 
-      day: 'numeric', 
-      month: 'short' 
-    });
-  };
-  
-  const formatDateKey = (date) => {
-    return date.toISOString().split('T')[0];
-  };
-  
-  const getAvailabilityForDate = (date) => {
-    const dateKey = formatDateKey(date);
-    return availability.find(a => a.date === dateKey);
-  };
-  
+
   return (
     <div className="bg-slate-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
           <Calendar className="w-5 h-5" />
-          Vælg tid med {tutor.name}
+          1. Vælg en dato
         </h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentWeek(Math.max(0, currentWeek - 1))}
             disabled={currentWeek === 0}
-            className="p-1 rounded-full hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ChevronLeft className="w-5 h-5 text-slate-400" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
-          <span className="text-sm text-slate-400 min-w-[80px] text-center">
-            Uge {currentWeek + 1}
-          </span>
           <button
             onClick={() => setCurrentWeek(Math.min(maxWeeks - 1, currentWeek + 1))}
             disabled={currentWeek >= maxWeeks - 1}
-            className="p-1 rounded-full hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ChevronRight className="w-5 h-5 text-slate-400" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>
-      
-      <div className="grid grid-cols-7 gap-2 mb-4">
-        {weekDates.map((date, index) => {
-          const dateAvailability = getAvailabilityForDate(date);
-          const hasSlots = dateAvailability && dateAvailability.slots.length > 0;
-          
+
+      <div className="grid grid-cols-7 gap-2">
+        {getWeekDates.map((date, index) => {
+          const dateKey = formatDateKey(date);
+          const hasSlots = availabilityMap.has(dateKey) && availabilityMap.get(dateKey).length > 0;
+          const isSelected = selectedDate && formatDateKey(selectedDate) === dateKey;
+
           return (
-            <div
+            <button
               key={index}
-              className={`p-2 rounded-lg text-center text-sm ${
-                hasSlots ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-500'
+              onClick={() => hasSlots && handleDateClick(date)}
+              disabled={!hasSlots}
+              className={`p-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+                isSelected
+                  ? `${theme.primary} text-white ring-2 ${theme.ring}`
+                  : hasSlots
+                  ? 'bg-slate-700 text-white hover:bg-slate-600'
+                  : 'bg-slate-800 text-slate-600 cursor-not-allowed'
               }`}
             >
-              <div className="font-medium">{formatDate(date)}</div>
-              {hasSlots && (
-                <div className="text-xs text-slate-400 mt-1">
-                  {dateAvailability.slots.length} slots
-                </div>
-              )}
-            </div>
+              {formatDate(date)}
+            </button>
           );
         })}
       </div>
-      
-      <div className="space-y-4">
-        {weekDates.map((date, index) => {
-          const dateAvailability = getAvailabilityForDate(date);
-          if (!dateAvailability || dateAvailability.slots.length === 0) return null;
-          
-          return (
-            <div key={index} className="border-t border-slate-700 pt-4 first:border-t-0 first:pt-0">
-              <h4 className="font-medium text-white mb-2">{formatDate(date)}</h4>
-              <div className="grid grid-cols-4 gap-2">
-                {dateAvailability.slots.map((slot, slotIndex) => {
-                  const dateTimeKey = `${formatDateKey(date)}T${slot.time}`;
-                  const isSelected = selectedDateTime === dateTimeKey;
-                  
-                  return (
-                    <button
-                      key={slotIndex}
-                      onClick={() => {
-                        try {
-                          if (typeof onSelectDateTime === 'function') {
-                            onSelectDateTime(dateTimeKey);
-                          } else {
-                            console.error('onSelectDateTime is not a function');
-                          }
-                        } catch (error) {
-                          console.error('Error selecting datetime:', error);
-                        }
-                      }}
-                      className={`p-2 rounded-lg text-sm font-medium transition-colors ${
-                        isSelected
-                          ? `${theme.primary} text-white`
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
-                    >
-                      {slot.time}
-                    </button>
-                  );
-                })}
-              </div>
+
+      {selectedDate && (
+        <div className="mt-6 border-t border-slate-700 pt-4">
+          <h3 className="text-lg font-semibold text-white mb-3">
+            2. Vælg et tidspunkt for <span className="text-green-400">{formatFullDate(selectedDate)}</span>
+          </h3>
+          {slotsForSelectedDate.length > 0 ? (
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+              {slotsForSelectedDate.map((slot, slotIndex) => {
+                const dateTimeKey = `${formatDateKey(selectedDate)}T${slot.time}`;
+                const isSelected = selectedDateTime === dateTimeKey;
+                return (
+                  <button
+                    key={slotIndex}
+                    onClick={() => onSelectDateTime(dateTimeKey)}
+                    className={`p-2 rounded-lg text-sm font-medium transition-colors ${
+                      isSelected
+                        ? `${theme.primary} text-white`
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    {slot.time}
+                  </button>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
-      
-      {availability.length === 0 && (
+          ) : (
+            <p className="text-slate-400 text-sm">Der er desværre ingen ledige tider på denne dato.</p>
+          )}
+        </div>
+      )}
+
+      {!loading && availability.length === 0 && (
         <div className="text-center py-8 text-slate-400">
           <CalendarDays className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>Ingen ledige tider i øjeblikket</p>
+          <p>Denne tutor har desværre ingen ledige tider i de kommende uger.</p>
         </div>
       )}
     </div>
