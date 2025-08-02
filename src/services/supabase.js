@@ -19,11 +19,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    flowType: 'pkce',
+    // Tilføj storage fallback
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    // Debug mode
+    debug: import.meta.env.DEV || import.meta.env.NODE_ENV === 'development'
   },
   realtime: {
     params: {
       eventsPerSecond: 10
+    }
+  },
+  // Tilføj global options
+  global: {
+    headers: {
+      'X-Client-Info': 'ai-rookie-frontend'
     }
   }
 });

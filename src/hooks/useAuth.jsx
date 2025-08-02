@@ -93,73 +93,139 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (initialized || initPromiseRef.current) return; // Prevent multiple initializations
     
+    mountedRef.current = true;
+    
     console.log('useAuth: Starting initialization...');
     
     const initAuth = async () => {
+      console.log('useAuth: Initializing auth state...');
+      
       try {
-        if (!mountedRef.current) return;
-        
-        console.log('useAuth: Fetching session from Supabase...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.warn('Session fetch error:', error);
+        if (!mountedRef.current) {
+          console.log('useAuth: Component unmounted during init, aborting');
+          return;
+        }
+
+        // Check if Supabase is available
+        if (!supabase) {
+          console.error('useAuth: Supabase client not available');
           if (mountedRef.current) {
+            setError('Authentication service unavailable');
             setLoading(false);
             setInitialized(true);
           }
           return;
         }
         
-        console.log('useAuth: Session result:', {
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          userId: session?.user?.id,
-          userEmail: session?.user?.email
-        });
+        // First check for existing session
+        console.log('useAuth: Fetching session from Supabase...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
+        if (sessionError) {
+          console.error('Session check error:', sessionError);
+          if (mountedRef.current) {
+            setError(sessionError.message);
+            setLoading(false);
+            setInitialized(true);
+          }
+          return;
+        }
+
         if (session?.user && mountedRef.current) {
-          console.log('useAuth: Found existing session, fetching profile...');
+          console.log('useAuth: Found existing session for user:', session.user.email);
+          
+          // Fetch user profile from database
           const profile = await fetchUserProfile(session.user.id);
           
           if (mountedRef.current) {
-            // If profile is missing, create a basic profile from auth data
             if (!profile) {
               console.warn('No profile found during init, using auth data only');
               const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
               console.log('Setting user name during init to:', userName);
               setUser({
-                ...session.user,
-                name: userName,
+                id: session.user.id,
                 email: session.user.email,
+                name: userName,
+                role: 'USER',
+                site_mode: session.user.user_metadata?.site_mode || 'B2C',
                 phone: null,
                 company: null,
-                department: null,
-                role: 'USER',
-                site_mode: 'B2C'
+                department: null
               });
             } else {
               // Ensure name is always set, fallback to email if missing from profile
               const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
               console.log('Setting user name from profile during init to:', userName);
               setUser({
-                ...session.user,
                 ...profile,
                 name: userName
               });
             }
+            setError(null);
             console.log('useAuth: User state set during initialization');
           }
         } else {
-          console.log('useAuth: No session found during initialization');
+          console.log('useAuth: No existing session found');
         }
-      } catch (error) {
-        console.warn('Failed to initialize auth:', error);
+        
+        // Set up auth state listener
         if (mountedRef.current) {
-          setError('Authentication initialization failed');
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+              console.log('useAuth: Auth state changed:', event, session?.user?.email);
+              
+              if (!mountedRef.current) return;
+              
+              if (event === 'SIGNED_IN' && session?.user) {
+                // Fetch fresh profile data
+                const profile = await fetchUserProfile(session.user.id);
+                
+                if (mountedRef.current) {
+                  if (!profile) {
+                    const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+                    setUser({
+                      id: session.user.id,
+                      email: session.user.email,
+                      name: userName,
+                      role: 'USER',
+                      site_mode: session.user.user_metadata?.site_mode || 'B2C',
+                      phone: null,
+                      company: null,
+                      department: null
+                    });
+                  } else {
+                    const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+                    setUser({
+                      ...profile,
+                      name: userName
+                    });
+                  }
+                  setError(null);
+                }
+              } else if (event === 'SIGNED_OUT') {
+                if (mountedRef.current) {
+                  setUser(null);
+                  setError(null);
+                }
+              } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+                console.log('useAuth: Token refreshed successfully');
+                // Optionally refresh user profile
+              }
+            }
+          );
+          
+          subscriptionRef.current = subscription;
+        }
+        
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mountedRef.current) {
+          setError(error.message);
         }
       } finally {
+        // Always set initialized to true to prevent app from hanging
         if (mountedRef.current) {
+          console.log('useAuth: Setting loading=false and initialized=true');
           setLoading(false);
           setInitialized(true);
         }
@@ -169,98 +235,14 @@ export const AuthProvider = ({ children }) => {
 
     initPromiseRef.current = initAuth();
 
-    // Cleanup any existing subscription
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-    }
-
-    // Listen for auth changes with proper cleanup
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mountedRef.current) return;
-        
-        console.log('Auth state change:', event, session?.user?.id, 'initialized:', initialized);
-        
-        try {
-          if (session?.user && mountedRef.current) {
-            // Skip duplicate processing if this is the same user
-            if (user && user.id === session.user.id && event === 'INITIAL_SESSION') {
-              console.log('useAuth: Skipping duplicate INITIAL_SESSION for same user');
-              return;
-            }
-            
-            // Always update user state for authenticated sessions
-            // This handles login, token refresh, and page reload scenarios
-            console.log('useAuth: Processing authenticated session in auth state change');
-            const profile = await fetchUserProfile(session.user.id);
-            
-            console.log('useAuth: Profile fetch completed, mountedRef.current:', mountedRef.current);
-            
-            if (mountedRef.current) {
-              // If profile is missing, create a basic profile from auth data
-              if (!profile) {
-                console.warn('No profile found during auth change, using auth data only');
-                const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-                console.log('Setting user name to:', userName);
-                const userState = {
-                  ...session.user,
-                  name: userName,
-                  email: session.user.email,
-                  phone: null,
-                  company: null,
-                  department: null,
-                  role: 'USER',
-                  site_mode: 'B2C'
-                };
-                console.log('useAuth: Setting user state (no profile):', { id: userState.id, name: userState.name, email: userState.email });
-                setUser(userState);
-              } else {
-                // Ensure name is always set, fallback to email if missing from profile
-                const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-                console.log('Setting user name from profile to:', userName);
-                const userState = {
-                  ...session.user,
-                  ...profile,
-                  name: userName
-                };
-                console.log('useAuth: Setting user state (with profile):', { id: userState.id, name: userState.name, email: userState.email });
-                setUser(userState);
-              }
-              console.log('useAuth: User state updated in auth state change');
-            } else {
-              console.warn('useAuth: Component unmounted after profile fetch, skipping user state update');
-            }
-          } else if (mountedRef.current) {
-            // Only clear user state on explicit SIGNED_OUT events
-            // Don't clear on INITIAL_SESSION or TOKEN_REFRESHED with null session
-            if (event === 'SIGNED_OUT') {
-              console.log('User signed out, clearing user state');
-              setUser(null);
-            } else if (!session && event !== 'INITIAL_SESSION') {
-              console.log('No session in auth change event:', event, '- may need to clear user state');
-              // Be more careful about clearing user state - only if we're sure the user is logged out
-              setUser(null);
-            }
-          }
-        } catch (error) {
-          console.warn('Auth state change error:', error);
-        } finally {
-          if (mountedRef.current) {
-            setLoading(false);
-          }
-        }
-      }
-    );
-
-    subscriptionRef.current = subscription;
-
     return () => {
+      mountedRef.current = false;
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
     };
-  }, [initialized, fetchUserProfile]);
+  }, [fetchUserProfile]);
 
   // Cleanup on unmount - set mountedRef to false and cleanup subscription
   useEffect(() => {
@@ -579,6 +561,7 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     error,
+    initialized, // Ny property
     isAuthenticated: !!user,
     login,
     register,

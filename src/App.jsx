@@ -7,6 +7,7 @@ import AuthModal from './components/AuthModal';
 import UserProfile from './components/UserProfile';
 import AdminGate from './components/AdminGate';
 import TutorDashboard from './components/TutorDashboard';
+import AuthDebug from './components/AuthDebug';
 import {
   Briefcase,
   Users,
@@ -2228,8 +2229,33 @@ const AppContent = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { siteMode } = useSiteMode();
-  const { isAuthenticated, user } = useAuth();
+  const { siteMode, setSiteModeDirectly } = useSiteMode();
+  const { isAuthenticated, user, loading: authLoading, initialized, validateUserSiteMode } = useAuth();
+
+  // Validate user site mode and update state if necessary
+  useEffect(() => {
+    // Vent til auth er fuldt initialiseret
+    if (initialized && isAuthenticated && user) {
+      const validation = validateUserSiteMode(siteMode);
+      if (validation.shouldRedirect) {
+        // Update site mode state directly instead of full page reload
+        console.log(`User site mode mismatch: switching from ${siteMode} to ${validation.correctSiteMode}`);
+        setSiteModeDirectly(validation.correctSiteMode);
+      }
+    }
+  }, [initialized, isAuthenticated, user, siteMode, validateUserSiteMode, setSiteModeDirectly]);
+
+  // Show loading spinner while auth initializes ONLY if we don't have basic state
+  if (authLoading && !initialized) {
+    return (
+      <div className="min-h-screen bg-slate-900 font-sans text-slate-300 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Indlæser...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleAuthClick = (mode) => {
     setAuthModalMode(mode);
@@ -2243,20 +2269,6 @@ const AppContent = () => {
   const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
   const isB2B = siteMode === 'b2b';
   const isTutor = user?.role === 'TUTOR';
-
-  // Validate user site mode and update state if necessary
-  const { validateUserSiteMode } = useAuth();
-  const { setSiteModeDirectly } = useSiteMode();
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      const validation = validateUserSiteMode(siteMode);
-      if (validation.shouldRedirect) {
-        // Update site mode state directly instead of full page reload
-        console.log(`User site mode mismatch: switching from ${siteMode} to ${validation.correctSiteMode}`);
-        setSiteModeDirectly(validation.correctSiteMode);
-      }
-    }
-  }, [isAuthenticated, user, siteMode, validateUserSiteMode, setSiteModeDirectly]);
   
 
   const getNavItems = () => {
@@ -2394,6 +2406,8 @@ const AppContent = () => {
         onClose={() => setProfileModalOpen(false)}
         siteMode={siteMode}
       />
+      
+      <AuthDebug />
     </div>
   );
 };
