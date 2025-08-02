@@ -3,6 +3,7 @@ import { Calendar, Users, Settings, BookOpen, Clock, DollarSign, TrendingUp, Cal
 import TutorBookings from './TutorBookings';
 import TutorProfile from './TutorProfile';
 import WeeklyAvailabilityManager from './WeeklyAvailabilityManager';
+import SessionManager from './SessionManager';
 
 const TutorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -11,6 +12,7 @@ const TutorDashboard = () => {
     { id: 'overview', label: 'Oversigt', icon: TrendingUp },
     { id: 'bookings', label: 'Bookinger', icon: Calendar },
     { id: 'availability', label: 'Tilgængelighed', icon: CalendarDays },
+    { id: 'sessions', label: 'Sessioner', icon: BookOpen },
     { id: 'profile', label: 'Profil', icon: Settings }
   ];
 
@@ -27,6 +29,8 @@ const TutorDashboard = () => {
         return <TutorBookings />;
       case 'availability':
         return <WeeklyAvailabilityManager />;
+      case 'sessions':
+        return <SessionManager />;
       case 'profile':
         return <TutorProfile />;
       default:
