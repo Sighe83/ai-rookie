@@ -34,6 +34,7 @@ import {
   ToggleRight,
   Calendar,
   CalendarDays,
+  Building,
   ChevronLeft,
   ChevronRight,
   LogIn,
@@ -1637,6 +1638,7 @@ const BookingPage = () => {
         format: format.toUpperCase(),
         selectedDateTime: selectedDateTime,
         participants: format === 'team' ? formData.participants : 1,
+        totalPrice: totalPrice,
         siteMode: siteMode.toUpperCase(),
         contactName: formData.contactName,
         contactEmail: formData.contactEmail,
@@ -2178,29 +2180,173 @@ const DashboardPage = () => {
             <h2 className="text-2xl font-bold text-white mb-4">
               {isB2B ? 'Jeres bookings' : 'Dine bookings'}
             </h2>
-            <div className="grid gap-4">
-              {bookings.map((booking) => (
-                <div key={booking.id} className="bg-slate-700 p-4 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-white font-semibold">{booking.session?.title}</h3>
-                      <p className="text-slate-300">Med {booking.tutor?.user?.name || booking.tutor?.name}</p>
-                      {isB2B && booking.company && (
-                        <p className="text-slate-400 text-sm">{booking.company} - {booking.department}</p>
-                      )}
-                      {isB2B && booking.format && (
-                        <p className="text-slate-400 text-sm">{FORMAT_LABEL[booking.format]}</p>
-                      )}
+            <div className="space-y-6">
+              {bookings.map((booking) => {
+                // Calculate days until session
+                const sessionDate = booking.selected_date_time ? new Date(booking.selected_date_time) : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const daysUntil = sessionDate ? Math.ceil((sessionDate - today) / (1000 * 60 * 60 * 24)) : null;
+                
+                // Get status info
+                const status = booking.status?.toLowerCase() || 'pending';
+                const statusColors = {
+                  pending: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/50', label: 'Afventer bekræftelse' },
+                  confirmed: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/50', label: 'Bekræftet' },
+                  completed: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/50', label: 'Gennemført' },
+                  cancelled: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/50', label: 'Aflyst' }
+                };
+                const statusStyle = statusColors[status] || statusColors.pending;
+                
+                return (
+                  <div key={booking.id} className="bg-slate-700 rounded-xl p-6 border border-slate-600 hover:border-slate-500 transition-colors">
+                    {/* Header with session title and status */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-white mb-2">{booking.session?.title}</h3>
+                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
+                          <div className={`w-2 h-2 rounded-full ${statusStyle.text.replace('text-', 'bg-')}`}></div>
+                          {statusStyle.label}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-white">{booking.totalPrice.toLocaleString('da-DK')} kr.</p>
+                        <p className="text-slate-400 text-sm">
+                          {isB2B ? 'Total investering' : 'Samlet pris'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-white font-bold">{booking.totalPrice.toLocaleString('da-DK')} kr.</p>
-                      <p className="text-slate-400 text-sm">
-                        {new Date(booking.bookingDate).toLocaleDateString('da-DK')}
-                      </p>
+
+                    {/* Main content grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Tutor Information */}
+                      <div className="bg-slate-800 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Din Tutor</h4>
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                            {(booking.tutor?.user?.name || booking.tutor?.name || 'T').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-white font-semibold">{booking.tutor?.user?.name || booking.tutor?.name}</p>
+                            <p className="text-slate-400 text-sm">{booking.tutor?.title || 'AI Ekspert'}</p>
+                            {booking.tutor?.specialty && (
+                              <p className="text-purple-400 text-xs mt-1">{booking.tutor?.specialty}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Session Timing */}
+                      <div className="bg-slate-800 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">
+                          {booking.selected_date_time ? 'Planlagt Tidspunkt' : 'Ønsket Tidspunkt'}
+                        </h4>
+                        {sessionDate ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-purple-400" />
+                              <p className="text-white font-semibold">
+                                {sessionDate.toLocaleDateString('da-DK', { 
+                                  weekday: 'long', 
+                                  day: 'numeric', 
+                                  month: 'long',
+                                  year: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-purple-400" />
+                              <p className="text-white font-semibold">
+                                {sessionDate.toLocaleTimeString('da-DK', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })} - {new Date(sessionDate.getTime() + 60*60*1000).toLocaleTimeString('da-DK', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </p>
+                            </div>
+                            {daysUntil !== null && (
+                              <div className="mt-3 p-2 bg-slate-700 rounded-lg">
+                                <p className="text-center">
+                                  {daysUntil > 0 ? (
+                                    <span className="text-green-400 font-semibold">
+                                      {daysUntil} {daysUntil === 1 ? 'dag' : 'dage'} til session
+                                    </span>
+                                  ) : daysUntil === 0 ? (
+                                    <span className="text-yellow-400 font-semibold">
+                                      Session i dag!
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">
+                                      Session afholdt
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-slate-400">Tidspunkt ikke fastlagt endnu</p>
+                        )}
+                      </div>
+
+                      {/* Session Details */}
+                      <div className="bg-slate-800 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Session Detaljer</h4>
+                        <div className="space-y-2">
+                          {isB2B && booking.format && (
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4 text-purple-400" />
+                              <span className="text-slate-300">{FORMAT_LABEL[booking.format]}</span>
+                            </div>
+                          )}
+                          {booking.participants && booking.participants > 1 && (
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4 text-purple-400" />
+                              <span className="text-slate-300">{booking.participants} deltagere</span>
+                            </div>
+                          )}
+                          {isB2B && booking.company && (
+                            <div className="flex items-center gap-2">
+                              <Building className="w-4 h-4 text-purple-400" />
+                              <span className="text-slate-300">{booking.company}</span>
+                            </div>
+                          )}
+                          {isB2B && booking.department && (
+                            <div className="text-slate-400 text-sm ml-6">
+                              {booking.department}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-purple-400" />
+                            <span className="text-slate-300">60 minutter</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div className="mt-4 pt-4 border-t border-slate-600">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div className="text-sm text-slate-400">
+                          <span className="font-medium">Booket:</span> {' '}
+                          {new Date(booking.bookingDate || booking.created_at).toLocaleDateString('da-DK', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </div>
+                        {booking.contact_email && (
+                          <div className="text-sm text-slate-400">
+                            <span className="font-medium">Kontakt:</span> {booking.contact_email}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           
