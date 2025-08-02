@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const SessionService = require('../services/sessionService');
 
 const prisma = new PrismaClient();
 
@@ -136,13 +137,14 @@ async function seedDatabase() {
         }
       });
 
-      // Create sessions for tutor
+      // Create sessions for tutor with enforced 60-minute duration
       for (const sessionData of sessions) {
         await prisma.session.create({
           data: {
             tutorId: tutor.id,
             title: sessionData.title,
             description: sessionData.description,
+            duration: SessionService.SESSION_DURATION_MINUTES, // Always 60 minutes
           }
         });
       }
@@ -163,26 +165,20 @@ async function seedDatabase() {
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
         if (isWeekend && parseInt(tutor.id) % 3 !== 0) continue;
         
-        // Generate time slots
-        const timeSlots = [];
-        const startHour = parseInt(tutor.id) % 2 === 0 ? 9 : 10;
-        const endHour = parseInt(tutor.id) % 3 === 0 ? 17 : 16;
+        // Generate time slots using SessionService
+        const availableSlots = SessionService.generateTimeSlots(date, [12]); // Exclude lunch hour
         
-        for (let hour = startHour; hour <= endHour; hour++) {
-          if (hour === 12) continue; // Skip lunch
-          
+        // Apply tutor-specific availability patterns
+        const timeSlots = availableSlots.filter((slot, index) => {
           // Use seeded randomness for consistent availability
-          const seed = parseInt(tutor.id) * 1000 + i * 100 + hour;
+          const seed = parseInt(tutor.id) * 1000 + i * 100 + slot.dateTime.getHours();
           const isAvailable = ((seed * 9301 + 49297) % 233280) / 233280 > 0.3;
-          
-          if (isAvailable) {
-            timeSlots.push({
-              time: `${hour.toString().padStart(2, '0')}:00`,
-              available: true,
-              booked: false
-            });
-          }
-        }
+          return isAvailable;
+        }).map(slot => ({
+          time: slot.time,
+          available: slot.available,
+          booked: slot.booked
+        }));
         
         if (timeSlots.length > 0) {
           await prisma.tutorAvailability.upsert({

@@ -373,6 +373,19 @@ export const useCreateBooking = () => {
       if (userError) throw new Error('Authentication fejlede');
       if (!user) throw new Error('Ikke logget ind');
 
+      // Generate UUID for booking
+      const generateUUID = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        // Fallback UUID generation
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c == 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+
       // Calculate total price if not provided
       let totalPrice = bookingData.totalPrice || 0;
       if (!totalPrice && bookingData.participants && bookingData.basePrice) {
@@ -382,6 +395,7 @@ export const useCreateBooking = () => {
       const { data, error } = await supabase
         .from('bookings')
         .insert([{
+          id: generateUUID(), // Explicitly provide UUID
           user_id: user.id,
           tutor_id: bookingData.tutorId,
           session_id: bookingData.sessionId,
