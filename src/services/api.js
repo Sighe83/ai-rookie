@@ -160,6 +160,59 @@ export const availabilityApi = {
     }
   },
 
+  // New method for bulk weekly availability updates
+  updateWeeklyAvailability: async (tutorId, weekStartDate, weeklyTemplate) => {
+    try {
+      const weekStart = new Date(weekStartDate);
+      const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const results = [];
+
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        const date = new Date(weekStart);
+        date.setDate(weekStart.getDate() + dayIndex);
+        const dayKey = dayKeys[dayIndex];
+        const daySlots = weeklyTemplate[dayKey] || [];
+
+        // Convert template slots to API format
+        const timeSlots = daySlots.map(slot => {
+          const startTime = slot.split('-')[0];
+          return {
+            time: startTime,
+            available: true,
+            booked: false
+          };
+        });
+
+        // Only update if there are slots for this day
+        if (timeSlots.length > 0) {
+          const result = await availabilityApi.updateAvailability(
+            tutorId,
+            date.toISOString().split('T')[0],
+            timeSlots
+          );
+          results.push(result);
+        } else {
+          // Clear availability for days with no slots
+          try {
+            await supabase
+              .from('tutor_availability')
+              .delete()
+              .eq('tutor_id', tutorId)
+              .eq('date', date.toISOString().split('T')[0]);
+          } catch (deleteError) {
+            console.log('No existing availability to delete for', date.toISOString().split('T')[0]);
+          }
+        }
+      }
+
+      return { data: results, success: true };
+    } catch (err) {
+      console.error('updateWeeklyAvailability error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to update weekly availability', 500, err);
+    }
+  },
+
   bookTimeSlot: async (tutorId, date, time) => {
     // This would typically be handled by booking creation
     // which updates availability automatically via triggers
@@ -204,23 +257,100 @@ export const bookingsApi = {
     if (userError) throw new ApiError('Authentication failed', 401, userError);
     if (!user) throw new ApiError('Not authenticated', 401);
 
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert([{
-        ...bookingData,
-        user_id: user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select(`
-        *,
-        tutor:tutors(*),
-        session:sessions(*)
-      `)
-      .single();
+    try {
+      // Generate UUID for booking
+      const generateUUID = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        // Fallback UUID generation
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c == 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
 
-    if (error) throw new ApiError(error.message, 400, error);
-    return { data, success: true };
+      // First create the booking
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([{
+          id: generateUUID(), // Explicitly provide UUID
+          ...bookingData,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select(`
+          *,
+          tutor:tutors(*),
+          session:sessions(*)
+        `)
+        .single();
+
+      if (error) throw new ApiError(error.message, 400, error);
+
+      // Now update the availability to mark the slot as booked
+      if (bookingData.selectedDateTime && bookingData.tutorId) {
+        await bookingsApi.markSlotAsBooked(
+          bookingData.tutorId,
+          bookingData.selectedDateTime
+        );
+      }
+
+      return { data, success: true };
+    } catch (err) {
+      console.error('createBooking error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to create booking', 500, err);
+    }
+  },
+
+  // New method to mark availability slot as booked
+  markSlotAsBooked: async (tutorId, selectedDateTime) => {
+    try {
+      // Parse the selectedDateTime to get date and time
+      const dateTime = new Date(selectedDateTime);
+      const date = dateTime.toISOString().split('T')[0];
+      const hour = dateTime.getHours();
+      const timeString = `${hour.toString().padStart(2, '0')}:00`;
+
+      // Get existing availability for this date
+      const { data: existing, error: findError } = await supabase
+        .from('tutor_availability')
+        .select('*')
+        .eq('tutor_id', tutorId)
+        .eq('date', date)
+        .maybeSingle();
+
+      if (findError) throw new ApiError(findError.message, 400, findError);
+      if (!existing) throw new ApiError('No availability found for this date', 404);
+
+      // Update the specific time slot to mark as booked
+      const updatedTimeSlots = existing.time_slots.map(slot => {
+        if (slot.time === timeString || slot.time === hour.toString()) {
+          return { ...slot, booked: true, available: false };
+        }
+        return slot;
+      });
+
+      // Update the availability record
+      const { error: updateError } = await supabase
+        .from('tutor_availability')
+        .update({
+          time_slots: updatedTimeSlots,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+
+      if (updateError) throw new ApiError(updateError.message, 400, updateError);
+      
+      return { success: true };
+    } catch (err) {
+      console.error('markSlotAsBooked error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to mark slot as booked', 500, err);
+    }
   },
 
   getBooking: async (id) => {
@@ -246,19 +376,89 @@ export const bookingsApi = {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError) throw new ApiError('Authentication failed', 401, userError);
 
-    const { data, error } = await supabase
-      .from('bookings')
-      .update({ 
-        status: status.toUpperCase(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    try {
+      // First get the booking to check if we need to free up a slot
+      const { data: booking, error: getError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
 
-    if (error) throw new ApiError(error.message, 400, error);
-    return { data, success: true };
+      if (getError) throw new ApiError(getError.message, 400, getError);
+
+      // Update the booking status
+      const { data, error } = await supabase
+        .from('bookings')
+        .update({ 
+          status: status.toUpperCase(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) throw new ApiError(error.message, 400, error);
+
+      // If booking is being cancelled, free up the slot
+      if (status.toUpperCase() === 'CANCELLED' && booking.selectedDateTime && booking.tutorId) {
+        await bookingsApi.freeUpSlot(booking.tutorId, booking.selectedDateTime);
+      }
+
+      return { data, success: true };
+    } catch (err) {
+      console.error('updateBookingStatus error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to update booking status', 500, err);
+    }
+  },
+
+  // Method to free up a slot when booking is cancelled
+  freeUpSlot: async (tutorId, selectedDateTime) => {
+    try {
+      // Parse the selectedDateTime to get date and time
+      const dateTime = new Date(selectedDateTime);
+      const date = dateTime.toISOString().split('T')[0];
+      const hour = dateTime.getHours();
+      const timeString = `${hour.toString().padStart(2, '0')}:00`;
+
+      // Get existing availability for this date
+      const { data: existing, error: findError } = await supabase
+        .from('tutor_availability')
+        .select('*')
+        .eq('tutor_id', tutorId)
+        .eq('date', date)
+        .maybeSingle();
+
+      if (findError) throw new ApiError(findError.message, 400, findError);
+      if (!existing) return { success: true }; // No availability record, nothing to update
+
+      // Update the specific time slot to mark as available again
+      const updatedTimeSlots = existing.time_slots.map(slot => {
+        if (slot.time === timeString || slot.time === hour.toString()) {
+          return { ...slot, booked: false, available: true };
+        }
+        return slot;
+      });
+
+      // Update the availability record
+      const { error: updateError } = await supabase
+        .from('tutor_availability')
+        .update({
+          time_slots: updatedTimeSlots,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+
+      if (updateError) throw new ApiError(updateError.message, 400, updateError);
+      
+      return { success: true };
+    } catch (err) {
+      console.error('freeUpSlot error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to free up slot', 500, err);
+    }
   }
 };
 

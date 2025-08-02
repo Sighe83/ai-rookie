@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Trash2, Edit, Save, X, Copy, RotateCcw, CalendarDays } from 'lucide-react';
 import { availabilityApi, tutorManagementApi } from '../services/api.js';
+import { SessionUtils } from '../utils/sessionUtils.js';
 
 const TutorAvailability = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -9,11 +10,10 @@ const TutorAvailability = () => {
   const [editingSlot, setEditingSlot] = useState(null);
   const [showBulkCreate, setShowBulkCreate] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
-  const [newSlot, setNewSlot] = useState({ startTime: '', endTime: '' });
+  const [newSlot, setNewSlot] = useState({ hour: '' });
   const [bulkPattern, setBulkPattern] = useState({ 
     dayOfWeek: '', 
-    startTime: '', 
-    endTime: '', 
+    hour: '', 
     weeks: 4 
   });
   const [copySource, setCopySource] = useState(null);
@@ -26,109 +26,36 @@ const TutorAvailability = () => {
     return date.toISOString().split('T')[0];
   };
 
-  // Generate hour options
-  const generateHourOptions = (type = 'all') => {
-    const options = [];
-    const startHour = type === 'business' ? 9 : 0;
-    const endHour = type === 'business' ? 17 : 24;
+  // Generate hour options for session slots (8:00 - 17:00, excluding lunch)
+  const generateHourOptions = () => {
+    const availableHours = SessionUtils.getAvailableHours(new Date());
+    return availableHours.map(slot => ({
+      value: slot.hour.toString(),
+      label: slot.displayTime
+    }));
+  };
+
+  // Validate time slot (always 1 hour, starting on the hour)
+  const validateTimeSlot = (hour, existingSlots = []) => {
+    const validation = SessionUtils.validateSessionTime(
+      SessionUtils.createHourOnlyDateTime(selectedDate, parseInt(hour))
+    );
     
-    for (let hour = startHour; hour < endHour; hour++) {
-      options.push({
-        value: hour.toString().padStart(2, '0'),
-        label: hour.toString().padStart(2, '0')
-      });
+    if (!validation.isValid) {
+      return validation.error;
     }
-    return options;
-  };
 
-  // Generate minute options (15-minute increments)
-  const generateMinuteOptions = () => {
-    return [
-      { value: '00', label: '00' },
-      { value: '15', label: '15' },
-      { value: '30', label: '30' },
-      { value: '45', label: '45' }
-    ];
-  };
+    // Check for conflicts with existing slots
+    const bookedHours = existingSlots.map(slot => {
+      const time = slot.time || slot.startTime;
+      return parseInt(time.split(':')[0]);
+    });
 
-  // Generate time options in 15-minute increments (for backwards compatibility)
-  const generateTimeOptions = (type = 'all') => {
-    const options = [];
-    const startHour = type === 'business' ? 9 : 0;
-    const endHour = type === 'business' ? 17 : 24;
-    
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        options.push(time);
-      }
+    if (bookedHours.includes(parseInt(hour))) {
+      return 'Dette tidsrum er allerede optaget';
     }
-    return options;
-  };
 
-  // Parse time string into hour and minute
-  const parseTime = (timeString) => {
-    if (!timeString) return { hour: '', minute: '' };
-    const [hour, minute] = timeString.split(':');
-    return { hour, minute };
-  };
-
-  // Format hour and minute into time string
-  const formatTime = (hour, minute) => {
-    if (!hour || !minute) return '';
-    return `${hour}:${minute}`;
-  };
-
-  // Get suggested end times based on start time (minimum 30 min, common durations)
-  const getSuggestedEndTimes = (startTime) => {
-    if (!startTime) return generateTimeOptions('business');
-    
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const startTotalMinutes = startHour * 60 + startMinute;
-    
-    // Common session durations: 30min, 45min, 1h, 1.5h, 2h, 3h
-    const commonDurations = [30, 45, 60, 90, 120, 180];
-    const suggestions = [];
-    
-    commonDurations.forEach(duration => {
-      const endTotalMinutes = startTotalMinutes + duration;
-      const endHour = Math.floor(endTotalMinutes / 60);
-      const endMinute = endTotalMinutes % 60;
-      
-      if (endHour < 24) {
-        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-        if (!suggestions.includes(endTime)) {
-          suggestions.push(endTime);
-        }
-      }
-    });
-    
-    // Add all other valid times
-    const allTimes = generateTimeOptions('business');
-    allTimes.forEach(time => {
-      const [hour, minute] = time.split(':').map(Number);
-      const totalMinutes = hour * 60 + minute;
-      if (totalMinutes > startTotalMinutes + 30 && !suggestions.includes(time)) {
-        suggestions.push(time);
-      }
-    });
-    
-    return suggestions;
-  };
-
-  // Validate time slot duration (minimum 30 minutes)
-  const validateTimeSlotDuration = (startTime, endTime) => {
-    const start = new Date(`1970-01-01T${startTime}:00`);
-    const end = new Date(`1970-01-01T${endTime}:00`);
-    const durationMs = end - start;
-    const durationMinutes = durationMs / (1000 * 60);
-    return durationMinutes >= 30;
-  };
-
-  // Validate time is in 15-minute increments
-  const validateTimeIncrement = (time) => {
-    const [, minutes] = time.split(':');
-    return ['00', '15', '30', '45'].includes(minutes);
+    return null;
   };
 
   useEffect(() => {
@@ -170,14 +97,26 @@ const TutorAvailability = () => {
       
       const availabilityMap = {};
       response.data.forEach(item => {
+        // Convert existing time_slots to new format
         const slots = Array.isArray(item.time_slots) ? item.time_slots : [];
-        availabilityMap[item.date] = slots.map((slot, index) => ({
-          id: `${item.date}-${index}`,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          isBooked: slot.isBooked || false,
-          clientName: slot.clientName
-        }));
+        availabilityMap[item.date] = slots.map((slot, index) => {
+          // Handle both old format (startTime/endTime) and new format (time)
+          const time = slot.time || slot.startTime;
+          const hour = time ? parseInt(time.split(':')[0]) : null;
+          
+          return {
+            id: `${item.date}-${index}`,
+            time: time,
+            hour: hour,
+            available: slot.available !== false,
+            booked: slot.booked || slot.isBooked || false,
+            clientName: slot.clientName,
+            duration: SessionUtils.SESSION_DURATION_MINUTES,
+            displayTime: hour ? SessionUtils.formatSessionTime(
+              SessionUtils.createHourOnlyDateTime(new Date(item.date), hour)
+            ).timeRange : time
+          };
+        });
       });
       
       setAvailability(availabilityMap);
@@ -244,32 +183,39 @@ const TutorAvailability = () => {
   };
 
   const addTimeSlot = async () => {
-    if (!newSlot.startTime || !newSlot.endTime || !tutorId) return;
+    if (!newSlot.hour || !tutorId) return;
     
     try {
       const dateKey = formatDate(selectedDate);
       const existingSlots = availability[dateKey] || [];
       
-      // Check for overlap
-      const overlapError = checkTimeSlotOverlap(newSlot.startTime, newSlot.endTime, existingSlots);
-      if (overlapError) {
-        setError(overlapError);
+      // Validate the time slot
+      const validationError = validateTimeSlot(newSlot.hour, existingSlots);
+      if (validationError) {
+        setError(validationError);
         return;
       }
       
+      const hour = parseInt(newSlot.hour);
+      const timeSlot = {
+        time: `${hour.toString().padStart(2, '0')}:00`,
+        available: true,
+        booked: false
+      };
+      
       const updatedSlots = [
-        ...existingSlots,
-        {
-          startTime: newSlot.startTime,
-          endTime: newSlot.endTime,
-          isBooked: false
-        }
-      ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+        ...existingSlots.map(slot => ({
+          time: slot.time,
+          available: slot.available,
+          booked: slot.booked
+        })),
+        timeSlot
+      ].sort((a, b) => a.time.localeCompare(b.time));
 
       await availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots);
       await loadAvailability();
       
-      setNewSlot({ startTime: '', endTime: '' });
+      setNewSlot({ hour: '' });
       setIsAddingSlot(false);
     } catch (error) {
       console.error('Failed to add time slot:', error);

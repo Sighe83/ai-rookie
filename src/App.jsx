@@ -651,9 +651,9 @@ const getTutorAvailability = async (tutorId) => {
       date: availability.date,
       slots: Array.isArray(availability.time_slots) 
         ? availability.time_slots.map(slot => ({
-            time: slot.startTime,
-            available: !slot.isBooked,
-            booked: slot.isBooked || false,
+            time: slot.time || slot.startTime,
+            available: slot.available !== undefined ? slot.available : !slot.isBooked,
+            booked: slot.booked !== undefined ? slot.booked : (slot.isBooked || false),
             endTime: slot.endTime
           }))
         : []
@@ -1068,7 +1068,9 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
   const slotsForSelectedDate = useMemo(() => {
     if (!selectedDate) return [];
     const dateKey = formatDateKey(selectedDate);
-    return availabilityMap.get(dateKey) || [];
+    const allSlots = availabilityMap.get(dateKey) || [];
+    // Only return available (unbooked) slots
+    return allSlots.filter(slot => slot.available && !slot.booked);
   }, [selectedDate, availabilityMap]);
 
   if (!tutor || !tutor.id) {
@@ -1119,7 +1121,8 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
       <div className="grid grid-cols-7 gap-2">
         {getWeekDates.map((date, index) => {
           const dateKey = formatDateKey(date);
-          const hasSlots = availabilityMap.has(dateKey) && availabilityMap.get(dateKey).length > 0;
+          const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
+          const hasSlots = availableSlots.length > 0;
           const isSelected = selectedDate && formatDateKey(selectedDate) === dateKey;
 
           return (
@@ -1127,7 +1130,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
               key={index}
               onClick={() => hasSlots && handleDateClick(date)}
               disabled={!hasSlots}
-              className={`p-2 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+              className={`p-3 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
                 isSelected
                   ? `${theme.primary} text-white ring-2 ${theme.ring}`
                   : hasSlots
@@ -1135,7 +1138,17 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
                   : 'bg-slate-800 text-slate-600 cursor-not-allowed'
               }`}
             >
-              {formatDate(date)}
+              <div className="font-bold">
+                {date.toLocaleDateString('da-DK', { weekday: 'long' })}
+              </div>
+              <div className="text-xs mt-1">
+                {date.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}
+              </div>
+              {hasSlots && (
+                <div className="text-xs mt-1 opacity-75">
+                  {availableSlots.length} ledige
+                </div>
+              )}
             </button>
           );
         })}
@@ -1154,14 +1167,30 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
                 return (
                   <button
                     key={slotIndex}
+                    type="button"
                     onClick={() => onSelectDateTime(dateTimeKey)}
-                    className={`p-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`p-4 rounded-xl text-sm font-medium transition-all border-2 ${
                       isSelected
-                        ? `${theme.primary} text-white`
-                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        ? `${theme.primary} text-white border-purple-400 shadow-lg`
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border-slate-600 hover:border-slate-500'
                     }`}
                   >
-                    {slot.time}
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="font-bold text-base">{slot.time}</span>
+                        <span className="text-slate-400 text-xs">til</span>
+                        <span className="font-bold text-base">
+                          {(() => {
+                            const hour = parseInt(slot.time.split(':')[0]);
+                            const endHour = hour + 1;
+                            return `${endHour.toString().padStart(2, '0')}:00`;
+                          })()}
+                        </span>
+                      </div>
+                      <div className="text-xs mt-1 opacity-60">
+                        1 time
+                      </div>
+                    </div>
                   </button>
                 );
               })}

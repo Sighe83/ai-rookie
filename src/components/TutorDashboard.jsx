@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Calendar, Users, Settings, BookOpen, Clock, DollarSign, TrendingUp } from 'lucide-react';
+import { Calendar, Users, Settings, BookOpen, Clock, DollarSign, TrendingUp, CalendarDays } from 'lucide-react';
 import TutorBookings from './TutorBookings';
-import TutorAvailability from './TutorAvailability';
 import TutorProfile from './TutorProfile';
+import WeeklyAvailabilityManager from './WeeklyAvailabilityManager';
 
 const TutorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -10,7 +10,7 @@ const TutorDashboard = () => {
   const tabs = [
     { id: 'overview', label: 'Oversigt', icon: TrendingUp },
     { id: 'bookings', label: 'Bookinger', icon: Calendar },
-    { id: 'availability', label: 'Tider', icon: Clock },
+    { id: 'availability', label: 'Tilgængelighed', icon: CalendarDays },
     { id: 'profile', label: 'Profil', icon: Settings }
   ];
 
@@ -26,7 +26,7 @@ const TutorDashboard = () => {
       case 'bookings':
         return <TutorBookings />;
       case 'availability':
-        return <TutorAvailability />;
+        return <WeeklyAvailabilityManager />;
       case 'profile':
         return <TutorProfile />;
       default:

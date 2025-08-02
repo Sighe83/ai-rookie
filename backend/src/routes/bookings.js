@@ -1,6 +1,7 @@
 const express = require('express');
 const { databaseService } = require('../config/database');
 const { authMiddleware, optionalAuth, adminOnly } = require('../middleware/auth');
+const SessionService = require('../services/sessionService');
 
 const router = express.Router();
 
@@ -98,6 +99,15 @@ router.post('/', optionalAuth, async (req, res) => {
       });
     }
 
+    // Validate session time according to business rules
+    const sessionTimeValidation = SessionService.validateSessionTime(selectedDateTime);
+    if (!sessionTimeValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: sessionTimeValidation.error
+      });
+    }
+
     // Validate tutor and session exist
     const tutor = await databaseService.findUnique('tutor', {
       where: { id: tutorId, isActive: true }
@@ -159,6 +169,25 @@ router.post('/', optionalAuth, async (req, res) => {
     const bookingDate = new Date(selectedDateTime);
     const timeString = bookingDate.toTimeString().slice(0, 5); // HH:MM format
     const dateOnly = new Date(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate());
+
+    // Check for existing bookings at the same time to prevent conflicts
+    const existingBookings = await databaseService.findMany('booking', {
+      where: {
+        tutorId: tutorId,
+        selectedDateTime: bookingDate,
+        status: {
+          in: ['PENDING', 'CONFIRMED']
+        }
+      }
+    });
+
+    const conflictValidation = SessionService.validateNoTimeConflict(selectedDateTime, existingBookings);
+    if (!conflictValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: conflictValidation.error
+      });
+    }
 
     const availability = await databaseService.findUnique('tutorAvailability', {
       where: {

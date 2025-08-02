@@ -39,7 +39,21 @@ const schemas = {
     tutorId: Joi.string().uuid().required(),
     sessionId: Joi.string().uuid().required(),
     format: Joi.string().valid('INDIVIDUAL', 'TEAM').required(),
-    selectedDateTime: Joi.date().min('now').required(),
+    selectedDateTime: Joi.date().min('now').required().custom((value, helpers) => {
+      // Validate that time is on the hour
+      const date = new Date(value);
+      if (date.getMinutes() !== 0 || date.getSeconds() !== 0) {
+        return helpers.message('Session must start on the hour (e.g., 10:00, 11:00)');
+      }
+      
+      // Validate business hours (8:00 - 18:00)
+      const hour = date.getHours();
+      if (hour < 8 || hour >= 18) {
+        return helpers.message('Sessions must be scheduled between 8:00 and 18:00');
+      }
+      
+      return value;
+    }),
     participants: Joi.number().integer().min(1).max(50).when('format', {
       is: 'TEAM',
       then: Joi.required(),
@@ -76,7 +90,7 @@ const schemas = {
   sessionCreation: Joi.object({
     title: Joi.string().min(5).max(200).required(),
     description: Joi.string().min(10).max(1000).required(),
-    duration: Joi.number().integer().min(15).max(480).default(60),
+    duration: Joi.number().integer().valid(60).default(60), // Always 60 minutes
     priceOverride: Joi.number().integer().min(0).optional(),
     isActive: Joi.boolean().default(true)
   }),
