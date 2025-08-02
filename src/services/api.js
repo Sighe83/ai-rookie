@@ -25,13 +25,21 @@ export const tutorsApi = {
       .from('tutors')
       .select(`
         *,
+        user:users(name, email),
         sessions(*)
       `)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (error) throw new ApiError(error.message, 400, error);
-    return { data, success: true };
+    
+    // Transform data to include user name at tutor level
+    const transformedData = data?.map(tutor => ({
+      ...tutor,
+      name: tutor.user?.name || 'Unavngivet Tutor'
+    })) || [];
+    
+    return { data: transformedData, success: true };
   },
 
   getById: async (id, siteMode = 'B2B') => {
@@ -39,6 +47,7 @@ export const tutorsApi = {
       .from('tutors')
       .select(`
         *,
+        user:users(name, email),
         sessions(*)
       `)
       .eq('id', id)
@@ -46,7 +55,14 @@ export const tutorsApi = {
       .single();
 
     if (error) throw new ApiError(error.message, 404, error);
-    return { data, success: true };
+    
+    // Transform data to include user name at tutor level
+    const transformedData = {
+      ...data,
+      name: data.user?.name || 'Unavngivet Tutor'
+    };
+    
+    return { data: transformedData, success: true };
   }
 };
 
@@ -588,6 +604,97 @@ export const tutorManagementApi = {
 
     if (error) throw new ApiError(error.message, 400, error);
     return { data, success: true };
+  },
+
+  uploadProfileImage: async (formData) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    try {
+      // Get file from FormData
+      const file = formData.get('image');
+      if (!file) throw new ApiError('No image file provided', 400);
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new ApiError('Filen skal være et billede (JPG, PNG, WebP)', 400);
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new ApiError('Billedet må ikke være større end 5MB', 400);
+      }
+
+      // Generate unique filename with user ID folder for organization
+      const fileExt = file.name.split('.').pop().toLowerCase();
+      const fileName = `${user.id}/profile_${Date.now()}.${fileExt}`;
+
+      console.log('Uploading to Supabase Storage:', {
+        fileName,
+        fileSize: file.size,
+        fileType: file.type
+      });
+
+      // Delete any existing profile image for this user first
+      try {
+        const { data: existingFiles } = await supabase.storage
+          .from('avatars')
+          .list(user.id, {
+            limit: 100,
+            search: 'profile_'
+          });
+
+        if (existingFiles && existingFiles.length > 0) {
+          const filesToDelete = existingFiles.map(f => `${user.id}/${f.name}`);
+          await supabase.storage
+            .from('avatars')
+            .remove(filesToDelete);
+          console.log('Removed existing profile images:', filesToDelete);
+        }
+      } catch (cleanupError) {
+        console.log('Could not cleanup existing files (OK):', cleanupError);
+      }
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false // Don't overwrite, we deleted old files above
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new ApiError(`Upload fejlede: ${uploadError.message}`, 400, uploadError);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      if (!urlData?.publicUrl) {
+        throw new ApiError('Kunne ikke generere billede URL', 500);
+      }
+
+      console.log('Upload successful:', {
+        path: uploadData.path,
+        publicUrl: urlData.publicUrl
+      });
+
+      return { 
+        data: { 
+          imageUrl: urlData.publicUrl,
+          fileName: uploadData.path
+        }, 
+        success: true 
+      };
+    } catch (err) {
+      console.error('uploadProfileImage error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Kunne ikke uploade billede', 500, err);
+    }
   }
 };
 

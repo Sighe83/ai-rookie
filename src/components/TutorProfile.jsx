@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Building, Briefcase, DollarSign, Save, Edit } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Mail, Phone, Building, Briefcase, DollarSign, Save, Edit, Upload, Camera } from 'lucide-react';
 import { tutorManagementApi } from '../services/api.js';
 
 const TutorProfile = () => {
@@ -8,6 +8,8 @@ const TutorProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
 
   useEffect(() => {
@@ -39,6 +41,43 @@ const TutorProfile = () => {
       setError('Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Vælg venligst en billedfil');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Billedet må ikke være større end 5MB');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError(null);
+
+      // Upload image
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await tutorManagementApi.uploadProfileImage(formData);
+      
+      // Update profile with new image URL
+      setProfile(prev => ({ ...prev, img: response.data.imageUrl }));
+      
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      setError('Kunne ikke uploade billedet. Prøv igen.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -131,15 +170,37 @@ const TutorProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Image */}
           <div className="text-center">
-            <img
-              src={profile.img}
-              alt={profile.name}
-              className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700"
-            />
+            <div className="relative inline-block">
+              <img
+                src={profile.img || 'https://via.placeholder.com/128x128/475569/ffffff?text=Intet+billede'}
+                alt={profile.name}
+                className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700 object-cover"
+              />
+              {uploading && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              )}
+            </div>
             {isEditing && (
-              <button className="text-purple-400 hover:text-purple-300 text-sm">
-                Skift billede
-              </button>
+              <div className="space-y-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="text-purple-400 hover:text-purple-300 text-sm disabled:opacity-50 flex items-center gap-1 mx-auto"
+                >
+                  <Camera className="w-4 h-4" />
+                  {uploading ? 'Uploader...' : 'Skift billede'}
+                </button>
+                <p className="text-xs text-slate-500">Max 5MB, JPG/PNG</p>
+              </div>
             )}
           </div>
 

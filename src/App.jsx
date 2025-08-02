@@ -938,9 +938,12 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
     >
       <div className="p-6 flex flex-col sm:flex-row items-center gap-6">
         <img
-          src={tutor.img}
-          alt={tutor.name}
-          className="w-24 h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700"
+          src={tutor.img || 'https://via.placeholder.com/96x96/475569/ffffff?text=' + encodeURIComponent(tutor.name?.charAt(0) || 'T')}
+          alt={tutor.name || 'Tutor'}
+          className="w-24 h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700 object-cover"
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/96x96/475569/ffffff?text=' + encodeURIComponent(tutor.name?.charAt(0) || 'T');
+          }}
         />
         <div className="flex-grow text-center sm:text-left">
           <h3 className="text-xl font-bold text-white">{tutor.name}</h3>
@@ -2177,9 +2180,22 @@ const DashboardPage = () => {
       {bookings.length > 0 ? (
         <div className="space-y-6">
           <div className="bg-slate-800 p-6 rounded-lg">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              {isB2B ? 'Jeres bookings' : 'Dine bookings'}
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <h2 className="text-2xl font-bold text-white">
+                {isB2B ? 'Jeres bookings' : 'Dine bookings'}
+              </h2>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.location.href = '/tutors';
+                }}
+                className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap`}
+              >
+                <Calendar className="w-5 h-5" />
+                {isB2B ? 'Book ny workshop' : 'Book ny session'}
+              </button>
+            </div>
             <div className="space-y-6">
               {bookings.map((booking) => {
                 // Calculate days until session
@@ -2191,10 +2207,10 @@ const DashboardPage = () => {
                 // Get status info
                 const status = booking.status?.toLowerCase() || 'pending';
                 const statusColors = {
-                  pending: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/50', label: 'Afventer bekræftelse' },
-                  confirmed: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/50', label: 'Bekræftet' },
-                  completed: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/50', label: 'Gennemført' },
-                  cancelled: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/50', label: 'Aflyst' }
+                  pending: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/50', dot: 'bg-yellow-400', label: 'Afventer bekræftelse' },
+                  confirmed: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/50', dot: 'bg-green-400', label: 'Bekræftet' },
+                  completed: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/50', dot: 'bg-blue-400', label: 'Gennemført' },
+                  cancelled: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/50', dot: 'bg-red-400', label: 'Aflyst' }
                 };
                 const statusStyle = statusColors[status] || statusColors.pending;
                 
@@ -2205,7 +2221,7 @@ const DashboardPage = () => {
                       <div className="flex-1">
                         <h3 className="text-xl font-bold text-white mb-2">{booking.session?.title}</h3>
                         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
-                          <div className={`w-2 h-2 rounded-full ${statusStyle.text.replace('text-', 'bg-')}`}></div>
+                          <div className={`w-2 h-2 rounded-full ${statusStyle.dot}`}></div>
                           {statusStyle.label}
                         </div>
                       </div>
@@ -2223,7 +2239,21 @@ const DashboardPage = () => {
                       <div className="bg-slate-800 rounded-lg p-4">
                         <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Din Tutor</h4>
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                          {booking.tutor?.img ? (
+                            <img
+                              src={booking.tutor.img}
+                              alt={booking.tutor?.user?.name || booking.tutor?.name || 'Tutor'}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-slate-600"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                            style={{ display: booking.tutor?.img ? 'none' : 'flex' }}
+                          >
                             {(booking.tutor?.user?.name || booking.tutor?.name || 'T').charAt(0).toUpperCase()}
                           </div>
                           <div>
@@ -2351,7 +2381,20 @@ const DashboardPage = () => {
           </div>
           
           <div className="bg-slate-800 p-6 rounded-lg">
-            <h2 className="text-2xl font-bold text-white mb-4">Statistik</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <h2 className="text-2xl font-bold text-white">Statistik</h2>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.location.href = '/tutors';
+                }}
+                className={`text-sm ${theme.secondary} ${theme.secondaryHover} px-4 py-2 rounded-lg transition-colors flex items-center gap-2`}
+              >
+                <Calendar className="w-4 h-4" />
+                {isB2B ? 'Book workshop' : 'Book session'}
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
                 <p className="text-3xl font-bold text-green-400">{bookings.length}</p>
