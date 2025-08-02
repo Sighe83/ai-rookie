@@ -2290,7 +2290,7 @@ const AppContent = () => {
     
     // Only add Home for non-authenticated users
     if (!isAuthenticated) {
-      baseItems.unshift({ label: 'Hjem', key: 'home', path: '/' });
+      baseItems.unshift({ label: 'Forside', key: 'home', path: '/' });
     }
     
     if (isAuthenticated) {
@@ -2306,43 +2306,52 @@ const AppContent = () => {
     <div className="min-h-screen bg-slate-900 font-sans text-slate-300">
       <header className="bg-slate-900/80 backdrop-blur-sm sticky top-0 z-40 border-b border-slate-800">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-white text-2xl font-bold"
-            >
-              <BrainCircuit className={`${isTutor ? 'text-purple-400' : isB2B ? 'text-green-400' : 'text-blue-400'} h-8 w-8`} />
-              <span>{isTutor ? 'AI Superstar' : 'AI Rookie'} {isB2B && !isTutor && <span className="font-light">Enterprise</span>}</span>
-            </button>
-            
-            <div className="hidden md:flex items-center gap-6">
-              <SiteModeToggle onModeChange={() => navigate('/')} />
-              
-              <div className="h-6 w-px bg-slate-600"></div>
-              
-              <div className="flex items-center gap-2">
-                {navItems.map((item) => (
-                  <button
-                    key={item.key}
-                    onClick={() => navigate(item.path)}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === item.key ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-              
-              <AuthButtons onAuthClick={handleAuthClick} onProfileClick={handleProfileClick} />
+          <div className="grid grid-cols-3 items-center h-16">
+            {/* Logo - venstre */}
+            <div className="flex justify-start">
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 text-white text-2xl font-bold"
+              >
+                <BrainCircuit className={`${isTutor ? 'text-purple-400' : isB2B ? 'text-green-400' : 'text-blue-400'} h-8 w-8`} />
+                <span>{isTutor ? 'AI Superstar' : 'AI Rookie'} {isB2B && !isTutor && <span className="font-light">Enterprise</span>}</span>
+              </button>
             </div>
             
-            <button
-              className="md:hidden text-slate-300 hover:text-white"
-              onClick={() => setMobileMenuOpen(true)}
-            >
-              <Menu size={24} />
-            </button>
+            {/* B2B/B2C Toggle - centreret */}
+            <div className="flex justify-center">
+              <SiteModeToggle onModeChange={() => navigate('/')} />
+            </div>
+            
+            {/* Navigation og Auth - højre */}
+            <div className="flex justify-end">
+              <div className="hidden md:flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  {navItems.map((item) => (
+                    <button
+                      key={item.key}
+                      onClick={() => navigate(item.path)}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        currentPage === item.key ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="h-6 w-px bg-slate-600"></div>
+                
+                <AuthButtons onAuthClick={handleAuthClick} onProfileClick={handleProfileClick} />
+              </div>
+              
+              <button
+                className="md:hidden text-slate-300 hover:text-white"
+                onClick={() => setMobileMenuOpen(true)}
+              >
+                <Menu size={24} />
+              </button>
+            </div>
           </div>
         </nav>
       </header>
