@@ -63,7 +63,7 @@ const AdminGate = ({ children }) => {
           <div className="flex justify-center mb-6">
             <div className="relative">
               <Rocket className="w-20 h-20 text-blue-400 animate-bounce" />
-              <div className="absolute -top-2 -right-2">
+              <div className="absolute -top-6 -right-6">
                 <div className="w-4 h-4 bg-yellow-400 rounded-full animate-pulse"></div>
               </div>
             </div>
@@ -72,7 +72,7 @@ const AdminGate = ({ children }) => {
             Kommer snart
           </h1>
           <p className="text-slate-300 text-lg">
-            Vi arbejder på noget fantastisk! 🚀
+            Vi arbejder på noget fantastisk!
           </p>
         </div>
 
