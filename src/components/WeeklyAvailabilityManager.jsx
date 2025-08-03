@@ -32,6 +32,8 @@ const WeeklyAvailabilityManager = () => {
   const [dragEnd, setDragEnd] = useState(null);
   const [isSelecting, setIsSelecting] = useState(true); // true = select, false = deselect
   const [selectedMobileDay, setSelectedMobileDay] = useState(0); // Mobile day selector
+  const [isEditMode, setIsEditMode] = useState(false); // Edit mode for time slots
+  const [weeklyBookings, setWeeklyBookings] = useState({}); // Store bookings by week
 
   // Initialize empty template
   const createEmptyTemplate = () => ({
@@ -70,6 +72,7 @@ const WeeklyAvailabilityManager = () => {
   useEffect(() => {
     if (tutorId) {
       loadExistingAvailability();
+      loadWeeklyBookings();
     }
   }, [tutorId, currentWeekView]);
 
@@ -95,6 +98,45 @@ const WeeklyAvailabilityManager = () => {
     } catch (error) {
       console.error('Failed to load tutor profile:', error);
       setError('Kunne ikke indlæse din tutor-profil. Sørg for at du er logget korrekt ind.');
+    }
+  };
+
+  const loadWeeklyBookings = async () => {
+    try {
+      const response = await tutorManagementApi.getTutorBookings();
+      const weekStart = getWeekStart(currentWeekView);
+      const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+      
+      // Filter bookings for current week and transform them
+      const weekBookings = {};
+      response.data.forEach(booking => {
+        const bookingDate = new Date(booking.selected_date_time);
+        if (bookingDate >= weekStart && bookingDate <= weekEnd) {
+          const dayIndex = (bookingDate.getDay() + 6) % 7; // Convert Sunday=0 to Monday=0
+          const dayKey = dayKeys[dayIndex];
+          const hour = bookingDate.getHours();
+          const timeSlot = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
+          
+          if (!weekBookings[dayKey]) {
+            weekBookings[dayKey] = [];
+          }
+          
+          weekBookings[dayKey].push({
+            timeSlot,
+            status: booking.status?.toLowerCase() || 'pending',
+            clientName: booking.user?.name || booking.contact_name,
+            sessionTitle: booking.session?.title || 'Unknown Session'
+          });
+        }
+      });
+      
+      setWeeklyBookings(prev => ({
+        ...prev,
+        [currentWeekView]: weekBookings
+      }));
+    } catch (error) {
+      console.error('Failed to load bookings:', error);
+      // Don't show error as bookings are optional
     }
   };
 
@@ -188,6 +230,15 @@ const WeeklyAvailabilityManager = () => {
 
   const getSavedTemplate = () => {
     return savedTemplates[currentWeekView] || createEmptyTemplate();
+  };
+
+  const getCurrentWeekBookings = () => {
+    return weeklyBookings[currentWeekView] || {};
+  };
+
+  const getBookingForTimeSlot = (dayKey, timeSlot) => {
+    const dayBookings = getCurrentWeekBookings()[dayKey] || [];
+    return dayBookings.find(booking => booking.timeSlot === timeSlot);
   };
 
 
@@ -366,6 +417,9 @@ const WeeklyAvailabilityManager = () => {
         [currentWeekView]: currentTemplate
       }));
       
+      // Exit edit mode after successful save
+      setIsEditMode(false);
+      
       setSuccess('Tilgængelighed gemt!');
       setTimeout(() => setSuccess(null), 3000);
       
@@ -440,29 +494,32 @@ const WeeklyAvailabilityManager = () => {
 
       {/* Week Navigation */}
       <div className="border-2 border-slate-700 bg-slate-800 rounded-xl p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-            <CalendarCheck className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
-            Planlæg tilgængelighed
-          </h3>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              onClick={() => setCurrentWeekView(currentWeekView - 1)}
-              className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-              disabled={currentWeekView <= 0}
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <span className="text-slate-300 font-medium px-2 sm:px-4 text-center text-sm sm:text-base whitespace-nowrap">
-              {getWeekLabel(currentWeekView)}
-            </span>
-            <button
-              onClick={() => setCurrentWeekView(currentWeekView + 1)}
-              className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <CalendarCheck className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
+              Planlæg tilgængelighed
+            </h3>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setCurrentWeekView(currentWeekView - 1)}
+                className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                disabled={currentWeekView <= 0}
+              >
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <span className="text-slate-300 font-medium px-2 sm:px-4 text-center text-sm sm:text-base whitespace-nowrap">
+                {getWeekLabel(currentWeekView)}
+              </span>
+              <button
+                onClick={() => setCurrentWeekView(currentWeekView + 1)}
+                className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
           </div>
+          
         </div>
 
 
@@ -508,31 +565,39 @@ const WeeklyAvailabilityManager = () => {
               })}
             </div>
 
-            {/* Legend */}
-            <div className="mb-4 p-4 bg-slate-700/30 border border-slate-600 rounded-xl">
-              <div className="flex flex-wrap gap-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-purple-600 rounded border border-purple-500"></div>
-                  <span className="text-slate-300">Gemt tilgængelighed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-600 rounded border border-blue-500"></div>
-                  <span className="text-slate-300">Nye ændringer</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-600/50 rounded border border-red-500"></div>
-                  <span className="text-slate-300">Fjernet (ikke gemt)</span>
+            {/* Legend - Only visible in edit mode */}
+            {isEditMode && (
+              <div className="mb-4 p-4 bg-slate-700/30 border border-slate-600 rounded-xl">
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-purple-600 rounded border border-purple-500"></div>
+                    <span className="text-slate-300">Gemt tilgængelighed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-yellow-600/20 rounded border border-yellow-500"></div>
+                    <span className="text-slate-300">Nye ændringer</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-600/20 rounded border border-red-500"></div>
+                    <span className="text-slate-300">Fjernet (ikke gemt)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-600/20 rounded border border-blue-500"></div>
+                    <span className="text-slate-300">Booket tid</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Instructions */}
-            <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-              <p className="text-blue-300 text-sm flex items-center gap-2">
-                <CalendarCheck className="w-4 h-4" />
-                <strong>Sådan markerer du tidsintervaller:</strong> Træk ned/op for at markere flere timer i træk. Klik og træk for at vælge/fravælge intervaller.
-              </p>
-            </div>
+            {/* Instructions - Hidden on mobile and only visible in edit mode */}
+            {isEditMode && (
+              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl hidden md:block">
+                <p className="text-blue-300 text-sm flex items-center gap-2">
+                  <CalendarCheck className="w-4 h-4" />
+                  <strong>Sådan markerer du tidsintervaller:</strong> Træk ned/op for at markere flere timer i træk. Klik og træk for at vælge/fravælge intervaller.
+                </p>
+              </div>
+            )}
 
             {/* Mobile Day Selector */}
             <div className="md:hidden mb-6">
@@ -581,6 +646,8 @@ const WeeklyAvailabilityManager = () => {
                       const isSaved = getSavedTemplate()[dayKey]?.includes(timeSlot) || false;
                       const isPastSlot = isDateInPast(currentWeekView, dayIndex);
                       const inDragRange = isInDragRange(dayKey, timeSlot);
+                      const booking = getBookingForTimeSlot(dayKey, timeSlot);
+                      const isBooked = !!booking;
                       
                       // Determine slot state for visual distinction
                       const isNewlySelected = isSelected && !isSaved; // Selected but not saved
@@ -589,28 +656,46 @@ const WeeklyAvailabilityManager = () => {
                       return (
                         <div
                           key={timeSlot}
-                          className={`h-12 rounded-lg border-2 transition-all cursor-pointer ${
+                          className={`h-12 rounded-lg border-2 transition-all ${
                             isPastSlot
                               ? 'bg-slate-700/30 border-slate-600 cursor-not-allowed opacity-50'
-                              : inDragRange && isSelecting
-                                ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
-                                : inDragRange && !isSelecting
-                                  ? 'bg-slate-600 border-slate-500'
-                                  : isNewlySelected
-                                    ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/25' // New selections in blue
-                                    : isNewlyDeselected
-                                      ? 'bg-red-600/50 border-red-500 shadow-lg shadow-red-500/25' // Deselected in red
-                                      : isSelected && isSaved
-                                        ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25' // Saved selections in purple
-                                        : 'bg-slate-800 border-slate-600 hover:border-slate-500 hover:bg-slate-700'
+                              : isBooked
+                                ? 'cursor-not-allowed'
+                                : !isEditMode
+                                  ? 'cursor-default'
+                                  : 'cursor-pointer'
+                          } ${
+                            isPastSlot
+                              ? ''
+                              : isBooked
+                                ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/25' // Booked slots in blue
+                                : inDragRange && isSelecting
+                                  ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
+                                  : inDragRange && !isSelecting
+                                    ? 'bg-slate-600 border-slate-500'
+                                    : isNewlySelected
+                                      ? 'bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/25' // New selections in yellow
+                                      : isNewlyDeselected
+                                        ? 'bg-red-600/20 border-red-500 shadow-lg shadow-red-500/25' // Deselected in red
+                                        : isSelected && isSaved
+                                          ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25' // Saved selections in purple
+                                          : isEditMode
+                                            ? 'bg-slate-800 border-slate-600 hover:border-slate-500 hover:bg-slate-700'
+                                            : 'bg-slate-800 border-slate-600'
                           }`}
-                          onMouseDown={(e) => !isPastSlot && handleIntervalStart(dayKey, timeSlot, e)}
-                          onMouseEnter={() => !isPastSlot && handleIntervalMove(dayKey, timeSlot)}
-                          title={`${timeSlot} - ${isPastSlot ? 'Fortid' : isSelected ? 'Tilgængelig' : 'Ikke tilgængelig'}`}
+                          onMouseDown={(e) => !isPastSlot && !isBooked && isEditMode && handleIntervalStart(dayKey, timeSlot, e)}
+                          onMouseEnter={() => !isPastSlot && !isBooked && isEditMode && handleIntervalMove(dayKey, timeSlot)}
+                          title={`${timeSlot} - ${isPastSlot ? 'Fortid' : isBooked ? `Booket: ${booking.clientName} (${booking.status})` : isSelected ? 'Tilgængelig' : 'Ikke tilgængelig'}`}
                         >
-                          {(isSelected || inDragRange || isNewlyDeselected) && !isPastSlot && (
+                          {!isPastSlot && (
                             <div className="h-full flex items-center justify-center text-white text-xs font-bold">
-                              {isNewlySelected ? 'NY' : isNewlyDeselected ? 'FJERNET' : 'LEDIG'}
+                              {isBooked ? (
+                                <div className="text-center">
+                                  <div>{booking.status.toUpperCase()}</div>
+                                </div>
+                              ) : (isSelected || inDragRange || isNewlyDeselected) ? (
+                                <div>{isNewlySelected ? 'NY' : isNewlyDeselected ? 'FJERNET' : 'LEDIG'}</div>
+                              ) : null}
                             </div>
                           )}
                         </div>
@@ -632,6 +717,8 @@ const WeeklyAvailabilityManager = () => {
                   const isSelected = getCurrentTemplate()[dayKey]?.includes(timeSlot) || false;
                   const isSaved = getSavedTemplate()[dayKey]?.includes(timeSlot) || false;
                   const isPastSlot = isDateInPast(currentWeekView, selectedMobileDay);
+                  const booking = getBookingForTimeSlot(dayKey, timeSlot);
+                  const isBooked = !!booking;
                   
                   // Determine slot state for visual distinction
                   const isNewlySelected = isSelected && !isSaved;
@@ -640,23 +727,39 @@ const WeeklyAvailabilityManager = () => {
                   return (
                     <button
                       key={timeSlot}
-                      onClick={() => !isPastSlot && toggleTimeSlot(dayKey, timeSlot)}
-                      disabled={isPastSlot}
+                      onClick={() => !isPastSlot && !isBooked && isEditMode && toggleTimeSlot(dayKey, timeSlot)}
+                      disabled={isPastSlot || isBooked}
                       className={`p-4 rounded-xl border-2 transition-all font-medium text-center min-h-[60px] flex items-center justify-center ${
                         isPastSlot
                           ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed opacity-50'
+                          : isBooked
+                          ? 'bg-blue-600/20 border-blue-500 text-blue-300 cursor-not-allowed'
+                          : !isEditMode
+                          ? 'cursor-default'
                           : isNewlySelected
-                          ? 'bg-purple-600/30 border-purple-400 text-purple-200' // Newly selected
+                          ? 'bg-yellow-600/20 border-yellow-500 text-yellow-300' // Newly selected
                           : isNewlyDeselected
-                          ? 'bg-red-600/20 border-red-400 text-red-300' // Newly deselected
+                          ? 'bg-red-600/20 border-red-500 text-red-300' // Newly deselected
                           : isSelected
                           ? 'bg-purple-600 border-purple-400 text-white' // Selected
-                          : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
+                          : isEditMode
+                          ? 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
+                          : 'bg-slate-700 border-slate-600 text-slate-300'
                       }`}
                     >
                       <div>
-                        <div className="font-bold text-lg">{timeSlot.split('-')[0]}</div>
-                        <div className="text-sm opacity-75">{timeSlot.split('-')[1]}</div>
+                        {isBooked ? (
+                          <>
+                            <div className="font-bold text-sm">{timeSlot.split('-')[0]}</div>
+                            <div className="text-xs opacity-75">{booking.status.toUpperCase()}</div>
+                            <div className="text-xs opacity-90 truncate mt-1">{booking.clientName}</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-bold text-lg">{timeSlot.split('-')[0]}</div>
+                            <div className="text-sm opacity-75">{timeSlot.split('-')[1]}</div>
+                          </>
+                        )}
                       </div>
                     </button>
                   );
@@ -681,31 +784,43 @@ const WeeklyAvailabilityManager = () => {
             </div>
             
             <div className="flex gap-2">
-              <button
-                onClick={clearWeek}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Nulstil fremtidige
-              </button>
-              
-              <button
-                onClick={saveTemplates}
-                disabled={saving}
-                className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Gemmer...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Gem tilgængelighed
-                  </>
-                )}
-              </button>
+              {!isEditMode ? (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <Clock className="w-4 h-4" />
+                  Rediger tider
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={clearWeek}
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Nulstil fremtidige
+                  </button>
+                  
+                  <button
+                    onClick={saveTemplates}
+                    disabled={saving}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Gemmer...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Gem tilgængelighed
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
