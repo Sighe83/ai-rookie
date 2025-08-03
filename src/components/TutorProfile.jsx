@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, Building, Briefcase, DollarSign, Save, Edit, Upload, Camera } from 'lucide-react';
 import { tutorManagementApi } from '../services/api.js';
 import { SessionUtils } from '../utils/sessionUtils.js';
+import OptimizedImage from './OptimizedImage.jsx';
+import { processProfileImage } from '../utils/imageCompression.js';
 
 const TutorProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -47,25 +49,22 @@ const TutorProfile = () => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Vælg venligst en billedfil');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Billedet må ikke være større end 5MB');
-      return;
-    }
-
     try {
       setUploading(true);
       setError(null);
 
-      // Upload image
+      // Process and compress image before upload
+      const compressedFile = await processProfileImage(file);
+      
+      console.log('Image processed for upload:', {
+        originalSize: file.size,
+        compressedSize: compressedFile.size,
+        reduction: ((file.size - compressedFile.size) / file.size * 100).toFixed(1) + '%'
+      });
+
+      // Upload compressed image
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressedFile);
       
       const response = await tutorManagementApi.uploadProfileImage(formData);
       
@@ -74,7 +73,7 @@ const TutorProfile = () => {
       
     } catch (error) {
       console.error('Failed to upload image:', error);
-      setError('Kunne ikke uploade billedet. Prøv igen.');
+      setError(error.message || 'Kunne ikke uploade billedet. Prøv igen.');
     } finally {
       setUploading(false);
     }
@@ -180,23 +179,19 @@ const TutorProfile = () => {
           {/* Profile Image */}
           <div className="text-center">
             <div className="relative inline-block">
-              {profile.img ? (
-                <img
-                  src={profile.img}
-                  alt={profile.name}
-                  className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700 object-cover"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div 
-                className="w-32 h-32 bg-purple-600 rounded-full mx-auto mb-4 border-4 border-slate-700 flex items-center justify-center text-white font-bold text-4xl"
-                style={{ display: profile.img ? 'none' : 'flex' }}
-              >
-                {SessionUtils.generateInitials(profile.name)}
-              </div>
+              <OptimizedImage
+                src={profile.img}
+                alt={profile.name || 'Profil billede'}
+                className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700 object-cover"
+                fallback={`data:image/svg+xml;base64,${btoa(`
+                  <svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="128" height="128" fill="#7c3aed" rx="64"/>
+                    <text x="64" y="78" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#ffffff" text-anchor="middle">${SessionUtils.generateInitials(profile.name)}</text>
+                  </svg>
+                `)}`}
+                loading="eager"
+                placeholder={true}
+              />
               {uploading && (
                 <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
@@ -220,7 +215,7 @@ const TutorProfile = () => {
                   <Camera className="w-4 h-4" />
                   {uploading ? 'Uploader...' : 'Skift billede'}
                 </button>
-                <p className="text-xs text-slate-500">Max 5MB, JPG/PNG</p>
+                <p className="text-xs text-slate-500">Max 10MB, automatisk komprimering til optimal størrelse</p>
               </div>
             )}
           </div>

@@ -8,6 +8,7 @@ import UserProfile from './components/UserProfile';
 import AdminGate from './components/AdminGate';
 import TutorDashboard from './components/TutorDashboard';
 import AuthDebug from './components/AuthDebug';
+import OptimizedImage from './components/OptimizedImage.jsx';
 import {
   Briefcase,
   Users,
@@ -945,13 +946,13 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
       }`}
     >
       <div className="p-6 flex flex-col sm:flex-row items-center gap-6">
-        <img
-          src={tutor.img || generateInitialsImage(tutor.name)}
+        <OptimizedImage
+          src={tutor.img}
           alt={tutor.name || 'Tutor'}
           className="w-24 h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700 object-cover"
-          onError={(e) => {
-            e.target.src = generateInitialsImage(tutor.name);
-          }}
+          fallback={generateInitialsImage(tutor.name)}
+          loading="lazy"
+          placeholder={true}
         />
         <div className="flex-grow text-center sm:text-left">
           <h3 className="text-xl font-bold text-white">{tutor.name || 'Ingen navn'}</h3>
