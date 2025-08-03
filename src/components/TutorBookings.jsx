@@ -84,9 +84,30 @@ const TutorBookings = () => {
     }
   };
 
-  const filteredBookings = selectedStatus === 'all' 
+  const filteredBookings = (selectedStatus === 'all' 
     ? bookings 
-    : bookings.filter(booking => booking.status === selectedStatus);
+    : bookings.filter(booking => booking.status === selectedStatus))
+    .sort((a, b) => {
+      // Define priority order: pending (highest), confirmed, completed, cancelled (lowest)
+      const statusPriority = {
+        'pending': 1,
+        'confirmed': 2, 
+        'completed': 3,
+        'cancelled': 4
+      };
+      
+      const priorityA = statusPriority[a.status] || 999;
+      const priorityB = statusPriority[b.status] || 999;
+      
+      // If same status, sort by date (newest first)
+      if (priorityA === priorityB) {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateB - dateA;
+      }
+      
+      return priorityA - priorityB;
+    });
 
   if (loading) {
     return (
@@ -155,37 +176,55 @@ const TutorBookings = () => {
           const statusStyle = statusColors[booking.status];
           
           return (
-            <div key={booking.id} className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                {/* Left side - Booking info */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-lg font-semibold text-white">{booking.session}</h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} flex items-center gap-1`}>
-                      {getStatusIcon(booking.status)}
-                      {statusLabels[booking.status]}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div key={booking.id} className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 pb-0 sm:pb-4 border-b border-slate-700">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">{booking.session}</h3>
+                </div>
+                <div className="flex flex-col sm:items-end gap-2 mt-3 sm:mt-0">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} flex items-center gap-1 w-fit sm:ml-auto`}>
+                    {getStatusIcon(booking.status)}
+                    {statusLabels[booking.status]}
+                  </span>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{booking.price.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Client Information */}
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-400 mb-3 uppercase tracking-wider">Klient Information</h4>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-slate-300">
-                        <User className="w-4 h-4" />
-                        <span>{booking.client}</span>
+                        <User className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                        <span className="truncate">{booking.client}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-300">
-                        <Mail className="w-4 h-4" />
-                        <span>{booking.email}</span>
+                        <Mail className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                        <span className="truncate">{booking.email}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-300">
-                        <Phone className="w-4 h-4" />
+                        <Phone className="w-4 h-4 text-purple-400 flex-shrink-0" />
                         <span>{booking.phone}</span>
                       </div>
+                      {booking.company && (
+                        <div className="flex items-center gap-2 text-slate-300">
+                          <Building className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                          <span className="truncate">{booking.company}</span>
+                        </div>
+                      )}
                     </div>
-                    
+                  </div>
+
+                  {/* Session Information */}
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-400 mb-3 uppercase tracking-wider">Session Detaljer</h4>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-slate-300">
-                        <Calendar className="w-4 h-4" />
+                        <Calendar className="w-4 h-4 text-purple-400 flex-shrink-0" />
                         <span>{new Date(booking.date).toLocaleDateString('da-DK', { 
                           weekday: 'long', 
                           year: 'numeric', 
@@ -194,31 +233,24 @@ const TutorBookings = () => {
                         })}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-300">
-                        <Clock className="w-4 h-4" />
+                        <Clock className="w-4 h-4 text-purple-400 flex-shrink-0" />
                         <span>{booking.time} ({booking.duration} min)</span>
                       </div>
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <Building className="w-4 h-4" />
-                        <span>{booking.company}</span>
-                      </div>
                     </div>
                   </div>
-                  
-                  {booking.notes && (
-                    <div className="mt-3 p-3 bg-slate-700 rounded-lg">
-                      <p className="text-slate-300 text-sm"><strong>Noter:</strong> {booking.notes}</p>
-                    </div>
-                  )}
                 </div>
 
-                {/* Right side - Actions */}
-                <div className="flex flex-col gap-2 min-w-[200px]">
-                  <div className="text-right mb-2">
-                    <p className="text-2xl font-bold text-white">{booking.price.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
+                {/* Notes */}
+                {booking.notes && (
+                  <div className="mt-4 p-3 bg-slate-700 rounded-lg">
+                    <p className="text-slate-300 text-sm"><strong>Noter:</strong> {booking.notes}</p>
                   </div>
-                  
+                )}
+
+                {/* Actions */}
+                <div className="mt-4 pt-4 border-t border-slate-700">
                   {booking.status === 'pending' && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <button
                         onClick={() => handleStatusChange(booking.id, 'confirmed')}
                         disabled={updating === booking.id}
@@ -236,15 +268,23 @@ const TutorBookings = () => {
                     </div>
                   )}
                   
-                  {booking.status === 'confirmed' && (
-                    <button
-                      onClick={() => handleStatusChange(booking.id, 'completed')}
-                      disabled={updating === booking.id}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      {updating === booking.id ? 'Updating...' : 'Marker som gennemført'}
-                    </button>
-                  )}
+                  {booking.status === 'confirmed' && (() => {
+                    // Check if session start time has passed
+                    const sessionDate = new Date(booking.date + 'T' + booking.time);
+                    const now = new Date();
+                    const canMarkCompleted = sessionDate <= now;
+                    
+                    return (
+                      <button
+                        onClick={() => handleStatusChange(booking.id, 'completed')}
+                        disabled={updating === booking.id || !canMarkCompleted}
+                        className={`w-full sm:w-auto ${canMarkCompleted ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 cursor-not-allowed'} disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors`}
+                        title={!canMarkCompleted ? 'Session kan kun markeres som gennemført efter starttidspunktet' : ''}
+                      >
+                        {updating === booking.id ? 'Updating...' : 'Marker som gennemført'}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
