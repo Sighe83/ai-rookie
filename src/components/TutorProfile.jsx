@@ -118,10 +118,10 @@ const TutorProfile = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-8 sm:py-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-slate-400">Indlæser profil...</p>
+          <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-purple-500 mx-auto mb-3 sm:mb-4"></div>
+          <p className="text-slate-400 text-sm sm:text-base">Indlæser profil...</p>
         </div>
       </div>
     );
@@ -129,11 +129,11 @@ const TutorProfile = () => {
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
-        <p className="text-red-400">{error}</p>
+      <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 sm:p-6 text-center">
+        <p className="text-red-400 text-sm sm:text-base">{error}</p>
         <button 
           onClick={() => { setError(null); loadProfile(); }}
-          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg"
+          className="mt-3 sm:mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base"
         >
           Prøv igen
         </button>
@@ -142,47 +142,21 @@ const TutorProfile = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Profile Information */}
-      <div className="bg-slate-800 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-white">Profil information</h3>
-          {!isEditing ? (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              <Edit className="w-4 h-4" />
-              Rediger profil
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={handleProfileSave}
-                disabled={saving}
-                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'Gemmer...' : 'Gem'}
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
-              >
-                Annuller
-              </button>
-            </div>
-          )}
+      <div className="bg-slate-800 rounded-lg p-4 sm:p-6">
+        <div className="mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-white">Profil information</h3>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Profile Image */}
-          <div className="text-center">
-            <div className="relative inline-block">
+          <div className="text-center lg:text-center flex flex-col items-center">
+            <div className="relative inline-block mb-3 sm:mb-4">
               <OptimizedImage
                 src={profile.img}
                 alt={profile.name || 'Profil billede'}
-                className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700 object-cover"
+                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-slate-700 object-cover"
                 fallback={`data:image/svg+xml;base64,${btoa(`
                   <svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
                     <rect width="128" height="128" fill="#7c3aed" rx="64"/>
@@ -194,12 +168,12 @@ const TutorProfile = () => {
               />
               {uploading && (
                 <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-purple-500"></div>
                 </div>
               )}
             </div>
             {isEditing && (
-              <div className="space-y-2">
+              <div className="space-y-2 w-full">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -210,21 +184,21 @@ const TutorProfile = () => {
                 <button 
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="text-purple-400 hover:text-purple-300 text-sm disabled:opacity-50 flex items-center gap-1 mx-auto"
+                  className="text-purple-400 hover:text-purple-300 text-xs sm:text-sm disabled:opacity-50 flex items-center gap-1 justify-center w-full py-2 px-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
                 >
                   <Camera className="w-4 h-4" />
                   {uploading ? 'Uploader...' : 'Skift billede'}
                 </button>
-                <p className="text-xs text-slate-500">Max 10MB, automatisk komprimering til optimal størrelse</p>
+                <p className="text-xs text-slate-500 text-center">Max 10MB, automatisk komprimering</p>
               </div>
             )}
           </div>
 
           {/* Basic Info */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
                   <User className="w-4 h-4 inline mr-1" />
                   Navn
                 </label>
@@ -233,15 +207,15 @@ const TutorProfile = () => {
                     type="text"
                     value={profile.name}
                     onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
                   />
                 ) : (
-                  <p className="text-white">{profile.name}</p>
+                  <p className="text-white text-sm sm:text-base py-1">{profile.name}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
                   <Mail className="w-4 h-4 inline mr-1" />
                   Email
                 </label>
@@ -250,15 +224,15 @@ const TutorProfile = () => {
                     type="email"
                     value={profile.email}
                     onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
                   />
                 ) : (
-                  <p className="text-white">{profile.email}</p>
+                  <p className="text-white text-sm sm:text-base py-1 break-all">{profile.email}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
                   <Phone className="w-4 h-4 inline mr-1" />
                   Telefon
                 </label>
@@ -267,15 +241,15 @@ const TutorProfile = () => {
                     type="tel"
                     value={profile.phone}
                     onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
                   />
                 ) : (
-                  <p className="text-white">{profile.phone}</p>
+                  <p className="text-white text-sm sm:text-base py-1">{profile.phone}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
                   <Briefcase className="w-4 h-4 inline mr-1" />
                   Titel
                 </label>
@@ -284,59 +258,91 @@ const TutorProfile = () => {
                     type="text"
                     value={profile.title}
                     onChange={(e) => setProfile(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
                   />
                 ) : (
-                  <p className="text-white">{profile.title}</p>
+                  <p className="text-white text-sm sm:text-base py-1">{profile.title}</p>
                 )}
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Specialeområde</label>
+            <div className="sm:col-span-2">
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Specialeområde</label>
               {isEditing ? (
                 <input
                   type="text"
                   value={profile.specialty}
                   onChange={(e) => setProfile(prev => ({ ...prev, specialty: e.target.value }))}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
+                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
                 />
               ) : (
-                <p className="text-white">{profile.specialty}</p>
+                <p className="text-white text-sm sm:text-base py-1">{profile.specialty}</p>
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Erfaring</label>
+            <div className="sm:col-span-2">
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Erfaring</label>
               {isEditing ? (
                 <textarea
                   value={profile.experience}
                   onChange={(e) => setProfile(prev => ({ ...prev, experience: e.target.value }))}
-                  rows={3}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
+                  rows={5}
+                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[120px]"
+                  placeholder="Beskriv din erfaring, baggrund og specialkompetencer..."
                 />
               ) : (
-                <p className="text-white">{profile.experience}</p>
+                <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.experience}</p>
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Værdiforslag</label>
+            <div className="sm:col-span-2">
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Værdiforslag</label>
               {isEditing ? (
                 <textarea
                   value={profile.value_prop}
                   onChange={(e) => setProfile(prev => ({ ...prev, value_prop: e.target.value }))}
-                  rows={2}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
+                  rows={4}
+                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[100px]"
+                  placeholder="Hvad kan du tilbyde dine kunder? Hvad gør dig unik?"
                 />
               ) : (
-                <p className="text-white">{profile.value_prop}</p>
+                <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.value_prop}</p>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             </div>
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-6 pt-4 border-t border-slate-700">
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base justify-center w-full sm:w-auto"
+            >
+              <Edit className="w-4 h-4" />
+              Rediger profil
+            </button>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={handleProfileSave}
+                disabled={saving}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base justify-center"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Gemmer...' : 'Gem'}
+              </button>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors text-sm sm:text-base justify-center"
+              >
+                Annuller
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
