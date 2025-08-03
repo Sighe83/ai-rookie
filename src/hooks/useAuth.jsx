@@ -219,9 +219,17 @@ export const AuthProvider = ({ children }) => {
               if (!mountedRef.current) return;
               
               if (event === 'SIGNED_IN' && session?.user) {
-                // Fetch fresh profile data - use background mode if this is likely a window focus event
+                // Check if this is likely a window focus event (same user, already have user data)
                 const isLikelyWindowFocus = user && user.id === session.user.id;
-                const profile = await fetchUserProfile(session.user.id, false, isLikelyWindowFocus);
+                
+                if (isLikelyWindowFocus) {
+                  // Skip profile fetch on window focus to prevent hanging - user data is already available
+                  console.log('useAuth: Skipping profile fetch on window focus, preserving existing user data');
+                  return;
+                }
+                
+                // Only fetch profile for genuine new logins
+                const profile = await fetchUserProfile(session.user.id, false, false);
                 
                 if (mountedRef.current) {
                   if (!profile) {
