@@ -353,7 +353,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
                   type="text"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
-                  className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                     errors.name ? 'border border-red-500' : ''
                   }`}
                   placeholder="Dit fulde navn"
@@ -378,7 +378,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                   errors.email ? 'border border-red-500' : ''
                 }`}
                 placeholder="din@email.dk"
@@ -412,7 +412,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
-                className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-10 text-white focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full bg-slate-700 rounded-md py-3 pl-10 pr-10 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                   errors.password ? 'border border-red-500' : ''
                 }`}
                 placeholder={mode === 'signup' ? 'Mindst 6 tegn' : 'Din adgangskode'}
@@ -441,7 +441,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full bg-slate-700 rounded-md py-2 px-3 text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-700 rounded-md py-3 px-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px]"
                   placeholder="+45 12 34 56 78"
                 />
               </div>
@@ -459,7 +459,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
                         type="text"
                         value={formData.company}
                         onChange={(e) => handleInputChange('company', e.target.value)}
-                        className="w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px]"
                         placeholder="Virksomhedens navn"
                       />
                     </div>
@@ -475,7 +475,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
                         type="text"
                         value={formData.department}
                         onChange={(e) => handleInputChange('department', e.target.value)}
-                        className="w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px]"
                         placeholder="Marketing, Sales, IT, etc."
                       />
                     </div>
@@ -489,7 +489,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'signup', siteMode = 'b2b' }
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full ${theme.primary} ${theme.primaryHover} text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2`}
+            className={`w-full ${theme.primary} ${theme.primaryHover} text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-base min-h-[44px]`}
           >
             {isSubmitting ? (
               <>

@@ -77,7 +77,7 @@ const TutorDashboard = () => {
             )}
             
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               {dashboardStats.map((stat, index) => {
                 const colorClasses = {
                   blue: 'border-blue-500 bg-blue-500/10',
@@ -136,7 +136,7 @@ const TutorDashboard = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-3 rounded-t-lg font-medium transition-colors text-sm sm:text-base min-h-[44px] ${
               activeTab === tab.id
                 ? 'bg-purple-600 text-white border-b-2 border-purple-400'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700'

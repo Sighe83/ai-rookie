@@ -859,8 +859,8 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
       <div className="fixed top-0 right-0 h-full w-64 bg-slate-800 shadow-xl">
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <span className="text-white font-bold">Menu</span>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
-            <X size={24} />
+          <button onClick={onClose} className="text-slate-400 hover:text-white p-2 -mr-2">
+            <X size={28} />
           </button>
         </div>
         <div className="p-4 border-b border-slate-700">
@@ -874,7 +874,7 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
             <button
               key={item.key}
               onClick={() => handleNavigation(item.key)}
-              className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium ${
+              className={`w-full text-left px-4 py-3 rounded-md text-base font-medium ${
                 currentPage === item.key ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'
               }`}
             >
@@ -891,7 +891,7 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
                 onProfileClick();
                 onClose();
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-white text-sm"
+              className="w-full flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-white text-base"
             >
               <UserIcon className="w-4 h-4" />
               Min Profil
@@ -902,7 +902,7 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
                 onAuthClick('login');
                 onClose();
               }}
-              className={`w-full flex items-center gap-2 px-3 py-2 ${theme.primary} ${theme.primaryHover} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
+              className={`w-full flex items-center gap-2 px-4 py-3 ${theme.primary} ${theme.primaryHover} rounded-lg transition-colors text-white text-base font-semibold shadow-lg`}
             >
               <LogIn className="w-4 h-4" />
               Kom i gang
@@ -945,17 +945,17 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
         isExpanded ? `ring-2 ${theme.ring}` : 'hover:bg-slate-700/50'
       }`}
     >
-      <div className="p-6 flex flex-col sm:flex-row items-center gap-6">
+      <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
         <OptimizedImage
           src={tutor.img}
           alt={tutor.name || 'Tutor'}
-          className="w-24 h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700 object-cover"
+          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700 object-cover"
           fallback={generateInitialsImage(tutor.name)}
           loading="lazy"
           placeholder={true}
         />
         <div className="flex-grow text-center sm:text-left">
-          <h3 className="text-xl font-bold text-white">{tutor.name || 'Ingen navn'}</h3>
+          <h3 className="text-lg sm:text-xl font-bold text-white">{tutor.name || 'Ingen navn'}</h3>
           <p className={`${isB2B ? 'text-blue-400' : 'text-blue-400'} font-semibold`}>{tutor.title || 'Ingen titel'}</p>
           <p className="text-sm text-slate-300 mt-1 flex items-center justify-center sm:justify-start gap-2">
             <Lightbulb className="w-4 h-4 text-yellow-400" /> {tutor.specialty}
@@ -967,10 +967,10 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
             <p className="text-slate-400 text-xs mt-2 italic">{tutor.experience}</p>
           )}
         </div>
-        <div className="flex-shrink-0 mt-4 sm:mt-0">
+        <div className="flex-shrink-0 mt-3 sm:mt-0 w-full sm:w-auto">
           <button
             onClick={() => onExpand(tutor.id)}
-            className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2`}
+            className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-3 px-4 sm:px-6 rounded-lg transition-colors flex items-center justify-center gap-2 w-full sm:w-auto text-sm sm:text-base`}
           >
             {isB2B ? 'Se Workshops' : 'Vælg Session & Se Pris'} <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           </button>
@@ -984,19 +984,19 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
             {tutor.sessions.map((session) => (
               <div
                 key={session.id}
-                className="bg-slate-700 p-4 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4"
+                className="bg-slate-700 p-4 rounded-lg flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4"
               >
                 <div>
                   <p className="font-semibold text-white">{session.title}</p>
                   <p className="text-sm text-slate-400">{session.description}</p>
                 </div>
-                <div className="flex-shrink-0 text-center">
+                <div className="flex-shrink-0 text-center sm:text-right w-full sm:w-auto">
                   {!isB2B && (
                     <p className="text-xl font-bold text-white">{getSessionPrice(session).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
                   )}
                   <button
                     onClick={() => onSelect(tutor, session)}
-                    className={`${!isB2B ? 'mt-1' : ''} ${theme.primary} ${theme.primaryLightHover} text-white text-sm font-bold py-2 px-5 rounded-lg transition-colors flex items-center gap-2`}
+                    className={`${!isB2B ? 'mt-1' : ''} ${theme.primary} ${theme.primaryLightHover} text-white text-sm sm:text-base font-bold py-3 px-4 sm:px-5 rounded-lg transition-colors flex items-center justify-center gap-2 w-full sm:w-auto min-h-[44px]`}
                   >
                     Book <ArrowRight size={16} />
                   </button>
@@ -1141,7 +1141,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2">
         {getWeekDates.map((date, index) => {
           const dateKey = formatDateKey(date);
           const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
@@ -1186,7 +1186,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
             2. Vælg et tidspunkt for <span className="text-green-400">{formatFullDate(selectedDate)}</span>
           </h3>
           {slotsForSelectedDate.length > 0 ? (
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
               {slotsForSelectedDate.map((slot, slotIndex) => {
                 const dateTimeKey = `${formatDateKey(selectedDate)}T${slot.time}`;
                 const isSelected = selectedDateTime === dateTimeKey;
@@ -1270,17 +1270,17 @@ const B2BHomePage = () => {
   
   return (
     <div className="space-y-24 pb-20">
-      <section className="text-center pt-20 pb-14 max-w-3xl mx-auto">
-        <h1 className="text-5xl sm:text-6xl font-extrabold text-white leading-tight">
+      <section className="text-center pt-12 sm:pt-20 pb-10 sm:pb-14 max-w-3xl mx-auto px-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight">
           Hello <span className="text-green-400">AI Rookie</span>
         </h1>
-        <p className="mt-4 text-lg text-slate-300">
+        <p className="mt-4 text-base sm:text-lg text-slate-300 px-4">
           AI Rookie Enterprise leverer hands‑on workshops og forløb, der
           omsætter AI til målbare resultater på bundlinjen.
         </p>
         <button
           onClick={() => navigate('/tutors')}
-          className={`mt-8 ${theme.primary} text-white font-bold text-lg py-4 px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg ${theme.shadow}`}
+          className={`mt-6 sm:mt-8 ${theme.primary} text-white font-bold text-base sm:text-lg py-4 px-6 sm:px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg ${theme.shadow} w-full sm:w-auto`}
         >
           <Rocket className="inline-block mr-2" /> Udforsk Eksperter
         </button>
@@ -1375,16 +1375,16 @@ const B2CHomePage = () => {
 
   return (
     <div className="space-y-20 sm:space-y-28 pb-20">
-      <section className="text-center pt-20 pb-10">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight">
+      <section className="text-center pt-12 sm:pt-20 pb-8 sm:pb-10 px-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight">
           Hello <span className="text-blue-400">AI Rookie</span>
         </h1>
-        <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-300">
+        <p className="mt-4 max-w-2xl mx-auto text-base sm:text-lg text-slate-300 px-4">
           Gør AI til din personlige styrke. Lær præcis de færdigheder, du har brug for, og omsæt dem til konkrete fordele i din karriere – hurtigt og effektivt.
         </p>
         <button
           onClick={() => navigate('/tutors')}
-          className={`mt-8 ${theme.primary} text-white font-bold text-lg py-4 px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg ${theme.shadow}`}
+          className={`mt-6 sm:mt-8 ${theme.primary} text-white font-bold text-base sm:text-lg py-4 px-6 sm:px-8 rounded-lg transform hover:scale-105 transition-transform shadow-lg ${theme.shadow} w-full sm:w-auto`}
         >
           <Rocket className="inline-block mr-2" /> Find Din Vej til AI
         </button>
@@ -1840,7 +1840,7 @@ const BookingPage = () => {
                   type="text"
                   value={formData.company}
                   onChange={(e) => handleInputChange('company', e.target.value)}
-                  className={`w-full bg-slate-700 rounded-md py-2 px-3 text-white focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 px-4 text-white text-base focus:ring-2 focus:ring-green-500 min-h-[44px] ${
                     errors.company ? 'border-red-500' : ''
                   }`}
                 />
@@ -1854,7 +1854,7 @@ const BookingPage = () => {
                   type="text"
                   value={formData.department}
                   onChange={(e) => handleInputChange('department', e.target.value)}
-                  className={`w-full bg-slate-700 rounded-md py-2 px-3 text-white focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 px-4 text-white text-base focus:ring-2 focus:ring-green-500 min-h-[44px] ${
                     errors.department ? 'border-red-500' : ''
                   }`}
                 />
@@ -1871,7 +1871,7 @@ const BookingPage = () => {
                   type="text"
                   value={formData.contactName}
                   onChange={(e) => handleInputChange('contactName', e.target.value)}
-                  className={`w-full bg-slate-700 rounded-md py-2 px-3 text-white focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 px-4 text-white text-base focus:ring-2 focus:ring-green-500 min-h-[44px] ${
                     errors.contactName ? 'border-red-500' : ''
                   }`}
                 />
@@ -1885,7 +1885,7 @@ const BookingPage = () => {
                   type="email"
                   value={formData.contactEmail}
                   onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                  className={`w-full bg-slate-700 rounded-md py-2 px-3 text-white focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 px-4 text-white text-base focus:ring-2 focus:ring-green-500 min-h-[44px] ${
                     errors.contactEmail ? 'border-red-500' : ''
                   }`}
                 />
@@ -1899,7 +1899,7 @@ const BookingPage = () => {
                   type="tel"
                   value={formData.contactPhone}
                   onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-                  className={`w-full bg-slate-700 rounded-md py-2 px-3 text-white focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 px-4 text-white text-base focus:ring-2 focus:ring-green-500 min-h-[44px] ${
                     errors.contactPhone ? 'border-red-500' : ''
                   }`}
                 />
@@ -1937,7 +1937,7 @@ const BookingPage = () => {
                   max="10"
                   value={formData.participants}
                   onChange={(e) => handleInputChange('participants', parseInt(e.target.value))}
-                  className={`w-full bg-slate-700 rounded-md py-2 px-3 text-white focus:ring-2 focus:ring-green-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 px-4 text-white text-base focus:ring-2 focus:ring-green-500 min-h-[44px] ${
                     errors.participants ? 'border-red-500' : ''
                   }`}
                 />
@@ -1955,7 +1955,7 @@ const BookingPage = () => {
                 type="text"
                 value={formData.contactName}
                 onChange={(e) => handleInputChange('contactName', e.target.value)}
-                className={`w-full bg-slate-700 border-slate-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full bg-slate-700 border-slate-600 rounded-md shadow-sm py-3 px-4 text-white text-base focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                   errors.contactName ? 'border-red-500' : ''
                 }`}
                 placeholder="Fx John Doe"
@@ -1971,7 +1971,7 @@ const BookingPage = () => {
                 type="email"
                 value={formData.contactEmail}
                 onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                className={`w-full bg-slate-700 border-slate-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full bg-slate-700 border-slate-600 rounded-md shadow-sm py-3 px-4 text-white text-base focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                   errors.contactEmail ? 'border-red-500' : ''
                 }`}
                 placeholder="Fx john.doe@example.com"
@@ -2570,20 +2570,20 @@ const AppContent = () => {
     <div className="min-h-screen bg-slate-900 font-sans text-slate-300">
       <header className="bg-slate-900/80 backdrop-blur-sm sticky top-0 z-40 border-b border-slate-800">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-3 items-center h-16">
+          <div className="flex md:grid md:grid-cols-3 items-center justify-between h-16 sm:h-20">
             {/* Logo - venstre */}
             <div className="flex justify-start">
               <button
                 onClick={() => navigate('/')}
-                className="flex items-center gap-2 text-white text-2xl font-bold"
+                className="flex items-center gap-2 text-white text-xl sm:text-2xl font-bold"
               >
-                <BrainCircuit className={`${isTutor ? 'text-purple-400' : isB2B ? 'text-green-400' : 'text-blue-400'} h-8 w-8`} />
+                <BrainCircuit className={`${isTutor ? 'text-purple-400' : isB2B ? 'text-green-400' : 'text-blue-400'} h-7 w-7 sm:h-8 sm:w-8`} />
                 <span>{isTutor ? 'AI Superstar' : 'AI Rookie'} {isB2B && !isTutor && <span className="font-light">Enterprise</span>}</span>
               </button>
             </div>
             
-            {/* B2B/B2C Toggle - centreret */}
-            <div className="flex justify-center">
+            {/* B2B/B2C Toggle - centreret - hidden on mobile */}
+            <div className="hidden md:flex justify-center">
               <SiteModeToggle onModeChange={() => navigate('/')} />
             </div>
             
@@ -2610,10 +2610,10 @@ const AppContent = () => {
               </div>
               
               <button
-                className="md:hidden text-slate-300 hover:text-white"
+                className="md:hidden text-slate-300 hover:text-white p-2 -mr-2"
                 onClick={() => setMobileMenuOpen(true)}
               >
-                <Menu size={24} />
+                <Menu size={28} />
               </button>
             </div>
           </div>

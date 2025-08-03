@@ -344,7 +344,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   disabled={!isEditing}
-                  className={`w-full bg-slate-700 rounded-lg py-3 pl-11 pr-12 text-white transition-all duration-200
+                  className={`w-full bg-slate-700 rounded-lg py-3 pl-11 pr-12 text-white text-base transition-all duration-200 min-h-[44px]
                     ${isEditing
                       ? 'focus:ring-2 focus:ring-blue-500 focus:bg-slate-600 border-transparent'
                       : 'opacity-60 cursor-not-allowed'
@@ -374,7 +374,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                   type="email"
                   value={user.email}
                   disabled
-                  className="w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white opacity-60 cursor-not-allowed"
+                  className="w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base opacity-60 cursor-not-allowed min-h-[44px]"
                 />
               </div>
               <p className="text-slate-400 text-xs mt-1">Email kan ikke ændres</p>
@@ -410,7 +410,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                     handleInputChange('phone', value);
                   }}
                   disabled={!isEditing}
-                  className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                     !isEditing ? 'opacity-60 cursor-not-allowed' : ''
                   } ${errors.phone ? 'border border-red-500' : ''}`}
                   placeholder="+45 12 34 56 78"
@@ -434,7 +434,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                     value={formData.company}
                     onChange={(e) => handleInputChange('company', e.target.value)}
                     disabled={!isEditing}
-                    className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                       !isEditing ? 'opacity-60 cursor-not-allowed' : ''
                     }`}
                     placeholder="Virksomhedens navn"
@@ -456,7 +456,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                     value={formData.department}
                     onChange={(e) => handleInputChange('department', e.target.value)}
                     disabled={!isEditing}
-                    className={`w-full bg-slate-700 rounded-md py-2 pl-10 pr-3 text-white focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full bg-slate-700 rounded-md py-3 pl-10 pr-3 text-white text-base focus:ring-2 focus:ring-blue-500 min-h-[44px] ${
                       !isEditing ? 'opacity-60 cursor-not-allowed' : ''
                     }`}
                     placeholder="Marketing, Sales, IT, etc."
