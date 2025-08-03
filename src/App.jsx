@@ -2399,35 +2399,51 @@ const DashboardPage = () => {
                 const statusStyle = statusColors[status] || statusColors.pending;
                 
                 return (
-                  <div key={booking.id} className="bg-slate-700 rounded-xl p-6 border border-slate-600 hover:border-slate-500 transition-colors">
-                    {/* Header with session title and status */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-white mb-2">{booking.session?.title}</h3>
-                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
+                  <div key={booking.id} className="bg-slate-700 rounded-xl p-4 sm:p-6 border border-slate-600 hover:border-slate-500 transition-colors">
+                    {/* Mobile-optimized header */}
+                    <div className="flex flex-col gap-3 mb-4">
+                      {/* Session title and status row */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg sm:text-xl font-bold text-white leading-tight">{booking.session?.title}</h3>
+                        </div>
+                        <div className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} flex-shrink-0`}>
                           <div className={`w-2 h-2 rounded-full ${statusStyle.dot}`}></div>
-                          {statusStyle.label}
+                          <span className="hidden sm:inline">{statusStyle.label}</span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-white">{booking.totalPrice.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
-                        <p className="text-slate-400 text-sm">
-                          {isB2B ? 'Total investering' : 'Samlet pris'}
-                        </p>
+                      
+                      {/* Price and timing compact row */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-left">
+                          <p className="text-xl sm:text-2xl font-bold text-white">{booking.totalPrice.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
+                          <p className="text-slate-400 text-xs sm:text-sm">
+                            {isB2B ? 'Total investering' : 'Samlet pris'}
+                          </p>
+                        </div>
+                        {sessionDate && (
+                          <div className="text-right text-xs sm:text-sm">
+                            <p className="text-white font-medium">
+                              {sessionDate.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}
+                            </p>
+                            <p className="text-slate-400">
+                              {sessionDate.toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Main content grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {/* Tutor Information */}
-                      <div className="bg-slate-800 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Din Tutor</h4>
+                    {/* Mobile-optimized content */}
+                    <div className="space-y-3 sm:space-y-4">
+                      {/* Tutor Information - Compact */}
+                      <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
                         <div className="flex items-center gap-3">
                           {booking.tutor?.img ? (
                             <img
                               src={booking.tutor.img}
                               alt={booking.tutor?.user?.name || booking.tutor?.name || 'Tutor'}
-                              className="w-12 h-12 rounded-full object-cover border-2 border-slate-600"
+                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-slate-600 flex-shrink-0"
                               onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'flex';
@@ -2435,124 +2451,122 @@ const DashboardPage = () => {
                             />
                           ) : null}
                           <div 
-                            className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                            className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-lg flex-shrink-0"
                             style={{ display: booking.tutor?.img ? 'none' : 'flex' }}
                           >
                             {(booking.tutor?.user?.name || booking.tutor?.name || 'T').charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <p className="text-white font-semibold">{booking.tutor?.user?.name || booking.tutor?.name}</p>
-                            <p className="text-slate-400 text-sm">{booking.tutor?.title || 'AI Ekspert'}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-semibold text-sm sm:text-base truncate">{booking.tutor?.user?.name || booking.tutor?.name}</p>
+                            <p className="text-slate-400 text-xs sm:text-sm">{booking.tutor?.title || 'AI Ekspert'}</p>
                             {booking.tutor?.specialty && (
-                              <p className="text-purple-400 text-xs mt-1">{booking.tutor?.specialty}</p>
+                              <p className="text-purple-400 text-xs mt-1 truncate">{booking.tutor?.specialty}</p>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Session Timing */}
-                      <div className="bg-slate-800 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">
-                          {booking.selected_date_time ? 'Planlagt Tidspunkt' : 'Ønsket Tidspunkt'}
-                        </h4>
-                        {sessionDate ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-purple-400" />
-                              <p className="text-white font-semibold">
-                                {sessionDate.toLocaleDateString('da-DK', { 
-                                  weekday: 'long', 
-                                  day: 'numeric', 
-                                  month: 'long',
-                                  year: 'numeric'
-                                })}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="w-4 h-4 text-purple-400" />
-                              <p className="text-white font-semibold">
-                                {sessionDate.toLocaleTimeString('da-DK', { 
-                                  hour: '2-digit', 
-                                  minute: '2-digit' 
-                                })} - {new Date(sessionDate.getTime() + 60*60*1000).toLocaleTimeString('da-DK', { 
-                                  hour: '2-digit', 
-                                  minute: '2-digit' 
-                                })}
-                              </p>
-                            </div>
-                            {daysUntil !== null && (
-                              <div className="mt-3 p-2 bg-slate-700 rounded-lg">
-                                <p className="text-center">
-                                  {daysUntil > 0 ? (
-                                    <span className="text-green-400 font-semibold">
-                                      {daysUntil} {daysUntil === 1 ? 'dag' : 'dage'} til session
-                                    </span>
-                                  ) : daysUntil === 0 ? (
-                                    <span className="text-yellow-400 font-semibold">
-                                      Session i dag!
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-400">
-                                      Session afholdt
-                                    </span>
-                                  )}
+                      {/* Combined Session Info - Mobile Optimized */}
+                      <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
+                        <div className="space-y-3">
+                          {/* Date and Time */}
+                          {sessionDate ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                                <p className="text-white font-medium text-sm sm:text-base">
+                                  {sessionDate.toLocaleDateString('da-DK', { 
+                                    weekday: 'short', 
+                                    day: 'numeric', 
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })}
                                 </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                                <p className="text-white font-medium text-sm sm:text-base">
+                                  {sessionDate.toLocaleTimeString('da-DK', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })} - {new Date(sessionDate.getTime() + 60*60*1000).toLocaleTimeString('da-DK', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </p>
+                              </div>
+                              {daysUntil !== null && (
+                                <div className="inline-flex items-center px-2 py-1 bg-slate-700 rounded-lg">
+                                  <p className="text-xs">
+                                    {daysUntil > 0 ? (
+                                      <span className="text-green-400 font-medium">
+                                        {daysUntil} {daysUntil === 1 ? 'dag' : 'dage'} til session
+                                      </span>
+                                    ) : daysUntil === 0 ? (
+                                      <span className="text-yellow-400 font-medium">
+                                        Session i dag!
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400">
+                                        Session afholdt
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-slate-400 text-sm">Tidspunkt ikke fastlagt endnu</p>
+                          )}
+                          
+                          {/* Session Details in compact form */}
+                          <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm">
+                            {isB2B && booking.format && (
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3 h-3 text-purple-400" />
+                                <span className="text-slate-300">{FORMAT_LABEL[booking.format]}</span>
+                              </div>
+                            )}
+                            {booking.participants && booking.participants > 1 && (
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3 h-3 text-purple-400" />
+                                <span className="text-slate-300">{booking.participants} deltagere</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-purple-400" />
+                              <span className="text-slate-300">60 min</span>
+                            </div>
+                            {isB2B && booking.company && (
+                              <div className="flex items-center gap-1">
+                                <Building className="w-3 h-3 text-purple-400" />
+                                <span className="text-slate-300 truncate">{booking.company}</span>
                               </div>
                             )}
                           </div>
-                        ) : (
-                          <p className="text-slate-400">Tidspunkt ikke fastlagt endnu</p>
-                        )}
-                      </div>
-
-                      {/* Session Details */}
-                      <div className="bg-slate-800 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Session Detaljer</h4>
-                        <div className="space-y-2">
-                          {isB2B && booking.format && (
-                            <div className="flex items-center gap-2">
-                              <Users className="w-4 h-4 text-purple-400" />
-                              <span className="text-slate-300">{FORMAT_LABEL[booking.format]}</span>
-                            </div>
-                          )}
-                          {booking.participants && booking.participants > 1 && (
-                            <div className="flex items-center gap-2">
-                              <Users className="w-4 h-4 text-purple-400" />
-                              <span className="text-slate-300">{booking.participants} deltagere</span>
-                            </div>
-                          )}
-                          {isB2B && booking.company && (
-                            <div className="flex items-center gap-2">
-                              <Building className="w-4 h-4 text-purple-400" />
-                              <span className="text-slate-300">{booking.company}</span>
-                            </div>
-                          )}
+                          
                           {isB2B && booking.department && (
-                            <div className="text-slate-400 text-sm ml-6">
+                            <div className="text-slate-400 text-xs bg-slate-700 px-2 py-1 rounded">
                               {booking.department}
                             </div>
                           )}
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-purple-400" />
-                            <span className="text-slate-300">60 minutter</span>
-                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Contact Information */}
-                    <div className="mt-4 pt-4 border-t border-slate-600">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div className="text-sm text-slate-400">
+                    {/* Contact Information - Mobile Optimized */}
+                    <div className="mt-3 pt-3 border-t border-slate-600">
+                      <div className="flex flex-col gap-1 text-xs sm:text-sm text-slate-400">
+                        <div>
                           <span className="font-medium">Booket:</span> {' '}
                           {new Date(booking.bookingDate || booking.created_at).toLocaleDateString('da-DK', {
                             day: 'numeric',
-                            month: 'long',
+                            month: 'short',
                             year: 'numeric'
                           })}
                         </div>
                         {booking.contact_email && (
-                          <div className="text-sm text-slate-400">
+                          <div className="truncate">
                             <span className="font-medium">Kontakt:</span> {booking.contact_email}
                           </div>
                         )}
