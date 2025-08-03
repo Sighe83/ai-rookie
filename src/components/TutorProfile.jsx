@@ -144,19 +144,26 @@ const TutorProfile = () => {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Profile Information */}
-      <div className="bg-slate-800 rounded-lg p-4 sm:p-6">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 sm:p-6 hover:border-purple-500/50 transition-colors">
         <div className="mb-4 sm:mb-6">
-          <h3 className="text-lg sm:text-xl font-semibold text-white">Profil information</h3>
+          <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
+            <User className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
+            Profil information
+          </h3>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Profile Image */}
-          <div className="text-center lg:text-center flex flex-col items-center">
-            <div className="relative inline-block mb-3 sm:mb-4">
+        {/* Profile Image Section */}
+        <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 className="text-sm sm:text-base font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
+            <Camera className="w-4 h-4 text-purple-400" />
+            Profilbillede
+          </h4>
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            <div className="relative flex-shrink-0">
               <OptimizedImage
                 src={profile.img}
                 alt={profile.name || 'Profil billede'}
-                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-slate-700 object-cover"
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-slate-600 object-cover"
                 fallback={`data:image/svg+xml;base64,${btoa(`
                   <svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
                     <rect width="128" height="128" fill="#7c3aed" rx="64"/>
@@ -172,8 +179,9 @@ const TutorProfile = () => {
                 </div>
               )}
             </div>
+            
             {isEditing && (
-              <div className="space-y-2 w-full">
+              <div className="flex-1 space-y-2">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -184,24 +192,38 @@ const TutorProfile = () => {
                 <button 
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="text-purple-400 hover:text-purple-300 text-xs sm:text-sm disabled:opacity-50 flex items-center gap-1 justify-center w-full py-2 px-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center gap-2 justify-center w-full sm:w-auto text-sm"
                 >
                   <Camera className="w-4 h-4" />
                   {uploading ? 'Uploader...' : 'Skift billede'}
                 </button>
-                <p className="text-xs text-slate-500 text-center">Max 10MB, automatisk komprimering</p>
+                <p className="text-xs text-slate-500 text-center sm:text-left">Max 10MB, automatisk komprimeret til optimal størrelse</p>
+              </div>
+            )}
+            
+            {!isEditing && (
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-slate-300 text-sm">Profilbillede</p>
+                <p className="text-slate-400 text-xs mt-1">Vises på din tutor profil</p>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Basic Info */}
-          <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                  <User className="w-4 h-4 inline mr-1" />
-                  Navn
-                </label>
+        {/* Information Sections */}
+        <div className="space-y-4 sm:space-y-6">
+            {/* Contact Information Section */}
+            <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold text-white mb-3 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-purple-400" />
+                Kontakt information
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    <User className="w-4 h-4 inline mr-1" />
+                    Navn
+                  </label>
                 {isEditing ? (
                   <input
                     type="text"
@@ -212,13 +234,13 @@ const TutorProfile = () => {
                 ) : (
                   <p className="text-white text-sm sm:text-base py-1">{profile.name}</p>
                 )}
-              </div>
+                </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                  <Mail className="w-4 h-4 inline mr-1" />
-                  Email
-                </label>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    <Mail className="w-4 h-4 inline mr-1" />
+                    Email
+                  </label>
                 {isEditing ? (
                   <input
                     type="email"
@@ -229,13 +251,13 @@ const TutorProfile = () => {
                 ) : (
                   <p className="text-white text-sm sm:text-base py-1 break-all">{profile.email}</p>
                 )}
-              </div>
+                </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                  <Phone className="w-4 h-4 inline mr-1" />
-                  Telefon
-                </label>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    <Phone className="w-4 h-4 inline mr-1" />
+                    Telefon
+                  </label>
                 {isEditing ? (
                   <input
                     type="tel"
@@ -246,13 +268,13 @@ const TutorProfile = () => {
                 ) : (
                   <p className="text-white text-sm sm:text-base py-1">{profile.phone}</p>
                 )}
-              </div>
+                </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                  <Briefcase className="w-4 h-4 inline mr-1" />
-                  Titel
-                </label>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
+                    <Briefcase className="w-4 h-4 inline mr-1" />
+                    Titel
+                  </label>
                 {isEditing ? (
                   <input
                     type="text"
@@ -263,56 +285,62 @@ const TutorProfile = () => {
                 ) : (
                   <p className="text-white text-sm sm:text-base py-1">{profile.title}</p>
                 )}
+                </div>
               </div>
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Specialeområde</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={profile.specialty}
-                  onChange={(e) => setProfile(prev => ({ ...prev, specialty: e.target.value }))}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
-                />
-              ) : (
-                <p className="text-white text-sm sm:text-base py-1">{profile.specialty}</p>
-              )}
-            </div>
+            {/* Professional Information Section */}
+            <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-3 sm:p-4">
+              <h4 className="text-sm sm:text-base font-semibold text-white mb-3 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-purple-400" />
+                Professionel information
+              </h4>
+              <div className="space-y-3 sm:space-y-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Specialeområde</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={profile.specialty}
+                    onChange={(e) => setProfile(prev => ({ ...prev, specialty: e.target.value }))}
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
+                  />
+                ) : (
+                  <p className="text-white text-sm sm:text-base py-1">{profile.specialty}</p>
+                )}
+                </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Erfaring</label>
-              {isEditing ? (
-                <textarea
-                  value={profile.experience}
-                  onChange={(e) => setProfile(prev => ({ ...prev, experience: e.target.value }))}
-                  rows={5}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[120px]"
-                  placeholder="Beskriv din erfaring, baggrund og specialkompetencer..."
-                />
-              ) : (
-                <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.experience}</p>
-              )}
-            </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Erfaring</label>
+                {isEditing ? (
+                  <textarea
+                    value={profile.experience}
+                    onChange={(e) => setProfile(prev => ({ ...prev, experience: e.target.value }))}
+                    rows={5}
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[120px]"
+                    placeholder="Beskriv din erfaring, baggrund og specialkompetencer..."
+                  />
+                ) : (
+                  <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.experience}</p>
+                )}
+                </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Værdiforslag</label>
-              {isEditing ? (
-                <textarea
-                  value={profile.value_prop}
-                  onChange={(e) => setProfile(prev => ({ ...prev, value_prop: e.target.value }))}
-                  rows={4}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[100px]"
-                  placeholder="Hvad kan du tilbyde dine kunder? Hvad gør dig unik?"
-                />
-              ) : (
-                <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.value_prop}</p>
-              )}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Værdiforslag</label>
+                {isEditing ? (
+                  <textarea
+                    value={profile.value_prop}
+                    onChange={(e) => setProfile(prev => ({ ...prev, value_prop: e.target.value }))}
+                    rows={4}
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[100px]"
+                    placeholder="Hvad kan du tilbyde dine kunder? Hvad gør dig unik?"
+                  />
+                ) : (
+                  <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.value_prop}</p>
+                )}
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            </div>
-          </div>
         </div>
 
         {/* Action Buttons */}
@@ -345,7 +373,6 @@ const TutorProfile = () => {
           )}
         </div>
       </div>
-
     </div>
   );
 };
