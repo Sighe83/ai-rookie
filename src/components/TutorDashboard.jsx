@@ -24,7 +24,7 @@ const TutorDashboard = () => {
   ];
 
   // Create stats array with real data
-  const isLoading = tutorLoading || statsLoading;
+  const isLoading = tutorLoading || statsLoading || !tutorData?.id;
   const dashboardStats = [
     { 
       label: 'Kommende 7 dage', 
