@@ -44,14 +44,16 @@ export const AuthProvider = ({ children }) => {
   const mountedRef = useRef(true);
   const initPromiseRef = useRef(null); // Track initialization promise to prevent multiple inits
 
-  // Safe user profile fetch with error handling
-  const fetchUserProfile = useCallback(async (userId) => {
+  // Safe user profile fetch with error handling and retry logic
+  const fetchUserProfile = useCallback(async (userId, isRetry = false) => {
     if (!mountedRef.current) return null;
     
     try {
-      console.log('fetchUserProfile: Starting profile fetch for userId:', userId);
+      console.log('fetchUserProfile: Starting profile fetch for userId:', userId, isRetry ? '(retry)' : '');
       
-      // Add a shorter timeout to prevent hanging
+      // Use longer timeout for retries or during token refresh
+      const timeoutMs = isRetry ? 10000 : 8000;
+      
       const fetchPromise = supabase
         .from('users')
         .select('*')
@@ -59,7 +61,7 @@ export const AuthProvider = ({ children }) => {
         .single();
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        setTimeout(() => reject(new Error('Profile fetch timeout')), timeoutMs)
       );
       
       const { data: profile, error } = await Promise.race([fetchPromise, timeoutPromise]);
@@ -85,6 +87,14 @@ export const AuthProvider = ({ children }) => {
       return profile;
     } catch (error) {
       console.warn('Profile fetch failed:', error);
+      
+      // Retry once if this is the first attempt and we're not already retrying
+      if (!isRetry && error.message === 'Profile fetch timeout') {
+        console.log('fetchUserProfile: Retrying profile fetch after timeout...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        return fetchUserProfile(userId, true);
+      }
+      
       return null;
     }
   }, []);
@@ -141,13 +151,14 @@ export const AuthProvider = ({ children }) => {
             if (!profile) {
               console.warn('No profile found during init, using auth data only');
               const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-              console.log('Setting user name during init to:', userName);
+              const defaultSiteMode = session.user.user_metadata?.site_mode || 'B2C';
+              console.log('Setting user name during init to:', userName, 'site_mode:', defaultSiteMode);
               setUser({
                 id: session.user.id,
                 email: session.user.email,
                 name: userName,
                 role: 'USER',
-                site_mode: session.user.user_metadata?.site_mode || 'B2C',
+                site_mode: defaultSiteMode,
                 phone: null,
                 company: null,
                 department: null
@@ -155,7 +166,7 @@ export const AuthProvider = ({ children }) => {
             } else {
               // Ensure name is always set, fallback to email if missing from profile
               const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-              console.log('Setting user name from profile during init to:', userName);
+              console.log('Setting user from profile during init to:', userName, 'site_mode:', profile.site_mode);
               setUser({
                 ...profile,
                 name: userName
@@ -182,16 +193,19 @@ export const AuthProvider = ({ children }) => {
                 
                 if (mountedRef.current) {
                   if (!profile) {
+                    // If we have existing user data with site_mode, preserve it during failed profile fetches
+                    const existingSiteMode = user?.site_mode || session.user.user_metadata?.site_mode || 'B2C';
                     const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+                    console.log('fetchUserProfile: No profile found, preserving existing site_mode:', existingSiteMode);
                     setUser({
                       id: session.user.id,
                       email: session.user.email,
                       name: userName,
-                      role: 'USER',
-                      site_mode: session.user.user_metadata?.site_mode || 'B2C',
-                      phone: null,
-                      company: null,
-                      department: null
+                      role: user?.role || 'USER', // Preserve existing role if available
+                      site_mode: existingSiteMode,
+                      phone: user?.phone || null,
+                      company: user?.company || null,
+                      department: user?.department || null
                     });
                   } else {
                     const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
@@ -209,7 +223,20 @@ export const AuthProvider = ({ children }) => {
                 }
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
                 console.log('useAuth: Token refreshed successfully');
-                // Optionally refresh user profile
+                // Refresh user profile but preserve existing user data on failure
+                const profile = await fetchUserProfile(session.user.id);
+                
+                if (mountedRef.current && profile) {
+                  const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+                  setUser({
+                    ...profile,
+                    name: userName
+                  });
+                  console.log('useAuth: Profile updated after token refresh');
+                } else if (mountedRef.current && user) {
+                  // Profile fetch failed, but we have existing user data - preserve it
+                  console.log('useAuth: Profile fetch failed during token refresh, preserving existing user data');
+                }
               }
             }
           );
@@ -547,13 +574,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   const validateUserSiteMode = (currentSiteMode) => {
+    console.log('validateUserSiteMode: Checking site mode for user:', {
+      userSiteMode: user?.site_mode,
+      currentSiteMode,
+      userRole: user?.role,
+      userEmail: user?.email
+    });
+    
     // Check if user should be on this site mode
     if (user && user.site_mode && user.site_mode !== currentSiteMode.toUpperCase()) {
+      console.log('validateUserSiteMode: Site mode mismatch detected, redirecting from', currentSiteMode, 'to', user.site_mode.toLowerCase());
       return {
         shouldRedirect: true,
         correctSiteMode: user.site_mode.toLowerCase()
       };
     }
+    console.log('validateUserSiteMode: Site mode is correct, no redirect needed');
     return { shouldRedirect: false };
   };
 
