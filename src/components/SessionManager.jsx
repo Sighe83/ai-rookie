@@ -72,11 +72,26 @@ const SessionManager = () => {
 
   const handleDeleteSession = async (sessionId) => {
     try {
-      await sessionsApi.deleteSession(sessionId);
+      console.log('🗑️ Attempting to delete session:', sessionId);
+      
+      console.log('🔄 Calling deleteSession API...');
+      const result = await sessionsApi.deleteSession(sessionId);
+      console.log('✅ Delete API result:', result);
+      
+      console.log('🔄 Reloading data...');
       await loadData(); // Reload to get updated data
+      console.log('✅ Session deletion completed successfully');
+      
     } catch (error) {
-      console.error('Failed to delete session:', error);
-      setError('Failed to delete session');
+      console.error('❌ Failed to delete session:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        stack: error.stack
+      });
+      setError(`Failed to delete session: ${error.message || 'Unknown error'}`);
     }
   };
 

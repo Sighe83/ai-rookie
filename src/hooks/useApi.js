@@ -103,28 +103,42 @@ export const useTutors = (siteMode = 'B2B') => {
         setLoading(true);
         setError(null);
         
-        const { data: rawData, error: fetchError } = await supabase
+        // Get tutors first
+        const { data: tutors, error: tutorError } = await supabase
           .from('tutors')
           .select(`
             *,
-            user:users(name, email),
-            sessions(*)
+            user:users(name, email)
           `)
           .eq('is_active', true)
           .order('created_at', { ascending: false });
 
-        if (fetchError) {
-          throw fetchError;
+        if (tutorError) {
+          throw tutorError;
         }
 
-        // Transform data to include name from user relationship
-        const transformedData = (rawData || []).map(tutor => ({
-          ...tutor,
-          name: tutor.user?.name || 'Unavngivet Tutor',
-          email: tutor.user?.email || 'No email'
-        }));
+        // Get active sessions for each tutor
+        const tutorsWithSessions = await Promise.all(
+          tutors.map(async (tutor) => {
+            const { data: sessions, error: sessionsError } = await supabase
+              .from('sessions')
+              .select('*')
+              .eq('tutor_id', tutor.id)
+              .eq('is_active', true)
+              .order('created_at', { ascending: false });
+
+            if (sessionsError) throw sessionsError;
+            
+            return {
+              ...tutor,
+              name: tutor.user?.name || 'Unavngivet Tutor',
+              email: tutor.user?.email || 'No email',
+              sessions: sessions || []
+            };
+          })
+        );
         
-        setData(transformedData);
+        setData(tutorsWithSessions);
         
       } catch (err) {
         setError(err.message);
@@ -168,21 +182,32 @@ export const useTutorByUserId = (userId) => {
 // Hook for single tutor
 export const useTutor = (id, siteMode = 'B2B') => {
   return useSupabaseQuery(async () => {
-    const { data, error } = await supabase
+    // Get tutor data
+    const { data: tutorData, error: tutorError } = await supabase
       .from('tutors')
       .select(`
-        *,
-        sessions(*)
+        *
       `)
       .eq('id', id)
       .eq('is_active', true)
       .single();
 
-    if (error) throw error;
+    if (tutorError) throw tutorError;
+
+    // Get active sessions separately
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('tutor_id', id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (sessionsError) throw sessionsError;
+
     return {
-      ...data,
-      valueProp: data.value_prop,
-      sessions: data.sessions || []
+      ...tutorData,
+      valueProp: tutorData.value_prop,
+      sessions: sessions || []
     };
   }, [id, siteMode]);
 };
