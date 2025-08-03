@@ -7,9 +7,33 @@ const router = express.Router();
 // GET /api/tutors - Get all tutors with their sessions
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const siteMode = req.header('x-site-mode') || 'B2B';
+    const prisma = databaseService.getPrismaClient();
     
-    const tutors = await databaseService.findMany('tutor', {
+    // Debug: Check users table first
+    const users = await prisma.user.findMany({
+      where: { role: 'TUTOR' }
+    });
+    console.log('TUTOR Users in database:', users.map(u => ({ id: u.id, name: u.name, email: u.email })));
+    
+    // Debug: Check tutors table
+    const tutorsRaw = await prisma.tutor.findMany();
+    console.log('Tutors in database:', tutorsRaw.map(t => ({ id: t.id, userId: t.userId, title: t.title })));
+    
+    // Debug: Check tutor-user join
+    const tutorsWithUsers = await prisma.tutor.findMany({
+      include: {
+        user: true
+      }
+    });
+    console.log('Tutors with users:', tutorsWithUsers.map(t => ({ 
+      tutorId: t.id, 
+      title: t.title, 
+      userId: t.userId,
+      userName: t.user?.name,
+      userEmail: t.user?.email 
+    })));
+    
+    const tutors = await prisma.tutor.findMany({
       where: {
         isActive: true
       },
@@ -28,7 +52,8 @@ router.get('/', optionalAuth, async (req, res) => {
             id: true,
             title: true,
             description: true,
-            duration: true
+            duration: true,
+            price: true
           }
         }
       },
@@ -39,24 +64,32 @@ router.get('/', optionalAuth, async (req, res) => {
       }
     });
 
-    // Transform data based on site mode
+    // Transform data
     const transformedTutors = tutors.map(tutor => {
-      const rawPrice = siteMode === 'B2C' ? tutor.price : tutor.basePrice;
-      return {
+      console.log('Raw tutor data:', JSON.stringify({
         id: tutor.id,
-        name: tutor.user.name,
-        email: tutor.user.email,
-        title: tutor.title,
+        user: tutor.user,
+        title: tutor.title
+      }, null, 2));
+      
+      const transformed = {
+        id: tutor.id,
+        name: tutor.user?.name || tutor.title || 'Unavngivet Tutor',
+        email: tutor.user?.email || 'No email',
+        title: tutor.title || 'No title',
         specialty: tutor.specialty,
         experience: tutor.experience,
         valueProp: tutor.valueProp,
         img: tutor.img,
-        price: Number((rawPrice / 100).toFixed(2)),
-        priceFormatted: (rawPrice / 100).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        basePrice: Number((tutor.basePrice / 100).toFixed(2)),
-        basePriceFormatted: (tutor.basePrice / 100).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        sessions: tutor.sessions
+        sessions: tutor.sessions.map(session => ({
+          ...session,
+          price: Number(session.price),
+          priceFormatted: Number(session.price).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        }))
       };
+      
+      console.log('Transformed tutor:', JSON.stringify(transformed, null, 2));
+      return transformed;
     });
 
     res.json({
@@ -76,7 +109,6 @@ router.get('/', optionalAuth, async (req, res) => {
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const siteMode = req.header('x-site-mode') || 'B2B';
 
     const tutor = await databaseService.findUnique('tutor', {
       where: {
@@ -98,7 +130,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
             id: true,
             title: true,
             description: true,
-            duration: true
+            duration: true,
+            price: true
           }
         },
         availability: {
@@ -122,7 +155,6 @@ router.get('/:id', optionalAuth, async (req, res) => {
       });
     }
 
-    const rawPrice = siteMode === 'B2C' ? tutor.price : tutor.basePrice;
     const transformedTutor = {
       id: tutor.id,
       name: tutor.user.name,
@@ -132,11 +164,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
       experience: tutor.experience,
       valueProp: tutor.valueProp,
       img: tutor.img,
-      price: Number((rawPrice / 100).toFixed(2)),
-      priceFormatted: (rawPrice / 100).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      basePrice: Number((tutor.basePrice / 100).toFixed(2)),
-      basePriceFormatted: (tutor.basePrice / 100).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      sessions: tutor.sessions,
+      sessions: tutor.sessions.map(session => ({
+        ...session,
+        price: Number(session.price),
+        priceFormatted: Number(session.price).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      })),
       availability: tutor.availability
     };
 

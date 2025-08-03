@@ -208,4 +208,25 @@ export class SessionUtils {
       }))
       .filter(slot => slot.isValid);
   }
+
+  /**
+   * Generates initials from a name
+   * @param {string} name - The full name
+   * @returns {string} - Initials (max 2 characters)
+   */
+  static generateInitials(name) {
+    if (!name || typeof name !== 'string') {
+      return 'T';
+    }
+
+    const words = name.trim().split(/\s+/);
+    
+    if (words.length === 1) {
+      // Single word - take first 2 characters
+      return words[0].substring(0, 2).toUpperCase();
+    }
+    
+    // Multiple words - take first character of first two words
+    return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+  }
 }

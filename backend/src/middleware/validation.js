@@ -91,7 +91,7 @@ const schemas = {
     title: Joi.string().min(5).max(200).required(),
     description: Joi.string().min(10).max(1000).required(),
     duration: Joi.number().integer().valid(60).default(60), // Always 60 minutes
-    priceOverride: Joi.number().integer().min(0).optional(),
+    price: Joi.number().integer().min(0).required(),
     isActive: Joi.boolean().default(true)
   }),
 

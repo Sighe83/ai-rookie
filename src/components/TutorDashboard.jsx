@@ -4,9 +4,16 @@ import TutorBookings from './TutorBookings';
 import TutorProfile from './TutorProfile';
 import WeeklyAvailabilityManager from './WeeklyAvailabilityManager';
 import SessionManager from './SessionManager';
+import { useAuth } from '../hooks/useAuth';
+import { useTutorStats, useTutorByUserId } from '../hooks/useApi';
 
 const TutorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const { user } = useAuth();
+  
+  // Get tutor data first, then stats
+  const { data: tutorData, loading: tutorLoading } = useTutorByUserId(user?.id);
+  const { data: stats, loading: statsLoading, error: statsError } = useTutorStats(tutorData?.id);
 
   const tabs = [
     { id: 'overview', label: 'Oversigt', icon: TrendingUp },
@@ -16,11 +23,37 @@ const TutorDashboard = () => {
     { id: 'profile', label: 'Profil', icon: Settings }
   ];
 
-  const stats = [
-    { label: 'Denne uge', value: '0', subtitle: 'Bookinger', icon: Calendar, color: 'purple' },
-    { label: 'Næste uge', value: '0', subtitle: 'Ledige slots', icon: Clock, color: 'purple' },
-    { label: 'Denne måned', value: '0 kr', subtitle: 'Indtjening', icon: DollarSign, color: 'purple' },
-    { label: 'Total', value: '0', subtitle: 'Gennemførte sessioner', icon: Users, color: 'purple' }
+  // Create stats array with real data
+  const isLoading = tutorLoading || statsLoading;
+  const dashboardStats = [
+    { 
+      label: 'Kommende 7 dage', 
+      value: isLoading ? '...' : (stats?.next7DaysBookings || '0'), 
+      subtitle: 'Bookinger', 
+      icon: Calendar, 
+      color: 'purple' 
+    },
+    { 
+      label: 'Næste uge', 
+      value: isLoading ? '...' : (stats?.nextWeekAvailableSlots || '0'), 
+      subtitle: 'Ledige slots', 
+      icon: Clock, 
+      color: 'purple' 
+    },
+    { 
+      label: 'Denne måned', 
+      value: isLoading ? '...' : `${Math.round(stats?.monthlyEarnings || 0)} kr`, 
+      subtitle: 'Indtjening', 
+      icon: DollarSign, 
+      color: 'purple' 
+    },
+    { 
+      label: 'Total', 
+      value: isLoading ? '...' : (stats?.totalCompletedSessions || '0'), 
+      subtitle: 'Gennemførte sessioner', 
+      icon: Users, 
+      color: 'purple' 
+    }
   ];
 
   const renderTabContent = () => {
@@ -36,9 +69,16 @@ const TutorDashboard = () => {
       default:
         return (
           <div className="space-y-6">
+            {/* Error Display */}
+            {statsError && (
+              <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 text-red-400">
+                Kunne ikke indlæse statistikker: {statsError}
+              </div>
+            )}
+            
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {stats.map((stat, index) => {
+              {dashboardStats.map((stat, index) => {
                 const colorClasses = {
                   blue: 'border-blue-500 bg-blue-500/10',
                   green: 'border-purple-500 bg-purple-500/10',

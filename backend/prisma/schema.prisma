@@ -35,8 +35,6 @@ model Tutor {
   experience   String?
   valueProp    String?             @map("value_prop")
   img          String?
-  basePrice    Int                 @map("base_price")
-  price        Int
   isActive     Boolean             @default(true) @map("is_active")
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt @map("updated_at")
@@ -49,17 +47,17 @@ model Tutor {
 }
 
 model Session {
-  id            String    @id @default(uuid()) @db.Uuid
-  tutorId       String    @map("tutor_id") @db.Uuid
-  title         String
-  description   String
-  duration      Int       @default(60)
-  priceOverride Int?      @map("price_override")
-  isActive      Boolean   @default(true) @map("is_active")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  bookings      Booking[]
-  tutor         Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid()) @db.Uuid
+  tutorId     String    @map("tutor_id") @db.Uuid
+  title       String
+  description String
+  duration    Int       @default(60)
+  price       Decimal   @db.Decimal(10,2)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  bookings    Booking[]
+  tutor       Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 
   @@index([tutorId])
   @@map("sessions")
@@ -73,7 +71,7 @@ model Booking {
   format           String
   selectedDateTime DateTime  @map("selected_date_time")
   participants     Int?      @default(1)
-  totalPrice       Int       @map("total_price")
+  totalPrice       Decimal   @map("total_price") @db.Decimal(10,2)
   status           String?   @default("PENDING")
   siteMode         String    @map("site_mode")
   contactName      String    @map("contact_name")

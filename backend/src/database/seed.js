@@ -12,24 +12,26 @@ const tutorsData = [
     specialty: 'AI for Marketing & Kommunikation',
     experience: 'Forstår travle professionelles behov for hurtig, relevant læring.',
     valueProp: 'Øg jeres marketing‑output med 10× uden ekstra headcount.',
-    basePrice: 85000, // 850 kr in øre
-    price: 69500, // 695 kr for B2C
     sessions: [
       {
         title: 'Skaler content‑produktionen med AI',
         description: 'Strømliner jeres SoMe & kampagner gennem smart prompt‑design og værktøjer.',
+        price: 850
       },
       {
         title: 'Datadrevet kampagneoptimering',
         description: 'Lær at bruge AI til at analysere kampagnedata og justere i realtid.',
+        price: 850
       },
       {
         title: 'Få ideer til SoMe-opslag på minutter',
         description: 'Lær at bruge AI til at brainstorme og skabe indhold til sociale medier, der fanger opmærksomhed.',
+        price: 695
       },
       {
         title: 'Skriv bedre marketingtekster med AI',
         description: 'Optimer dine nyhedsbreve, annoncer og webtekster ved hjælp af en AI-assistent.',
+        price: 695
       },
     ]
   },
@@ -40,20 +42,21 @@ const tutorsData = [
     specialty: 'Effektivitets‑boost i salgsorganisationer',
     experience: 'Specialist i at omsætte AI til målbare salgsresultater.',
     valueProp: 'Forkort salgscyklussen med gennemsnitligt 32 %.',
-    basePrice: 99500, // 995 kr in øre
-    price: 95000, // 950 kr for B2C
     sessions: [
       {
         title: 'Lead‑research på autopilot',
         description: 'Automatisér indsamling & kvalificering af leads med AI‑drevne pipelines.',
+        price: 995
       },
       {
         title: 'AI‑assist til salgs‑mails',
         description: 'Personaliser salgs‑kommunikation i skala — uden at miste det menneskelige touch.',
+        price: 995
       },
       {
         title: 'Automatiser research af nye leads',
         description: 'Spar timer på at finde og kvalificere potentielle kunder med AI-drevne værktøjer.',
+        price: 950
       },
     ]
   },
@@ -64,16 +67,16 @@ const tutorsData = [
     specialty: 'Proces‑optimering & AI‑workflows',
     experience: 'Hjælper ledere med at integrere AI i teams og processer.',
     valueProp: 'Reducer manuelle processer med op til 60% gennem intelligent automatisering.',
-    basePrice: 92500, // 925 kr in øre
-    price: 47500, // 475 kr for B2C
     sessions: [
       {
         title: 'Automatisér dokumenthåndtering',
         description: 'Implementér AI‑baserede systemer til at behandle og kategorisere dokumenter.',
+        price: 925
       },
       {
         title: 'Intelligent kvalitetskontrol',
         description: 'Opsæt AI‑drevne kontroller der fanger fejl før de når kunden.',
+        price: 475
       },
     ]
   }
@@ -123,8 +126,6 @@ async function seedDatabase() {
           specialty: tutorInfo.specialty,
           experience: tutorInfo.experience,
           valueProp: tutorInfo.valueProp,
-          basePrice: tutorInfo.basePrice,
-          price: tutorInfo.price,
         },
         create: {
           userId: tutorUser.id,
@@ -132,8 +133,6 @@ async function seedDatabase() {
           specialty: tutorInfo.specialty,
           experience: tutorInfo.experience,
           valueProp: tutorInfo.valueProp,
-          basePrice: tutorInfo.basePrice,
-          price: tutorInfo.price,
         }
       });
 
@@ -145,6 +144,7 @@ async function seedDatabase() {
             title: sessionData.title,
             description: sessionData.description,
             duration: SessionService.SESSION_DURATION_MINUTES, // Always 60 minutes
+            price: sessionData.price,
           }
         });
       }

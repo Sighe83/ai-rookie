@@ -214,7 +214,7 @@ const TutorBookings = () => {
                 {/* Right side - Actions */}
                 <div className="flex flex-col gap-2 min-w-[200px]">
                   <div className="text-right mb-2">
-                    <p className="text-2xl font-bold text-white">{booking.price.toLocaleString('da-DK')} kr</p>
+                    <p className="text-2xl font-bold text-white">{booking.price.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
                   </div>
                   
                   {booking.status === 'pending' && (

@@ -131,8 +131,8 @@ router.post('/', optionalAuth, async (req, res) => {
       });
     }
 
-    // Calculate total price based on format and site mode
-    let totalPrice = siteMode === 'B2C' ? tutor.price : tutor.basePrice;
+    // Calculate total price based on session price and format
+    let totalPrice = session.price;
     
     if (format === 'TEAM' && participants) {
       totalPrice = totalPrice * participants;
