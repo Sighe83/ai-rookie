@@ -1127,14 +1127,14 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           <button
             onClick={() => setCurrentWeek(Math.max(0, currentWeek - 1))}
             disabled={currentWeek === 0}
-            className="p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 sm:p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] sm:min-w-auto sm:min-h-auto flex items-center justify-center"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={() => setCurrentWeek(Math.min(maxWeeks - 1, currentWeek + 1))}
             disabled={currentWeek >= maxWeeks - 1}
-            className="p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 sm:p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] sm:min-w-auto sm:min-h-auto flex items-center justify-center"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -1154,7 +1154,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
               key={index}
               onClick={() => hasSlots && handleDateClick(date)}
               disabled={!hasSlots}
-              className={`p-3 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
+              className={`p-2 sm:p-3 rounded-lg text-center text-xs sm:text-sm font-medium transition-all duration-200 min-h-[60px] sm:min-h-[80px] ${
                 isSelected
                   ? `${theme.primary} text-white ring-2 ${theme.ring}`
                   : isToday
@@ -1186,7 +1186,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
             2. Vælg et tidspunkt for <span className="text-green-400">{formatFullDate(selectedDate)}</span>
           </h3>
           {slotsForSelectedDate.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
               {slotsForSelectedDate.map((slot, slotIndex) => {
                 const dateTimeKey = `${formatDateKey(selectedDate)}T${slot.time}`;
                 const isSelected = selectedDateTime === dateTimeKey;
@@ -1204,7 +1204,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
                     type="button"
                     onClick={() => !isPassed && onSelectDateTime(dateTimeKey)}
                     disabled={isPassed}
-                    className={`p-4 rounded-xl text-sm font-medium transition-all border-2 ${
+                    className={`p-3 sm:p-4 rounded-xl text-sm font-medium transition-all border-2 min-h-[60px] sm:min-h-[70px] flex items-center justify-center ${
                       isPassed
                         ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed opacity-50'
                         : isSelected

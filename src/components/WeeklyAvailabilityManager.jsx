@@ -31,6 +31,7 @@ const WeeklyAvailabilityManager = () => {
   const [dragStart, setDragStart] = useState(null);
   const [dragEnd, setDragEnd] = useState(null);
   const [isSelecting, setIsSelecting] = useState(true); // true = select, false = deselect
+  const [selectedMobileDay, setSelectedMobileDay] = useState(0); // Mobile day selector
 
   // Initialize empty template
   const createEmptyTemplate = () => ({
@@ -71,6 +72,18 @@ const WeeklyAvailabilityManager = () => {
       loadExistingAvailability();
     }
   }, [tutorId, currentWeekView]);
+
+  // Ensure selected mobile day is not in the past
+  useEffect(() => {
+    const isPastDay = isDateInPast(currentWeekView, selectedMobileDay);
+    if (isPastDay) {
+      // Find first non-past day
+      const firstAvailableDay = dayKeys.findIndex((_, index) => !isDateInPast(currentWeekView, index));
+      if (firstAvailableDay !== -1) {
+        setSelectedMobileDay(firstAvailableDay);
+      }
+    }
+  }, [currentWeekView, selectedMobileDay]);
 
   const loadTutorProfile = async () => {
     try {
@@ -288,6 +301,30 @@ const WeeklyAvailabilityManager = () => {
     return hour >= startHour && hour <= endHour;
   };
 
+  // Simple toggle function for mobile
+  const toggleTimeSlot = (dayKey, timeSlot) => {
+    setWeeklyTemplates(prev => {
+      const currentTemplate = { ...getCurrentTemplate() };
+      const daySlots = [...(currentTemplate[dayKey] || [])];
+      
+      if (daySlots.includes(timeSlot)) {
+        // Remove if already selected
+        const index = daySlots.indexOf(timeSlot);
+        daySlots.splice(index, 1);
+      } else {
+        // Add if not selected
+        daySlots.push(timeSlot);
+      }
+      
+      currentTemplate[dayKey] = daySlots;
+      
+      return {
+        ...prev,
+        [currentWeekView]: currentTemplate
+      };
+    });
+  };
+
   const getWeekLabel = (weekOffset) => {
     const weekStart = getWeekStart(weekOffset);
     const weekEnd = new Date(weekStart);
@@ -402,28 +439,28 @@ const WeeklyAvailabilityManager = () => {
       )}
 
       {/* Week Navigation */}
-      <div className="border-2 border-slate-700 bg-slate-800 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <CalendarCheck className="w-6 h-6 text-purple-400" />
+      <div className="border-2 border-slate-700 bg-slate-800 rounded-xl p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <CalendarCheck className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
             Planlæg tilgængelighed
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             <button
               onClick={() => setCurrentWeekView(currentWeekView - 1)}
-              className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
+              className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
               disabled={currentWeekView <= 0}
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <span className="text-slate-300 font-medium px-4">
+            <span className="text-slate-300 font-medium px-2 sm:px-4 text-center text-sm sm:text-base whitespace-nowrap">
               {getWeekLabel(currentWeekView)}
             </span>
             <button
               onClick={() => setCurrentWeekView(currentWeekView + 1)}
-              className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
+              className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -435,8 +472,8 @@ const WeeklyAvailabilityManager = () => {
             onMouseUp={handleIntervalEnd}
             onMouseLeave={handleIntervalEnd}
           >
-            {/* Header */}
-            <div className="grid grid-cols-8 gap-3 mb-6">
+            {/* Header - Mobile vs Desktop */}
+            <div className="hidden md:grid md:grid-cols-8 gap-3 mb-6">
               <div className="text-slate-400 text-sm font-medium flex items-center gap-2">
                 <Clock className="w-4 h-4" />
                 Tid
@@ -497,8 +534,33 @@ const WeeklyAvailabilityManager = () => {
               </p>
             </div>
 
-            {/* Time slots with interval selection */}
-            <div className="grid grid-cols-8 gap-3">
+            {/* Mobile Day Selector */}
+            <div className="md:hidden mb-6">
+              <div className="flex flex-wrap gap-2 mb-4">
+                {dayNames.map((day, index) => {
+                  const isPastDay = isDateInPast(currentWeekView, index);
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => !isPastDay && setSelectedMobileDay(index)}
+                      disabled={isPastDay}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isPastDay
+                          ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
+                          : selectedMobileDay === index
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      {day.slice(0, 3)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Time slots with interval selection - Desktop */}
+            <div className="hidden md:grid md:grid-cols-8 gap-3">
               {/* Time labels column */}
               <div className="space-y-1">
                 {timeSlots.map((timeSlot) => (
@@ -557,6 +619,49 @@ const WeeklyAvailabilityManager = () => {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Mobile Time Slots View */}
+            <div className="md:hidden">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                {dayNames[selectedMobileDay]} - Vælg tider
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {timeSlots.map((timeSlot) => {
+                  const dayKey = dayKeys[selectedMobileDay];
+                  const isSelected = getCurrentTemplate()[dayKey]?.includes(timeSlot) || false;
+                  const isSaved = getSavedTemplate()[dayKey]?.includes(timeSlot) || false;
+                  const isPastSlot = isDateInPast(currentWeekView, selectedMobileDay);
+                  
+                  // Determine slot state for visual distinction
+                  const isNewlySelected = isSelected && !isSaved;
+                  const isNewlyDeselected = !isSelected && isSaved;
+                  
+                  return (
+                    <button
+                      key={timeSlot}
+                      onClick={() => !isPastSlot && toggleTimeSlot(dayKey, timeSlot)}
+                      disabled={isPastSlot}
+                      className={`p-4 rounded-xl border-2 transition-all font-medium text-center min-h-[60px] flex items-center justify-center ${
+                        isPastSlot
+                          ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed opacity-50'
+                          : isNewlySelected
+                          ? 'bg-purple-600/30 border-purple-400 text-purple-200' // Newly selected
+                          : isNewlyDeselected
+                          ? 'bg-red-600/20 border-red-400 text-red-300' // Newly deselected
+                          : isSelected
+                          ? 'bg-purple-600 border-purple-400 text-white' // Selected
+                          : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-lg">{timeSlot.split('-')[0]}</div>
+                        <div className="text-sm opacity-75">{timeSlot.split('-')[1]}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
