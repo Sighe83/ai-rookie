@@ -112,7 +112,7 @@ const SessionManager = () => {
         <p className="text-red-400">{error}</p>
         <button 
           onClick={() => { setError(null); loadData(); }}
-          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg"
         >
           Prøv igen
         </button>
@@ -134,7 +134,7 @@ const SessionManager = () => {
           </div>
           <button
             onClick={() => setIsAddingSession(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Tilføj Session
@@ -152,7 +152,7 @@ const SessionManager = () => {
                   type="text"
                   value={newSession.title}
                   onChange={(e) => setNewSession(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full bg-slate-600 text-white rounded-md px-3 py-2"
+                  className="w-full bg-slate-600 text-white rounded-md px-3 py-3"
                   placeholder="F.eks. Introduktion til AI"
                 />
               </div>
@@ -161,7 +161,7 @@ const SessionManager = () => {
                 <textarea
                   value={newSession.description}
                   onChange={(e) => setNewSession(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full bg-slate-600 text-white rounded-md px-3 py-2 h-24 resize-none"
+                  className="w-full bg-slate-600 text-white rounded-md px-3 py-3 h-24 resize-none"
                   placeholder="Beskrivelse af sessionen..."
                 />
               </div>
@@ -174,7 +174,7 @@ const SessionManager = () => {
                   type="number"
                   value={newSession.price}
                   onChange={(e) => setNewSession(prev => ({ ...prev, price: e.target.value }))}
-                  className="w-full bg-slate-600 text-white rounded-md px-3 py-2"
+                  className="w-full bg-slate-600 text-white rounded-md px-3 py-3"
                   placeholder="Pris i kroner (fx 850)"
                 />
                 <p className="text-xs text-slate-400 mt-1">
@@ -191,7 +191,7 @@ const SessionManager = () => {
                 <button
                   onClick={handleAddSession}
                   disabled={!newSession.title || !newSession.description || !newSession.price}
-                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   Gem Session
@@ -201,7 +201,7 @@ const SessionManager = () => {
                     setIsAddingSession(false);
                     setNewSession({ title: '', description: '', price: '' });
                   }}
-                  className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                  className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-3 rounded-lg flex items-center gap-2"
                 >
                   <X className="w-4 h-4" />
                   Annuller
@@ -229,19 +229,19 @@ const SessionManager = () => {
                         <input
                           type="text"
                           defaultValue={session.title}
-                          className="w-full bg-slate-600 text-white rounded-md px-3 py-2 font-semibold"
+                          className="w-full bg-slate-600 text-white rounded-md px-3 py-3 font-semibold"
                           onChange={(e) => session.title = e.target.value}
                         />
                         <textarea
                           defaultValue={session.description}
-                          className="w-full bg-slate-600 text-white rounded-md px-3 py-2 h-24 resize-none"
+                          className="w-full bg-slate-600 text-white rounded-md px-3 py-3 h-24 resize-none"
                           onChange={(e) => session.description = e.target.value}
                         />
                         <input
                           type="number"
                           defaultValue={session.price || ''}
                           onChange={(e) => session.price = e.target.value ? parseFloat(e.target.value) : null}
-                          className="w-32 bg-slate-600 text-white rounded-md px-3 py-2"
+                          className="w-32 bg-slate-600 text-white rounded-md px-3 py-3"
                           placeholder="Pris i kr"
                         />
                       </div>

@@ -133,7 +133,7 @@ const TutorProfile = () => {
         <p className="text-red-400">{error}</p>
         <button 
           onClick={() => { setError(null); loadProfile(); }}
-          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg"
         >
           Prøv igen
         </button>
@@ -150,7 +150,7 @@ const TutorProfile = () => {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <Edit className="w-4 h-4" />
               Rediger profil
@@ -160,14 +160,14 @@ const TutorProfile = () => {
               <button
                 onClick={handleProfileSave}
                 disabled={saving}
-                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
                 {saving ? 'Gemmer...' : 'Gem'}
               </button>
               <button
                 onClick={() => setIsEditing(false)}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
               >
                 Annuller
               </button>
@@ -233,7 +233,7 @@ const TutorProfile = () => {
                     type="text"
                     value={profile.name}
                     onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
                   />
                 ) : (
                   <p className="text-white">{profile.name}</p>
@@ -250,7 +250,7 @@ const TutorProfile = () => {
                     type="email"
                     value={profile.email}
                     onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
                   />
                 ) : (
                   <p className="text-white">{profile.email}</p>
@@ -267,7 +267,7 @@ const TutorProfile = () => {
                     type="tel"
                     value={profile.phone}
                     onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
                   />
                 ) : (
                   <p className="text-white">{profile.phone}</p>
@@ -284,7 +284,7 @@ const TutorProfile = () => {
                     type="text"
                     value={profile.title}
                     onChange={(e) => setProfile(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
+                    className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
                   />
                 ) : (
                   <p className="text-white">{profile.title}</p>
@@ -299,7 +299,7 @@ const TutorProfile = () => {
                   type="text"
                   value={profile.specialty}
                   onChange={(e) => setProfile(prev => ({ ...prev, specialty: e.target.value }))}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
+                  className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
                 />
               ) : (
                 <p className="text-white">{profile.specialty}</p>
@@ -313,7 +313,7 @@ const TutorProfile = () => {
                   value={profile.experience}
                   onChange={(e) => setProfile(prev => ({ ...prev, experience: e.target.value }))}
                   rows={3}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
+                  className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
                 />
               ) : (
                 <p className="text-white">{profile.experience}</p>
@@ -327,7 +327,7 @@ const TutorProfile = () => {
                   value={profile.value_prop}
                   onChange={(e) => setProfile(prev => ({ ...prev, value_prop: e.target.value }))}
                   rows={2}
-                  className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
+                  className="w-full bg-slate-700 text-white rounded-md px-3 py-3"
                 />
               ) : (
                 <p className="text-white">{profile.value_prop}</p>
