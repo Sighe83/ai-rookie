@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
+  const [session, setSession] = useState(null);
   const subscriptionRef = useRef(null);
   const mountedRef = useRef(true);
   const initPromiseRef = useRef(null); // Track initialization promise to prevent multiple inits
@@ -156,6 +157,11 @@ export const AuthProvider = ({ children }) => {
         // First check for existing session
         console.log('useAuth: Fetching session from Supabase...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('useAuth: Session værdi:', session);
+        
+        if (mountedRef.current) {
+          setSession(session);
+        }
         
         if (sessionError) {
           console.error('Session check error:', sessionError);
@@ -224,6 +230,9 @@ export const AuthProvider = ({ children }) => {
               console.log('useAuth: Auth state changed:', event, session?.user?.email);
               
               if (!mountedRef.current) return;
+              
+              // Update session state
+              setSession(session);
               
               if (event === 'SIGNED_IN' && session?.user) {
                 // Check if this is likely a window focus/visibility change event
@@ -734,6 +743,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    session,
     loading,
     error,
     initialized, // Ny property
