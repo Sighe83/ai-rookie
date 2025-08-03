@@ -224,7 +224,6 @@ const useSiteMode = () => {
         description: 'Lær at bruge AI til at analysere kampagnedata og justere i realtid.',
       },
     ],
-    basePrice: 850,
   },
   {
     id: 2,
@@ -245,7 +244,6 @@ const useSiteMode = () => {
         description: 'Personaliser salgs‑kommunikation i skala — uden at miste det menneskelige touch.',
       },
     ],
-    basePrice: 995,
   },
   {
     id: 3,
@@ -266,7 +264,6 @@ const useSiteMode = () => {
         description: 'Opsæt AI‑drevne kontroller der fanger fejl før de når kunden.',
       },
     ],
-    basePrice: 925,
   },
 ]; */
 
@@ -297,7 +294,6 @@ const b2bTestimonials = [
     experience: 'Forstår travle professionelles behov for hurtig, relevant læring.',
     specialty: 'Praktisk AI for Marketing & Kommunikation',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=MJ',
-    price: 695,
     sessions: [
       {
         id: 1,
@@ -323,7 +319,6 @@ const b2bTestimonials = [
     experience: 'Specialist i at omsætte AI til målbare salgsresultater.',
     specialty: 'Effektivitets-boost med AI for Salgsteams',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=LP',
-    price: 950,
     sessions: [
       {
         id: 4,
@@ -349,7 +344,6 @@ const b2bTestimonials = [
     experience: 'Hjælper ledere med at integrere AI i teams og processer.',
     specialty: 'AI for Ledere: Fra Strategi til Handling',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=HN',
-    price: 475,
     sessions: [
       {
         id: 7,
@@ -375,7 +369,6 @@ const b2bTestimonials = [
     experience: 'Bruger AI til at navigere komplekse udbudsmaterialer og leverandøranalyser.',
     specialty: 'AI i Procurement og EU-udbud',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=CH',
-    price: 850,
     sessions: [
       {
         id: 10,
@@ -401,7 +394,6 @@ const b2bTestimonials = [
     experience: 'Anvender AI til at forbedre projektplanlægning, risikostyring og stakeholder-kommunikation.',
     specialty: 'AI-drevet Projektledelse',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=JT',
-    price: 750,
     sessions: [
       {
         id: 13,
@@ -427,7 +419,6 @@ const b2bTestimonials = [
     experience: 'Fokuserer på at bruge AI-værktøjer som Copilot til at skrive bedre kode hurtigere og reducere fejl.',
     specialty: 'AI for Softwareudviklere',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=DC',
-    price: 800,
     sessions: [
       {
         id: 16,
@@ -453,7 +444,6 @@ const b2bTestimonials = [
     experience: 'Praktisk erfaring med at bruge AI som et ledelsesværktøj til operationel planlægning og analyse.',
     specialty: 'Praktisk AI for Operationelle Ledere',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=HF',
-    price: 1000,
     sessions: [
       {
         id: 19,
@@ -479,7 +469,6 @@ const b2bTestimonials = [
     experience: 'Pioner inden for brug af AI til juridisk research, due diligence og kontraktanalyse.',
     specialty: 'AI i den Juridiske Verden',
     img: 'https://placehold.co/100x100/E2E8F0/4A5568?text=SB',
-    price: 975,
     sessions: [
       {
         id: 22,
@@ -930,6 +919,25 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
   const theme = getThemeColors(siteMode, user);
   const isB2B = siteMode === 'b2b';
   
+  console.log('TutorCard received tutor:', { name: tutor.name, title: tutor.title, id: tutor.id });
+  
+  // Function to generate initials fallback image
+  const generateInitialsImage = (name) => {
+    const initial = (name?.charAt(0) || 'T').toUpperCase();
+    const svg = `
+      <svg width="96" height="96" xmlns="http://www.w3.org/2000/svg">
+        <rect width="96" height="96" fill="#475569"/>
+        <text x="48" y="58" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#ffffff" text-anchor="middle">${initial}</text>
+      </svg>
+    `;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+  };
+  
+  // Function to get session price
+  const getSessionPrice = (session) => {
+    return session.price;
+  };
+  
   return (
     <div
       className={`bg-slate-800 rounded-lg overflow-hidden transition-all duration-300 ${
@@ -938,16 +946,16 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
     >
       <div className="p-6 flex flex-col sm:flex-row items-center gap-6">
         <img
-          src={tutor.img || 'https://via.placeholder.com/96x96/475569/ffffff?text=' + encodeURIComponent(tutor.name?.charAt(0) || 'T')}
+          src={tutor.img || generateInitialsImage(tutor.name)}
           alt={tutor.name || 'Tutor'}
           className="w-24 h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700 object-cover"
           onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/96x96/475569/ffffff?text=' + encodeURIComponent(tutor.name?.charAt(0) || 'T');
+            e.target.src = generateInitialsImage(tutor.name);
           }}
         />
         <div className="flex-grow text-center sm:text-left">
-          <h3 className="text-xl font-bold text-white">{tutor.name}</h3>
-          <p className={`${isB2B ? 'text-blue-400' : 'text-blue-400'} font-semibold`}>{tutor.title}</p>
+          <h3 className="text-xl font-bold text-white">{tutor.name || 'Ingen navn'}</h3>
+          <p className={`${isB2B ? 'text-blue-400' : 'text-blue-400'} font-semibold`}>{tutor.title || 'Ingen titel'}</p>
           <p className="text-sm text-slate-300 mt-1 flex items-center justify-center sm:justify-start gap-2">
             <Lightbulb className="w-4 h-4 text-yellow-400" /> {tutor.specialty}
           </p>
@@ -983,7 +991,7 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
                 </div>
                 <div className="flex-shrink-0 text-center">
                   {!isB2B && (
-                    <p className="text-xl font-bold text-white">{tutor.price},-</p>
+                    <p className="text-xl font-bold text-white">{getSessionPrice(session).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
                   )}
                   <button
                     onClick={() => onSelect(tutor, session)}
@@ -1221,7 +1229,12 @@ const B2BHomePage = () => {
   const { user, isAuthenticated } = useAuth();
   const { siteMode } = useSiteMode();
   const theme = getThemeColors(siteMode, user);
-  const minPrice = 850; // Default minimum price for B2B
+  
+  // Get dynamic minimum price from tutors API
+  const { data: tutors = [] } = useTutors('B2B');
+  const minPrice = tutors.length > 0 
+    ? Math.min(...tutors.map(t => t.price)) 
+    : 850; // Fallback price
   
   useEffect(() => {
     if (isAuthenticated) {
@@ -1321,7 +1334,12 @@ const B2CHomePage = () => {
   const { user, isAuthenticated } = useAuth();
   const { siteMode } = useSiteMode();
   const theme = getThemeColors(siteMode, user);
-  const minPrice = 475; // Default minimum price for B2C
+  
+  // Get dynamic minimum price from tutors API
+  const { data: tutors = [] } = useTutors('B2C');
+  const minPrice = tutors.length > 0 
+    ? Math.min(...tutors.map(t => t.price)) 
+    : 475; // Fallback price
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -1500,6 +1518,11 @@ const BookingPage = () => {
   
   const isB2B = siteMode === 'b2b';
   const [format, setFormat] = useState(isB2B ? 'team' : 'individual');
+  
+  // Function to get session price
+  const getSessionPrice = (session, tutor) => {
+    return session?.price;
+  };
   const [formData, setFormData] = useState({
     company: '',
     department: '',
@@ -1629,7 +1652,7 @@ const BookingPage = () => {
       }
       
       // Calculate total price based on format
-      let totalPrice = isB2B ? (tutor.basePrice || tutor.price) : tutor.price;
+      let totalPrice = getSessionPrice(session, tutor);
       if (format === 'team' && formData.participants) {
         totalPrice = totalPrice * formData.participants;
       }
@@ -1759,9 +1782,7 @@ const BookingPage = () => {
     );
   }
 
-  const totalPrice = isB2B 
-    ? tutor.basePrice * FORMAT_MULTIPLIER[format] 
-    : tutor.price * B2C_FORMAT_MULTIPLIER[format];
+  const totalPrice = getSessionPrice(session, tutor) * (isB2B ? FORMAT_MULTIPLIER[format] : B2C_FORMAT_MULTIPLIER[format]);
 
   return (
     <div className="max-w-3xl mx-auto py-12 sm:py-20">
@@ -1950,7 +1971,7 @@ const BookingPage = () => {
                       <div className="flex items-center justify-between">
                         <span className="text-slate-300 font-medium">{label}</span>
                         <span className="text-lg font-bold text-white">
-                          {Math.round(tutor.price * B2C_FORMAT_MULTIPLIER[key])},-
+                          {(getSessionPrice(session, tutor) * B2C_FORMAT_MULTIPLIER[key]).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                         </span>
                       </div>
                       <p className="text-sm text-slate-400 mt-1">
@@ -1976,11 +1997,11 @@ const BookingPage = () => {
         <div className="border-t border-slate-700 pt-6 text-center">
           <p className="text-slate-400">{isB2B ? 'Total (ex. moms):' : 'Total pris:'}</p>
           <p className="text-4xl font-extrabold text-white">
-            {Math.round(totalPrice).toLocaleString('da-DK')} kr{!isB2B ? ',-' : '.'}
+            {totalPrice.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
           </p>
           {!isB2B && format === 'group' && (
             <p className="text-sm text-green-400 mt-2">
-              Du sparer {Math.round(tutor.price * 0.3)} kr. med gruppesession!
+              Du sparer {(getSessionPrice(session, tutor) * 0.3).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr. med gruppesession!
             </p>
           )}
           <button
@@ -2058,7 +2079,7 @@ const BookingSuccessPage = () => {
           <p className="text-slate-300 text-sm">Afdeling: {booking.department}</p>
           <p className="text-slate-300 text-sm">Kontakt: {booking.contactName}</p>
           <p className="text-slate-300 text-sm">Email: {booking.contactEmail}</p>
-          <p className="text-slate-300 text-sm">Total: {booking.totalPrice.toLocaleString('da-DK')} kr.</p>
+          <p className="text-slate-300 text-sm">Total: {booking.totalPrice.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
           {booking.selectedDateTime && (
             <p className="text-slate-300 text-sm mt-2">
               <strong>Ønsket tid:</strong> {(() => {
@@ -2226,7 +2247,7 @@ const DashboardPage = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-white">{booking.totalPrice.toLocaleString('da-DK')} kr.</p>
+                        <p className="text-2xl font-bold text-white">{booking.totalPrice.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
                         <p className="text-slate-400 text-sm">
                           {isB2B ? 'Total investering' : 'Samlet pris'}
                         </p>
@@ -2402,7 +2423,7 @@ const DashboardPage = () => {
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold text-blue-400">
-                  {bookings.reduce((sum, b) => sum + b.totalPrice, 0).toLocaleString('da-DK')} kr.
+                  {bookings.reduce((sum, b) => sum + b.totalPrice, 0).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                 </p>
                 <p className="text-slate-400">Total investering</p>
               </div>

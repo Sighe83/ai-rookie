@@ -6,9 +6,10 @@ Node.js backend API for the AI Rookie B2B/B2C tutoring platform.
 
 - **Authentication & Authorization** - JWT-based auth with role-based access control
 - **Tutor Management** - Create and manage tutor profiles and sessions
+- **Session Management** - Create sessions with individual pricing
 - **Booking System** - Handle individual and group session bookings
 - **Availability Management** - Real-time availability tracking and time slot booking
-- **B2B/B2C Support** - Different pricing and features for different user types
+- **B2B/B2C Support** - Unified pricing with session-level control
 - **Rate Limiting** - API protection against abuse
 - **Error Handling** - Comprehensive error handling and logging
 
@@ -91,8 +92,8 @@ The API will be available at `http://localhost:3001`
 
 The database includes these main models:
 - **User** - System users (customers, tutors, admins)
-- **Tutor** - Tutor profiles and pricing
-- **Session** - Available training sessions
+- **Tutor** - Tutor profiles and information
+- **Session** - Available training sessions with individual pricing
 - **Booking** - Session bookings with contact info
 - **TutorAvailability** - Available time slots per tutor/date
 

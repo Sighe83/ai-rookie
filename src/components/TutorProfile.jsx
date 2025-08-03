@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, Building, Briefcase, DollarSign, Save, Edit, Upload, Camera } from 'lucide-react';
 import { tutorManagementApi } from '../services/api.js';
+import { SessionUtils } from '../utils/sessionUtils.js';
 
 const TutorProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -31,8 +32,6 @@ const TutorProfile = () => {
         experience: response.data.experience || '',
         value_prop: response.data.value_prop || '',
         img: response.data.img || '',
-        base_price: response.data.base_price || 0,
-        price: response.data.price || 0
       };
       
       setProfile(tutorProfile);
@@ -92,8 +91,6 @@ const TutorProfile = () => {
         experience: profile.experience,
         value_prop: profile.value_prop,
         img: profile.img,
-        base_price: profile.base_price,
-        price: profile.price
       };
       
       await tutorManagementApi.updateProfile(tutorData);
@@ -171,11 +168,23 @@ const TutorProfile = () => {
           {/* Profile Image */}
           <div className="text-center">
             <div className="relative inline-block">
-              <img
-                src={profile.img || 'https://via.placeholder.com/128x128/475569/ffffff?text=Intet+billede'}
-                alt={profile.name}
-                className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700 object-cover"
-              />
+              {profile.img ? (
+                <img
+                  src={profile.img}
+                  alt={profile.name}
+                  className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-slate-700 object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="w-32 h-32 bg-purple-600 rounded-full mx-auto mb-4 border-4 border-slate-700 flex items-center justify-center text-white font-bold text-4xl"
+                style={{ display: profile.img ? 'none' : 'flex' }}
+              >
+                {SessionUtils.generateInitials(profile.name)}
+              </div>
               {uploading && (
                 <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
@@ -319,39 +328,6 @@ const TutorProfile = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  <DollarSign className="w-4 h-4 inline mr-1" />
-                  B2B Basispris (kr/time)
-                </label>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    value={profile.base_price}
-                    onChange={(e) => setProfile(prev => ({ ...prev, base_price: parseInt(e.target.value) }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
-                  />
-                ) : (
-                  <p className="text-white">{profile.base_price} kr</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  <DollarSign className="w-4 h-4 inline mr-1" />
-                  B2C Pris (kr/session)
-                </label>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    value={profile.price}
-                    onChange={(e) => setProfile(prev => ({ ...prev, price: parseInt(e.target.value) }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2"
-                  />
-                ) : (
-                  <p className="text-white">{profile.price} kr</p>
-                )}
-              </div>
             </div>
           </div>
         </div>

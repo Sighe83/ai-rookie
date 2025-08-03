@@ -13,7 +13,7 @@ const SessionManager = () => {
   const [newSession, setNewSession] = useState({
     title: '',
     description: '',
-    price_override: null
+    price: ''
   });
 
   useEffect(() => {
@@ -26,10 +26,7 @@ const SessionManager = () => {
       setError(null);
       const response = await tutorManagementApi.getProfile();
       
-      const tutorProfile = {
-        base_price: response.data.basePrice || 0,
-        price: response.data.price || 0
-      };
+      const tutorProfile = {};
       
       setProfile(tutorProfile);
       setSessions(response.data.sessions || []);
@@ -53,19 +50,19 @@ const SessionManager = () => {
   };
 
   const handleAddSession = async () => {
-    if (!newSession.title || !newSession.description) return;
+    if (!newSession.title || !newSession.description || !newSession.price) return;
     
     try {
       const sessionData = {
         title: newSession.title,
         description: newSession.description,
         duration: 60, // Always 1 hour
-        price_override: newSession.price_override || null
+        price: parseFloat(newSession.price)
       };
       
       await sessionsApi.createSession(sessionData);
       await loadData(); // Reload to get updated data
-      setNewSession({ title: '', description: '', price_override: null });
+      setNewSession({ title: '', description: '', price: '' });
       setIsAddingSession(false);
     } catch (error) {
       console.error('Failed to add session:', error);
@@ -155,17 +152,18 @@ const SessionManager = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Pris Override (valgfrit)
+                  <DollarSign className="w-4 h-4 inline mr-1" />
+                  Sessionspris (obligatorisk)
                 </label>
                 <input
                   type="number"
-                  value={newSession.price_override || ''}
-                  onChange={(e) => setNewSession(prev => ({ ...prev, price_override: e.target.value ? parseInt(e.target.value) : null }))}
+                  value={newSession.price}
+                  onChange={(e) => setNewSession(prev => ({ ...prev, price: e.target.value }))}
                   className="w-full bg-slate-600 text-white rounded-md px-3 py-2"
-                  placeholder={`Standard: ${profile.price} kr`}
+                  placeholder="Pris i kroner (fx 850)"
                 />
                 <p className="text-xs text-slate-400 mt-1">
-                  Lad stå tom for at bruge standard pris ({profile.price} kr)
+                  Angiv prisen for denne session i kroner (obligatorisk)
                 </p>
               </div>
               <div className="bg-slate-600 p-3 rounded-lg">
@@ -177,7 +175,7 @@ const SessionManager = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleAddSession}
-                  disabled={!newSession.title || !newSession.description}
+                  disabled={!newSession.title || !newSession.description || !newSession.price}
                   className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
@@ -186,7 +184,7 @@ const SessionManager = () => {
                 <button
                   onClick={() => {
                     setIsAddingSession(false);
-                    setNewSession({ title: '', description: '', price_override: null });
+                    setNewSession({ title: '', description: '', price: '' });
                   }}
                   className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-lg flex items-center gap-2"
                 >
@@ -226,10 +224,10 @@ const SessionManager = () => {
                         />
                         <input
                           type="number"
-                          defaultValue={session.price_override || ''}
-                          onChange={(e) => session.price_override = e.target.value ? parseInt(e.target.value) : null}
+                          defaultValue={session.price || ''}
+                          onChange={(e) => session.price = e.target.value ? parseFloat(e.target.value) : null}
                           className="w-32 bg-slate-600 text-white rounded-md px-3 py-2"
-                          placeholder={`${profile.price} kr`}
+                          placeholder="Pris i kr"
                         />
                       </div>
                     ) : (
@@ -243,7 +241,7 @@ const SessionManager = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
-                            Pris: {session.price_override || profile.price} kr
+                            Pris: {session.price || 0} kr
                           </div>
                         </div>
                       </div>

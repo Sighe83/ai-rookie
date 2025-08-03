@@ -156,8 +156,6 @@ router.get('/me', authMiddleware, async (req, res) => {
             experience: true,
             valueProp: true,
             img: true,
-            basePrice: true,
-            price: true,
             isActive: true
           }
         }
@@ -234,7 +232,7 @@ router.put('/profile', authMiddleware, validate(schemas.userProfileUpdate), asyn
       error: 'Failed to update user profile'
     });
   }
-});
+}));
 
 // POST /api/auth/change-password - Change user password via Supabase
 router.post('/change-password', passwordLimiter, authMiddleware, validate(schemas.passwordChange), asyncHandler(async (req, res) => {
@@ -279,7 +277,7 @@ router.post('/change-password', passwordLimiter, authMiddleware, validate(schema
       error: 'Failed to change password'
     });
   }
-});
+}));
 
 // POST /api/auth/logout - Logout user via Supabase
 router.post('/logout', authMiddleware, async (req, res) => {

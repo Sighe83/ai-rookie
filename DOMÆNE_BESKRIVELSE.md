@@ -107,8 +107,6 @@ Tutor {
   experience: String? (erfaring beskrivelse)
   valueProp: String? (værdiproposition)
   img: String? (profilbillede URL)
-  basePrice: Integer (B2B pris i øre)
-  price: Integer (B2C pris i øre)
   isActive: Boolean
   createdAt: DateTime
   updatedAt: DateTime
@@ -123,7 +121,7 @@ Tutor {
 
 **Forretningsregler**:
 - En bruger kan kun være tutor hvis role = 'TUTOR'
-- B2B og B2C priser kan være forskellige
+- Tutors har ikke priser - priser er defineret på session niveau
 - Kun aktive tutors vises til kunder
 - Tutors skal have mindst én session for at være bookbare
 
@@ -139,7 +137,7 @@ Session {
   title: String (session navn)
   description: String (detaljeret beskrivelse)
   duration: Integer (varighed i minutter, default 60)
-  priceOverride: Integer? (tilsidesæt tutor pris)
+  price: Integer (session pris i øre)
   isActive: Boolean
   createdAt: DateTime
   updatedAt: DateTime
@@ -152,7 +150,7 @@ Session {
 
 **Forretningsregler**:
 - Duration skal være minimum 30 minutter
-- PriceOverride har prioritet over tutor basePrice/price
+- Hver session har sin egen pris uafhængigt af tutoren
 - Kun aktive sessioner kan bookes
 - Session kræver tilgængelige tidspunkter for booking
 
@@ -195,8 +193,8 @@ Booking {
 - `N:1` → Session (booking er for en session)
 
 **Forretningsregler**:
-- TotalPrice beregnes baseret på format og participants
-- B2B bookinger bruger basePrice, B2C bruger price
+- TotalPrice beregnes baseret på session.price, format og participants
+- Prisstrukturen er den samme for B2B og B2C (sessions definerer deres egen pris)
 - TEAM format kan have 2-10 deltagere
 - PROGRAM format er længere kurser med multiple sessioner
 - Payment skal være PAID før status kan være CONFIRMED
@@ -313,11 +311,8 @@ SystemSettings {
 
 #### **Pris Beregning**:
 ```javascript
-// B2B pricing
-totalPrice = tutor.basePrice * participants * duration_multiplier
-
-// B2C pricing  
-totalPrice = tutor.price * participants * duration_multiplier
+// Session-baseret pricing (samme for B2B og B2C)
+totalPrice = session.price * participants * format_multiplier
 
 // Format multipliers
 INDIVIDUAL: 1.0

@@ -107,6 +107,7 @@ export const useTutors = (siteMode = 'B2B') => {
           .from('tutors')
           .select(`
             *,
+            user:users(name, email),
             sessions(*)
           `)
           .eq('is_active', true)
@@ -116,23 +117,14 @@ export const useTutors = (siteMode = 'B2B') => {
           throw fetchError;
         }
 
-        // Transform data
-        const transformedTutors = rawData?.map(tutor => ({
-          id: tutor.id,
-          userId: tutor.user_id,
-          title: tutor.title || 'Unavailable',
-          specialty: tutor.specialty || 'General',
-          experience: tutor.experience || '',
-          valueProp: tutor.value_prop || '',
-          img: tutor.img || `https://placehold.co/100x100/E2E8F0/4A5568?text=${(tutor.title || 'T')[0]}`,
-          basePrice: tutor.base_price || tutor.price || 0,
-          price: tutor.price || tutor.base_price || 0,
-          isActive: tutor.is_active,
-          name: tutor.title || tutor.name || 'Unavailable',
-          sessions: Array.isArray(tutor.sessions) ? tutor.sessions : []
-        })) || [];
-
-        setData(transformedTutors);
+        // Transform data to include name from user relationship
+        const transformedData = (rawData || []).map(tutor => ({
+          ...tutor,
+          name: tutor.user?.name || 'Unavngivet Tutor',
+          email: tutor.user?.email || 'No email'
+        }));
+        
+        setData(transformedData);
         
       } catch (err) {
         setError(err.message);
@@ -145,6 +137,32 @@ export const useTutors = (siteMode = 'B2B') => {
   }, [siteMode]);
   
   return { data: data || [], loading, error };
+};
+
+// Hook for getting tutor by user ID
+export const useTutorByUserId = (userId) => {
+  return useSupabaseQuery(async () => {
+    if (!userId) {
+      throw new Error('User ID er påkrævet');
+    }
+
+    const { data, error } = await supabase
+      .from('tutors')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
+      }
+      throw error;
+    }
+    
+    return data;
+  }, [userId]);
 };
 
 // Hook for single tutor
@@ -163,7 +181,6 @@ export const useTutor = (id, siteMode = 'B2B') => {
     if (error) throw error;
     return {
       ...data,
-      basePrice: data.base_price,
       valueProp: data.value_prop,
       sessions: data.sessions || []
     };
@@ -196,7 +213,7 @@ export const useBookings = (filters = {}) => {
       .from('bookings')
       .select(`
         *,
-        tutor:tutors(*),
+        tutor:tutors(*, user:users(name, email)),
         session:sessions(*)
       `)
       .eq('user_id', user.id);
@@ -250,8 +267,12 @@ export const useBookings = (filters = {}) => {
           ...booking,
           totalPrice: booking.total_price || 0,
           bookingDate: booking.created_at,
-          // Ensure nested objects exist
-          tutor: booking.tutor || { name: 'Unknown', title: 'Unknown' },
+          // Ensure nested objects exist and include name from user relation
+          tutor: {
+            ...(booking.tutor || {}),
+            name: booking.tutor?.user?.name || booking.tutor?.name || 'Unknown',
+            email: booking.tutor?.user?.email || booking.tutor?.email || 'No email'
+          },
           session: booking.session || { title: 'Unknown Session' }
         };
       } catch (transformError) {
@@ -260,7 +281,7 @@ export const useBookings = (filters = {}) => {
           ...booking,
           totalPrice: 0,
           bookingDate: booking.created_at,
-          tutor: { name: 'Unknown', title: 'Unknown' },
+          tutor: { name: 'Unknown', title: 'Unknown', email: 'No email' },
           session: { title: 'Unknown Session' }
         };
       }
@@ -388,8 +409,8 @@ export const useCreateBooking = () => {
 
       // Calculate total price if not provided
       let totalPrice = bookingData.totalPrice || 0;
-      if (!totalPrice && bookingData.participants && bookingData.basePrice) {
-        totalPrice = bookingData.basePrice * bookingData.participants;
+      if (!totalPrice && bookingData.participants && bookingData.sessionPrice) {
+        totalPrice = bookingData.sessionPrice * bookingData.participants;
       }
 
       const { data, error } = await supabase
@@ -416,7 +437,7 @@ export const useCreateBooking = () => {
         }])
         .select(`
           *,
-          tutor:tutors(*),
+          tutor:tutors(*, user:users(name, email)),
           session:sessions(*)
         `)
         .single();
@@ -431,4 +452,72 @@ export const useCreateBooking = () => {
   }, [mutate]);
 
   return { createBooking, loading, error, clearError };
+};
+
+// Hook for tutor dashboard statistics
+export const useTutorStats = (tutorId) => {
+  return useSupabaseQuery(async () => {
+    if (!tutorId) {
+      throw new Error('Tutor ID er påkrævet');
+    }
+
+    const now = new Date();
+    const startOfNext7Days = new Date(now);
+    const endOfNext7Days = new Date(now);
+    endOfNext7Days.setDate(now.getDate() + 7); // 7 days from now
+    
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Get next 7 days' bookings
+    const { data: next7DaysBookings } = await supabase
+      .from('bookings')
+      .select('total_price, status')
+      .eq('tutor_id', tutorId)
+      .gte('selected_date_time', startOfNext7Days.toISOString())
+      .lte('selected_date_time', endOfNext7Days.toISOString());
+
+    // Get this month's bookings for earnings
+    const { data: thisMonthBookings } = await supabase
+      .from('bookings')
+      .select('total_price, status')
+      .eq('tutor_id', tutorId)
+      .eq('status', 'CONFIRMED')
+      .gte('selected_date_time', startOfMonth.toISOString())
+      .lte('selected_date_time', endOfMonth.toISOString());
+
+    // Get total completed sessions
+    const { data: completedSessions } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('tutor_id', tutorId)
+      .eq('status', 'COMPLETED');
+
+    // Calculate next week availability (simplified - would need availability system)
+    const nextWeekStart = new Date(endOfNext7Days);
+    nextWeekStart.setDate(endOfNext7Days.getDate() + 1);
+    const nextWeekEnd = new Date(nextWeekStart);
+    nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
+    
+    // For now, estimate available slots (could be improved with actual availability data)
+    const estimatedWeeklySlots = 40; // 8 hours/day * 5 days
+    const { data: nextWeekBookings } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('tutor_id', tutorId)
+      .gte('selected_date_time', nextWeekStart.toISOString())
+      .lte('selected_date_time', nextWeekEnd.toISOString());
+
+    const next7DaysCount = next7DaysBookings?.length || 0;
+    const monthlyEarnings = thisMonthBookings?.reduce((sum, booking) => sum + (booking.total_price || 0), 0) || 0;
+    const completedCount = completedSessions?.length || 0;
+    const availableSlots = Math.max(0, estimatedWeeklySlots - (nextWeekBookings?.length || 0));
+
+    return {
+      next7DaysBookings: next7DaysCount,
+      nextWeekAvailableSlots: availableSlots,
+      monthlyEarnings: monthlyEarnings / 100, // Convert from øre to kroner
+      totalCompletedSessions: completedCount
+    };
+  }, [tutorId]);
 };
