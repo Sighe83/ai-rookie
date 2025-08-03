@@ -43,6 +43,7 @@ export const AuthProvider = ({ children }) => {
   const subscriptionRef = useRef(null);
   const mountedRef = useRef(true);
   const initPromiseRef = useRef(null); // Track initialization promise to prevent multiple inits
+  const userRoleRef = useRef(null); // Track user role to preserve during auth state changes
 
   // Safe user profile fetch with error handling and retry logic
   const fetchUserProfile = useCallback(async (userId, isRetry = false) => {
@@ -68,6 +69,13 @@ export const AuthProvider = ({ children }) => {
       
       console.log('fetchUserProfile: Profile fetch result:', { 
         hasProfile: !!profile, 
+        profileData: profile ? {
+          id: profile.id,
+          email: profile.email,
+          name: profile.name,
+          role: profile.role,
+          site_mode: profile.site_mode
+        } : null,
         error: error?.message,
         errorCode: error?.code 
       });
@@ -149,28 +157,38 @@ export const AuthProvider = ({ children }) => {
           
           if (mountedRef.current) {
             if (!profile) {
-              console.warn('No profile found during init, using auth data only');
+              console.warn('No profile found during init, using auth data with role fallback');
               const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
               const defaultSiteMode = session.user.user_metadata?.site_mode || 'B2C';
-              console.log('Setting user name during init to:', userName, 'site_mode:', defaultSiteMode);
-              setUser({
+              const fallbackRole = userRoleRef.current || 'USER'; // Use ref fallback during init
+              console.log('Setting user name during init to:', userName, 'site_mode:', defaultSiteMode, 'role:', fallbackRole);
+              const userData = {
                 id: session.user.id,
                 email: session.user.email,
                 name: userName,
-                role: 'USER',
+                role: fallbackRole,
                 site_mode: defaultSiteMode,
                 phone: null,
                 company: null,
                 department: null
-              });
+              };
+              setUser(userData);
+              userRoleRef.current = fallbackRole; // Update ref
             } else {
               // Ensure name is always set, fallback to email if missing from profile
               const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-              console.log('Setting user from profile during init to:', userName, 'site_mode:', profile.site_mode);
-              setUser({
+              console.log('Setting user from profile during init:', {
+                userName,
+                site_mode: profile.site_mode,
+                role: profile.role,
+                fullProfile: profile
+              });
+              const userData = {
                 ...profile,
                 name: userName
-              });
+              };
+              setUser(userData);
+              userRoleRef.current = profile.role; // Initialize ref with role
             }
             setError(null);
             console.log('useAuth: User state set during initialization');
@@ -195,30 +213,45 @@ export const AuthProvider = ({ children }) => {
                   if (!profile) {
                     // If we have existing user data with site_mode, preserve it during failed profile fetches
                     const existingSiteMode = user?.site_mode || session.user.user_metadata?.site_mode || 'B2C';
+                    const existingRole = userRoleRef.current || user?.role || 'USER'; // Use ref first, then fallback
                     const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-                    console.log('fetchUserProfile: No profile found, preserving existing site_mode:', existingSiteMode);
-                    setUser({
+                    console.log('fetchUserProfile: No profile found, preserving existing user data:', {
+                      site_mode: existingSiteMode,
+                      role: existingRole,
+                      email: session.user.email
+                    });
+                    const userData = {
                       id: session.user.id,
                       email: session.user.email,
                       name: userName,
-                      role: user?.role || 'USER', // Preserve existing role if available
+                      role: existingRole, // Preserve existing role
                       site_mode: existingSiteMode,
                       phone: user?.phone || null,
                       company: user?.company || null,
                       department: user?.department || null
-                    });
+                    };
+                    setUser(userData);
+                    userRoleRef.current = existingRole; // Update ref
                   } else {
                     const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-                    setUser({
+                    console.log('fetchUserProfile: Profile found, updating user data:', {
+                      site_mode: profile.site_mode,
+                      role: profile.role,
+                      email: session.user.email
+                    });
+                    const userData = {
                       ...profile,
                       name: userName
-                    });
+                    };
+                    setUser(userData);
+                    userRoleRef.current = profile.role; // Update ref with fresh role
                   }
                   setError(null);
                 }
               } else if (event === 'SIGNED_OUT') {
                 if (mountedRef.current) {
                   setUser(null);
+                  userRoleRef.current = null; // Reset role ref on signout
                   setError(null);
                 }
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
@@ -228,14 +261,32 @@ export const AuthProvider = ({ children }) => {
                 
                 if (mountedRef.current && profile) {
                   const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
-                  setUser({
+                  console.log('useAuth: Profile updated after token refresh:', {
+                    site_mode: profile.site_mode,
+                    role: profile.role,
+                    email: session.user.email
+                  });
+                  const userData = {
                     ...profile,
                     name: userName
-                  });
-                  console.log('useAuth: Profile updated after token refresh');
+                  };
+                  setUser(userData);
+                  userRoleRef.current = profile.role; // Update ref with fresh role
                 } else if (mountedRef.current && user) {
-                  // Profile fetch failed, but we have existing user data - preserve it
-                  console.log('useAuth: Profile fetch failed during token refresh, preserving existing user data');
+                  // Profile fetch failed, but we have existing user data - preserve it completely
+                  const preservedRole = userRoleRef.current || user.role;
+                  console.log('useAuth: Profile fetch failed during token refresh, preserving existing user data:', {
+                    site_mode: user.site_mode,
+                    role: preservedRole,
+                    email: user.email
+                  });
+                  // Update user with preserved role from ref
+                  const userData = {
+                    ...user,
+                    role: preservedRole
+                  };
+                  setUser(userData);
+                  userRoleRef.current = preservedRole; // Ensure ref is up to date
                 }
               }
             }
@@ -264,6 +315,7 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       mountedRef.current = false;
+      userRoleRef.current = null; // Reset role ref
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
@@ -277,6 +329,7 @@ export const AuthProvider = ({ children }) => {
       console.log('useAuth: Component unmounting, setting mountedRef to false');
       mountedRef.current = false;
       initPromiseRef.current = null;
+      userRoleRef.current = null; // Reset role ref on unmount
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
@@ -348,13 +401,34 @@ export const AuthProvider = ({ children }) => {
         if (mountedRef.current) {
           const profile = await fetchUserProfile(data.user.id);
           if (mountedRef.current) {
-            const userName = profile?.name || data.user.user_metadata?.name || data.user.email?.split('@')[0] || data.user.email;
-            setUser({
-              ...data.user,
-              ...profile,
-              name: userName
-            });
-            console.log('Login successful, user state updated.');
+            if (profile) {
+              const userName = profile.name || data.user.user_metadata?.name || data.user.email?.split('@')[0] || data.user.email;
+              const userData = {
+                ...data.user,
+                ...profile,
+                name: userName
+              };
+              setUser(userData);
+              userRoleRef.current = profile.role; // Initialize ref with role from login
+              console.log('Login successful with profile, user state updated.');
+            } else {
+              // Profile fetch failed during login - use minimal user data with USER role
+              const userName = data.user.user_metadata?.name || data.user.email?.split('@')[0] || data.user.email;
+              const defaultSiteMode = data.user.user_metadata?.site_mode || 'B2C';
+              const userData = {
+                id: data.user.id,
+                email: data.user.email,
+                name: userName,
+                role: 'USER', // Use default role during initial login
+                site_mode: defaultSiteMode,
+                phone: null,
+                company: null,
+                department: null
+              };
+              setUser(userData);
+              userRoleRef.current = 'USER'; // Initialize ref with default role
+              console.log('Login successful without profile, using default user data.');
+            }
           }
         } else {
           console.log('Login successful, but component unmounted. Auth state change listener will handle user state.');
@@ -455,6 +529,7 @@ export const AuthProvider = ({ children }) => {
       
       if (mountedRef.current) {
         setUser(null);
+        userRoleRef.current = null; // Reset role ref on logout
       }
     } catch (error) {
       console.warn('Logout error:', error);
@@ -501,6 +576,7 @@ export const AuthProvider = ({ children }) => {
       };
 
       setUser(updatedUser);
+      userRoleRef.current = updatedUser.role; // Update ref if role changed
       return { success: true, user: updatedUser };
     } catch (error) {
       console.error('Profile update error:', error);

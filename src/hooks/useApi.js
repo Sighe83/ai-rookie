@@ -157,7 +157,8 @@ export const useTutors = (siteMode = 'B2B') => {
 export const useTutorByUserId = (userId) => {
   return useSupabaseQuery(async () => {
     if (!userId) {
-      throw new Error('User ID er påkrævet');
+      // Return null instead of throwing error to handle loading state gracefully
+      return null;
     }
 
     const { data, error } = await supabase
@@ -483,7 +484,8 @@ export const useCreateBooking = () => {
 export const useTutorStats = (tutorId) => {
   return useSupabaseQuery(async () => {
     if (!tutorId) {
-      throw new Error('Tutor ID er påkrævet');
+      // Return null instead of throwing error to handle loading state gracefully
+      return null;
     }
 
     const now = new Date();
