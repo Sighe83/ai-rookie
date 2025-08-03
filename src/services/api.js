@@ -26,9 +26,10 @@ export const tutorsApi = {
       .select(`
         *,
         user:users(name, email),
-        sessions(*)
+        sessions!inner(*)
       `)
       .eq('is_active', true)
+      .eq('sessions.is_active', true)
       .order('created_at', { ascending: false });
 
     if (error) throw new ApiError(error.message, 400, error);
@@ -43,23 +44,34 @@ export const tutorsApi = {
   },
 
   getById: async (id, siteMode = 'B2B') => {
-    const { data, error } = await supabase
+    // Get tutor data
+    const { data: tutorData, error: tutorError } = await supabase
       .from('tutors')
       .select(`
         *,
-        user:users(name, email),
-        sessions(*)
+        user:users(name, email)
       `)
       .eq('id', id)
       .eq('is_active', true)
       .single();
 
-    if (error) throw new ApiError(error.message, 404, error);
-    
-    // Transform data to include user name at tutor level
+    if (tutorError) throw new ApiError(tutorError.message, 404, tutorError);
+
+    // Get active sessions separately
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('tutor_id', id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (sessionsError) throw new ApiError(sessionsError.message, 400, sessionsError);
+
+    // Transform data to include user name at tutor level and active sessions
     const transformedData = {
-      ...data,
-      name: data.user?.name || 'Unavngivet Tutor'
+      ...tutorData,
+      name: tutorData.user?.name || 'Unavngivet Tutor',
+      sessions: sessions || []
     };
     
     return { data: transformedData, success: true };
@@ -507,18 +519,35 @@ export const tutorManagementApi = {
     if (userError) throw new ApiError('Authentication failed', 401, userError);
     if (!user) throw new ApiError('Not authenticated', 401);
 
-    const { data, error } = await supabase
+    // Get tutor data
+    const { data: tutorData, error: tutorError } = await supabase
       .from('tutors')
       .select(`
         *,
-        user:users(*),
-        sessions(*)
+        user:users(*)
       `)
       .eq('user_id', user.id)
       .single();
 
-    if (error) throw new ApiError(error.message, 404, error);
-    return { data, success: true };
+    if (tutorError) throw new ApiError(tutorError.message, 404, tutorError);
+
+    // Get active sessions separately
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('tutor_id', tutorData.id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (sessionsError) throw new ApiError(sessionsError.message, 400, sessionsError);
+
+    // Combine the data
+    const result = {
+      ...tutorData,
+      sessions: sessions || []
+    };
+
+    return { data: result, success: true };
   },
 
   updateProfile: async (profileData) => {
@@ -804,9 +833,19 @@ export const sessionsApi = {
   },
 
   deleteSession: async (sessionId) => {
+    console.log('🔄 Starting deleteSession API call for:', sessionId);
+    
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) throw new ApiError('Authentication failed', 401, userError);
-    if (!user) throw new ApiError('Not authenticated', 401);
+    if (userError) {
+      console.error('❌ Auth error in deleteSession:', userError);
+      throw new ApiError('Authentication failed', 401, userError);
+    }
+    if (!user) {
+      console.error('❌ No user found in deleteSession');
+      throw new ApiError('Not authenticated', 401);
+    }
+    
+    console.log('✅ User authenticated:', user.email);
 
     // Get tutor ID
     const { data: tutorData, error: tutorError } = await supabase
@@ -815,8 +854,15 @@ export const sessionsApi = {
       .eq('user_id', user.id)
       .single();
 
-    if (tutorError) throw new ApiError('Tutor not found', 404, tutorError);
+    if (tutorError) {
+      console.error('❌ Tutor lookup error:', tutorError);
+      throw new ApiError('Tutor not found', 404, tutorError);
+    }
+    
+    console.log('✅ Tutor found:', tutorData.id);
 
+    // Perform the update
+    console.log('🔄 Updating session is_active to false...');
     const { data, error } = await supabase
       .from('sessions')
       .update({ is_active: false })
@@ -825,7 +871,12 @@ export const sessionsApi = {
       .select()
       .single();
 
-    if (error) throw new ApiError(error.message, 400, error);
+    if (error) {
+      console.error('❌ Session update error:', error);
+      throw new ApiError(error.message, 400, error);
+    }
+    
+    console.log('✅ Session successfully marked as inactive:', data);
     return { data, success: true };
   }
 };

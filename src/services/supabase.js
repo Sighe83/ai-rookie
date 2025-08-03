@@ -145,44 +145,74 @@ export const dbHelpers = {
 
   // Get tutors
   getTutors: async (filters = {}) => {
-    let query = supabase
+    // Get tutors first
+    let tutorQuery = supabase
       .from('tutors')
       .select(`
         *,
-        user:users(name, email),
-        sessions(*)
+        user:users(name, email)
       `)
       .eq('is_active', true);
 
     if (filters.specialty) {
-      query = query.eq('specialty', filters.specialty);
+      tutorQuery = tutorQuery.eq('specialty', filters.specialty);
     }
 
-    if (filters.siteMode) {
-      query = query.eq('site_mode', filters.siteMode);
-    }
+    const { data: tutors, error: tutorError } = await tutorQuery.order('created_at', { ascending: false });
+    if (tutorError) throw tutorError;
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    // Get active sessions for each tutor
+    const tutorsWithSessions = await Promise.all(
+      tutors.map(async (tutor) => {
+        const { data: sessions, error: sessionsError } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('tutor_id', tutor.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+
+        if (sessionsError) throw sessionsError;
+        
+        return {
+          ...tutor,
+          sessions: sessions || []
+        };
+      })
+    );
+
+    return tutorsWithSessions;
   },
 
   // Get tutor by ID
   getTutorById: async (id) => {
-    const { data, error } = await supabase
+    // Get tutor data
+    const { data: tutorData, error: tutorError } = await supabase
       .from('tutors')
       .select(`
         *,
         user:users(name, email),
-        sessions(*),
         availability:tutor_availability(*)
       `)
       .eq('id', id)
       .eq('is_active', true)
       .single();
 
-    if (error) throw error;
-    return data;
+    if (tutorError) throw tutorError;
+
+    // Get active sessions separately
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('tutor_id', id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (sessionsError) throw sessionsError;
+
+    return {
+      ...tutorData,
+      sessions: sessions || []
+    };
   },
 
   // Get user bookings
