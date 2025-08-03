@@ -44,16 +44,29 @@ export const AuthProvider = ({ children }) => {
   const mountedRef = useRef(true);
   const initPromiseRef = useRef(null); // Track initialization promise to prevent multiple inits
   const userRoleRef = useRef(null); // Track user role to preserve during auth state changes
+  const lastProfileFetchRef = useRef(null); // Track last profile fetch time to prevent spamming
 
   // Safe user profile fetch with error handling and retry logic
-  const fetchUserProfile = useCallback(async (userId, isRetry = false) => {
+  const fetchUserProfile = useCallback(async (userId, isRetry = false, isBackground = false) => {
     if (!mountedRef.current) return null;
     
+    // Throttle profile fetches to prevent spamming - wait at least 2 seconds between fetches
+    const now = Date.now();
+    const lastFetch = lastProfileFetchRef.current;
+    const throttleMs = 2000;
+    
+    if (isBackground && lastFetch && (now - lastFetch) < throttleMs) {
+      console.log('fetchUserProfile: Throttling background profile fetch, using existing user data');
+      return null; // Return null to preserve existing user data
+    }
+    
+    lastProfileFetchRef.current = now;
+    
     try {
-      console.log('fetchUserProfile: Starting profile fetch for userId:', userId, isRetry ? '(retry)' : '');
+      console.log('fetchUserProfile: Starting profile fetch for userId:', userId, isRetry ? '(retry)' : '', isBackground ? '(background)' : '');
       
-      // Use longer timeout for retries or during token refresh
-      const timeoutMs = isRetry ? 10000 : 8000;
+      // Use more aggressive timeouts - shorter for better UX, especially on window focus
+      const timeoutMs = isBackground ? 5000 : (isRetry ? 7000 : 4000);
       
       const fetchPromise = supabase
         .from('users')
@@ -96,11 +109,11 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.warn('Profile fetch failed:', error);
       
-      // Retry once if this is the first attempt and we're not already retrying
-      if (!isRetry && error.message === 'Profile fetch timeout') {
+      // Only retry once and only for non-background fetches to avoid hanging the UI
+      if (!isRetry && !isBackground && error.message === 'Profile fetch timeout') {
         console.log('fetchUserProfile: Retrying profile fetch after timeout...');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-        return fetchUserProfile(userId, true);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Shorter wait
+        return fetchUserProfile(userId, true, isBackground);
       }
       
       return null;
@@ -206,8 +219,9 @@ export const AuthProvider = ({ children }) => {
               if (!mountedRef.current) return;
               
               if (event === 'SIGNED_IN' && session?.user) {
-                // Fetch fresh profile data
-                const profile = await fetchUserProfile(session.user.id);
+                // Fetch fresh profile data - use background mode if this is likely a window focus event
+                const isLikelyWindowFocus = user && user.id === session.user.id;
+                const profile = await fetchUserProfile(session.user.id, false, isLikelyWindowFocus);
                 
                 if (mountedRef.current) {
                   if (!profile) {
@@ -256,8 +270,8 @@ export const AuthProvider = ({ children }) => {
                 }
               } else if (event === 'TOKEN_REFRESHED' && session?.user) {
                 console.log('useAuth: Token refreshed successfully');
-                // Refresh user profile but preserve existing user data on failure
-                const profile = await fetchUserProfile(session.user.id);
+                // Refresh user profile in background - don't block UI if it fails
+                const profile = await fetchUserProfile(session.user.id, false, true);
                 
                 if (mountedRef.current && profile) {
                   const userName = profile.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
@@ -272,21 +286,41 @@ export const AuthProvider = ({ children }) => {
                   };
                   setUser(userData);
                   userRoleRef.current = profile.role; // Update ref with fresh role
-                } else if (mountedRef.current && user) {
-                  // Profile fetch failed, but we have existing user data - preserve it completely
-                  const preservedRole = userRoleRef.current || user.role;
-                  console.log('useAuth: Profile fetch failed during token refresh, preserving existing user data:', {
-                    site_mode: user.site_mode,
+                } else if (mountedRef.current) {
+                  // Profile fetch failed or returned null - preserve existing user data completely
+                  // This is very common on window focus/token refresh and shouldn't disrupt the user
+                  const preservedRole = userRoleRef.current || user?.role || 'USER';
+                  console.log('useAuth: Profile fetch failed/empty during token refresh, preserving existing user data:', {
+                    site_mode: user?.site_mode,
                     role: preservedRole,
-                    email: user.email
+                    email: user?.email || session.user.email
                   });
-                  // Update user with preserved role from ref
-                  const userData = {
-                    ...user,
-                    role: preservedRole
-                  };
-                  setUser(userData);
-                  userRoleRef.current = preservedRole; // Ensure ref is up to date
+                  
+                  // If we have existing user data, preserve it entirely
+                  if (user) {
+                    const userData = {
+                      ...user,
+                      role: preservedRole
+                    };
+                    setUser(userData);
+                    userRoleRef.current = preservedRole;
+                  } else {
+                    // Fallback: create minimal user data from session if no existing user
+                    const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || session.user.email;
+                    const defaultSiteMode = session.user.user_metadata?.site_mode || 'B2C';
+                    const userData = {
+                      id: session.user.id,
+                      email: session.user.email,
+                      name: userName,
+                      role: preservedRole,
+                      site_mode: defaultSiteMode,
+                      phone: null,
+                      company: null,
+                      department: null
+                    };
+                    setUser(userData);
+                    userRoleRef.current = preservedRole;
+                  }
                 }
               }
             }
@@ -316,6 +350,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       mountedRef.current = false;
       userRoleRef.current = null; // Reset role ref
+      lastProfileFetchRef.current = null; // Reset throttling
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
@@ -330,6 +365,7 @@ export const AuthProvider = ({ children }) => {
       mountedRef.current = false;
       initPromiseRef.current = null;
       userRoleRef.current = null; // Reset role ref on unmount
+      lastProfileFetchRef.current = null; // Reset throttling on unmount
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
