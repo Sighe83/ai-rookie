@@ -1,23 +1,8 @@
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../services/supabase';
 
 const AuthDebug = () => {
-  const { user, loading, initialized, isAuthenticated } = useAuth();
-  const [sessionInfo, setSessionInfo] = React.useState(null);
-
-  React.useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSessionInfo(session);
-      } catch (error) {
-        console.error('Debug session check failed:', error);
-        setSessionInfo(null);
-      }
-    };
-    checkSession();
-  }, []);
+  const { user, session, loading, initialized, isAuthenticated } = useAuth();
 
   // Only show in development
   if (import.meta.env.PROD) return null;
@@ -30,7 +15,7 @@ const AuthDebug = () => {
         <div>Loading: {loading ? '🔄' : '✅'}</div>
         <div>Authenticated: {isAuthenticated ? '✅' : '❌'}</div>
         <div>User: {user?.email || 'None'}</div>
-        <div>Session: {sessionInfo ? '✅' : '❌'}</div>
+        <div>Session: {session ? '✅' : '❌'}</div>
         <div>Site Mode: {user?.site_mode || 'Unknown'}</div>
         <div>Role: {user?.role || 'N/A'}</div>
         {user && (
