@@ -10,10 +10,10 @@ const TutorBookings = () => {
   const [updating, setUpdating] = useState(null);
 
   const statusColors = {
-    pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500' },
-    confirmed: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500' },
-    completed: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500' },
-    cancelled: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500' }
+    pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500', dot: 'bg-yellow-400' },
+    confirmed: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500', dot: 'bg-purple-400' },
+    completed: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500', dot: 'bg-blue-400' },
+    cancelled: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500', dot: 'bg-red-400' }
   };
 
   const statusLabels = {
@@ -171,121 +171,134 @@ const TutorBookings = () => {
       </div>
 
       {/* Bookings List */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {filteredBookings.map((booking) => {
           const statusStyle = statusColors[booking.status];
           
           return (
-            <div key={booking.id} className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 pb-0 sm:pb-4 border-b border-slate-700">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{booking.session}</h3>
+            <div key={booking.id} className="bg-slate-700 rounded-xl p-4 sm:p-6 border border-slate-600 hover:border-slate-500 transition-colors">
+              {/* Header - Session + Status */}
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <h3 className="text-lg sm:text-xl font-bold text-white leading-tight">{booking.session}</h3>
+                  </div>
+                  <div className={`inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} flex-shrink-0`}>
+                    <div className={`w-2 h-2 rounded-full ${statusStyle.dot}`}></div>
+                    <span>{statusLabels[booking.status]}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col sm:items-end gap-2 mt-3 sm:mt-0">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} flex items-center gap-1 w-fit sm:ml-auto`}>
-                    {getStatusIcon(booking.status)}
-                    {statusLabels[booking.status]}
-                  </span>
-                  <p className="text-xl sm:text-2xl font-bold text-white">{booking.price.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
+                
+                {/* Price and timing compact row */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-left">
+                    <p className="text-xl sm:text-2xl font-bold text-white">{booking.price.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
+                    <p className="text-slate-400 text-xs sm:text-sm">Booking værdi</p>
+                  </div>
+                  <div className="text-right text-xs sm:text-sm">
+                    <p className="text-white font-medium">
+                      {new Date(booking.date).toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}
+                    </p>
+                    <p className="text-slate-400">{booking.time}</p>
+                  </div>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="p-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Client Information */}
-                  <div>
-                    <h4 className="text-sm font-medium text-slate-400 mb-3 uppercase tracking-wider">Klient Information</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <User className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                        <span className="truncate">{booking.client}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <Mail className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                        <span className="truncate">{booking.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <Phone className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                        <span>{booking.phone}</span>
-                      </div>
+              <div className="space-y-3 sm:space-y-4">
+                {/* Client Information - Compact */}
+                <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-lg flex-shrink-0">
+                      {booking.client.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-sm sm:text-base truncate">{booking.client}</p>
+                      <p className="text-slate-400 text-xs sm:text-sm truncate">{booking.email}</p>
                       {booking.company && (
-                        <div className="flex items-center gap-2 text-slate-300">
-                          <Building className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                          <span className="truncate">{booking.company}</span>
-                        </div>
+                        <p className="text-purple-400 text-xs mt-1 truncate">{booking.company}</p>
                       )}
                     </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-slate-400 text-xs">{booking.phone}</p>
+                    </div>
                   </div>
+                </div>
 
-                  {/* Session Information */}
-                  <div>
-                    <h4 className="text-sm font-medium text-slate-400 mb-3 uppercase tracking-wider">Session Detaljer</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <Calendar className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                        <span>{new Date(booking.date).toLocaleDateString('da-DK', { 
-                          weekday: 'long', 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        })}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-300">
-                        <Clock className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                        <span>{booking.time} ({booking.duration} min)</span>
-                      </div>
+                {/* Session Details */}
+                <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                      <p className="text-white font-medium text-sm sm:text-base">
+                        {new Date(booking.date).toLocaleDateString('da-DK', { 
+                          weekday: 'short', 
+                          day: 'numeric', 
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                      <p className="text-white font-medium text-sm sm:text-base">
+                        {booking.time} - {new Date(new Date(booking.date + 'T' + booking.time).getTime() + 60*60*1000).toLocaleTimeString('da-DK', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })} ({booking.duration} min)
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Notes */}
                 {booking.notes && (
-                  <div className="mt-4 p-3 bg-slate-700 rounded-lg">
+                  <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
                     <p className="text-slate-300 text-sm"><strong>Noter:</strong> {booking.notes}</p>
                   </div>
                 )}
 
                 {/* Actions */}
-                <div className="mt-4 pt-4 border-t border-slate-700">
-                  {booking.status === 'pending' && (
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <button
-                        onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                        disabled={updating === booking.id}
-                        className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                      >
-                        {updating === booking.id ? 'Updating...' : 'Bekræft'}
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                        disabled={updating === booking.id}
-                        className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                      >
-                        {updating === booking.id ? 'Updating...' : 'Aflys'}
-                      </button>
-                    </div>
-                  )}
-                  
-                  {booking.status === 'confirmed' && (() => {
-                    // Check if session start time has passed
-                    const sessionDate = new Date(booking.date + 'T' + booking.time);
-                    const now = new Date();
-                    const canMarkCompleted = sessionDate <= now;
+                {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                  <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
+                    {booking.status === 'pending' && (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                          disabled={updating === booking.id}
+                          className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          {updating === booking.id ? 'Opdaterer...' : 'Bekræft booking'}
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(booking.id, 'cancelled')}
+                          disabled={updating === booking.id}
+                          className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          {updating === booking.id ? 'Opdaterer...' : 'Aflys booking'}
+                        </button>
+                      </div>
+                    )}
                     
-                    return (
-                      <button
-                        onClick={() => handleStatusChange(booking.id, 'completed')}
-                        disabled={updating === booking.id || !canMarkCompleted}
-                        className={`w-full sm:w-auto ${canMarkCompleted ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 cursor-not-allowed'} disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors`}
-                        title={!canMarkCompleted ? 'Session kan kun markeres som gennemført efter starttidspunktet' : ''}
-                      >
-                        {updating === booking.id ? 'Updating...' : 'Marker som gennemført'}
-                      </button>
-                    );
-                  })()}
-                </div>
+                    {booking.status === 'confirmed' && (() => {
+                      // Check if session start time has passed
+                      const sessionDate = new Date(booking.date + 'T' + booking.time);
+                      const now = new Date();
+                      const canMarkCompleted = sessionDate <= now;
+                      
+                      return (
+                        <button
+                          onClick={() => handleStatusChange(booking.id, 'completed')}
+                          disabled={updating === booking.id || !canMarkCompleted}
+                          className={`w-full ${canMarkCompleted ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 cursor-not-allowed'} disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors`}
+                          title={!canMarkCompleted ? 'Session kan kun markeres som gennemført efter starttidspunktet' : ''}
+                        >
+                          {updating === booking.id ? 'Opdaterer...' : 'Marker som gennemført'}
+                        </button>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           );
