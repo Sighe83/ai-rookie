@@ -1021,6 +1021,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedMobileDay, setSelectedMobileDay] = useState(0); // Mobile day selector
   const { siteMode } = useSiteMode();
   const { user } = useAuth();
   const theme = getThemeColors(siteMode, user);
@@ -1053,6 +1054,15 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
     }
   };
 
+  // Check if a date is in the past
+  const isDateInPast = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate < today;
+  };
+
   const getWeekDates = useMemo(() => {
     const dates = [];
     const today = new Date();
@@ -1076,7 +1086,19 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
     return dates;
   }, [currentWeek]);
 
-  const maxWeeks = 2;
+  // Ensure selected mobile day is not in the past
+  useEffect(() => {
+    const currentMobileDate = getWeekDates[selectedMobileDay];
+    if (currentMobileDate && isDateInPast(currentMobileDate)) {
+      // Find first non-past day
+      const firstAvailableDay = getWeekDates.findIndex(date => !isDateInPast(date));
+      if (firstAvailableDay !== -1) {
+        setSelectedMobileDay(firstAvailableDay);
+      }
+    }
+  }, [currentWeek, selectedMobileDay, getWeekDates]);
+
+  const maxWeeks = 8; // Allow booking up to 8 weeks ahead
 
   const formatDate = (date) => date.toLocaleDateString('da-DK', { weekday: 'short', day: 'numeric' });
   const formatDateKey = (date) => date.toISOString().split('T')[0];
@@ -1117,45 +1139,56 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
   }
 
   return (
-    <div className="bg-slate-800 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-slate-800 rounded-lg p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
           <Calendar className="w-5 h-5" />
           1. Vælg en dato
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <button
             onClick={() => setCurrentWeek(Math.max(0, currentWeek - 1))}
             disabled={currentWeek === 0}
-            className="p-2 sm:p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] sm:min-w-auto sm:min-h-auto flex items-center justify-center"
+            className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
+          <span className="text-slate-300 font-medium px-2 sm:px-4 text-center text-sm sm:text-base whitespace-nowrap">
+            {(() => {
+              const weekStart = getWeekDates[0];
+              const weekEnd = getWeekDates[6];
+              return `${weekStart?.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })} - ${weekEnd?.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}`;
+            })()}
+          </span>
           <button
             onClick={() => setCurrentWeek(Math.min(maxWeeks - 1, currentWeek + 1))}
             disabled={currentWeek >= maxWeeks - 1}
-            className="p-2 sm:p-1 rounded-full text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] min-h-[44px] sm:min-w-auto sm:min-h-auto flex items-center justify-center"
+            className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 sm:gap-2">
+      {/* Desktop Calendar */}
+      <div className="hidden md:grid md:grid-cols-7 gap-1 sm:gap-2">
         {getWeekDates.map((date, index) => {
           const dateKey = formatDateKey(date);
           const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
           const hasSlots = availableSlots.length > 0;
           const isSelected = selectedDate && formatDateKey(selectedDate) === dateKey;
           const isToday = dateKey === formatDateKey(new Date());
+          const isPastDate = isDateInPast(date);
 
           return (
             <button
               key={index}
-              onClick={() => hasSlots && handleDateClick(date)}
-              disabled={!hasSlots}
+              onClick={() => hasSlots && !isPastDate && handleDateClick(date)}
+              disabled={!hasSlots || isPastDate}
               className={`p-2 sm:p-3 rounded-lg text-center text-xs sm:text-sm font-medium transition-all duration-200 min-h-[60px] sm:min-h-[80px] ${
-                isSelected
+                isPastDate
+                  ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
+                  : isSelected
                   ? `${theme.primary} text-white ring-2 ${theme.ring}`
                   : isToday
                   ? 'bg-blue-600/20 text-blue-400 border border-blue-600 hover:bg-blue-600/30'
@@ -1170,7 +1203,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
               <div className="text-xs mt-1">
                 {date.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}
               </div>
-              {hasSlots && (
+              {hasSlots && !isPastDate && (
                 <div className="text-xs mt-1 opacity-75">
                   {availableSlots.length} ledige
                 </div>
@@ -1180,8 +1213,49 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
         })}
       </div>
 
+      {/* Mobile Day Selector */}
+      <div className="md:hidden mb-6">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {getWeekDates.map((date, index) => {
+            const dateKey = formatDateKey(date);
+            const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
+            const hasSlots = availableSlots.length > 0;
+            const isPastDate = isDateInPast(date);
+            const dayName = date.toLocaleDateString('da-DK', { weekday: 'short' });
+            
+            return (
+              <button
+                key={index}
+                onClick={() => !isPastDate && hasSlots && setSelectedMobileDay(index)}
+                disabled={isPastDate || !hasSlots}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isPastDate || !hasSlots
+                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
+                    : selectedMobileDay === index
+                    ? `${theme.primary} text-white`
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="font-bold">{dayName}</div>
+                  <div className="text-xs mt-1">
+                    {date.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}
+                  </div>
+                  {hasSlots && !isPastDate && (
+                    <div className="text-xs mt-1 opacity-75">
+                      {availableSlots.length}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop Time Slot Selection */}
       {selectedDate && (
-        <div className="mt-6 border-t border-slate-700 pt-4">
+        <div className="hidden md:block mt-6 border-t border-slate-700 pt-4">
           <h3 className="text-lg font-semibold text-white mb-3">
             2. Vælg et tidspunkt for <span className="text-green-400">{formatFullDate(selectedDate)}</span>
           </h3>
@@ -1237,6 +1311,70 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           )}
         </div>
       )}
+
+      {/* Mobile Time Slot Selection */}
+      <div className="md:hidden">
+        {(() => {
+          const mobileDate = getWeekDates[selectedMobileDay];
+          if (!mobileDate || isDateInPast(mobileDate)) return null;
+          
+          const dateKey = formatDateKey(mobileDate);
+          const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
+          
+          if (availableSlots.length === 0) return null;
+
+          return (
+            <div className="mt-6 border-t border-slate-700 pt-4">
+              <h3 className="text-lg font-semibold text-white mb-3">
+                2. Vælg et tidspunkt for <span className="text-green-400">{formatFullDate(mobileDate)}</span>
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {availableSlots.map((slot, slotIndex) => {
+                  const dateTimeKey = `${dateKey}T${slot.time}`;
+                  const isSelected = selectedDateTime === dateTimeKey;
+                  
+                  // Check if this time slot has passed (only for today)
+                  const isToday = dateKey === formatDateKey(new Date());
+                  const now = new Date();
+                  const slotHour = parseInt(slot.time.split(':')[0]);
+                  const currentHour = now.getHours();
+                  const isPassed = isToday && slotHour <= currentHour;
+                  
+                  return (
+                    <button
+                      key={slotIndex}
+                      type="button"
+                      onClick={() => !isPassed && onSelectDateTime(dateTimeKey)}
+                      disabled={isPassed}
+                      className={`p-4 rounded-xl border-2 transition-all font-medium text-center min-h-[80px] flex items-center justify-center ${
+                        isPassed
+                          ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed opacity-50'
+                          : isSelected
+                          ? `${theme.primary} border-purple-400 text-white shadow-lg`
+                          : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-lg">{slot.time}</div>
+                        <div className="text-sm opacity-75">
+                          {(() => {
+                            const hour = parseInt(slot.time.split(':')[0]);
+                            const endHour = hour + 1;
+                            return `${endHour.toString().padStart(2, '0')}:00`;
+                          })()}
+                        </div>
+                        <div className="text-xs mt-1 opacity-60">
+                          {isPassed ? 'Passeret' : '1 time'}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
       {!loading && availability.length === 0 && (
         <div className="text-center py-8 text-slate-400">
