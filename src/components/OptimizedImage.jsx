@@ -34,26 +34,51 @@ const OptimizedImage = ({
 
   // Handle image load error
   const handleError = (e) => {
+    console.log('OptimizedImage error:', { src, fallback: !!fallback, alt });
     setImageState('error');
     if (onError) {
       onError(e);
-    } else if (fallback) {
+    }
+    
+    // Set fallback image immediately and mark as loaded
+    if (fallback) {
+      console.log('Setting fallback image');
       setImageSrc(fallback);
-      setImageState('loading');
+      setImageState('loaded'); // Mark as loaded immediately for fallback
     } else {
       // Use placeholder as fallback
-      setImageSrc(generatePlaceholder(alt));
-      setImageState('loading');
+      console.log('Setting placeholder image');
+      const placeholderSrc = generatePlaceholder(alt);
+      setImageSrc(placeholderSrc);
+      setImageState('loaded'); // Mark as loaded immediately for placeholder
     }
   };
 
   // Intersection Observer for lazy loading
   useEffect(() => {
-    if (!src || loading !== 'lazy') {
+    console.log('OptimizedImage useEffect:', { src, loading, fallback: !!fallback });
+    
+    if (!src) {
+      // No src provided - use fallback immediately
+      console.log('No src - using fallback immediately');
+      if (fallback) {
+        setImageSrc(fallback);
+        setImageState('loaded');
+      } else {
+        const placeholderSrc = generatePlaceholder(alt);
+        setImageSrc(placeholderSrc);
+        setImageState('loaded');
+      }
+      return;
+    }
+    
+    if (loading !== 'lazy') {
+      console.log('Not lazy loading - setting src directly');
       setImageSrc(src);
       return;
     }
 
+    console.log('Setting up lazy loading observer');
     const imgElement = imgRef.current;
     if (!imgElement) return;
 
@@ -61,6 +86,7 @@ const OptimizedImage = ({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
+            console.log('Image intersecting - loading src');
             setImageSrc(src);
             observerRef.current?.unobserve(entry.target);
           }

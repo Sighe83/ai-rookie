@@ -920,15 +920,39 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
   const theme = getThemeColors(siteMode, user);
   const isB2B = siteMode === 'b2b';
   
-  console.log('TutorCard received tutor:', { name: tutor.name, title: tutor.title, id: tutor.id });
+  console.log('TutorCard received tutor:', { 
+    name: tutor.name, 
+    title: tutor.title, 
+    id: tutor.id,
+    img: tutor.img,
+    hasImg: !!tutor.img,
+    imgType: typeof tutor.img
+  });
   
   // Function to generate initials fallback image
   const generateInitialsImage = (name) => {
-    const initial = (name?.charAt(0) || 'T').toUpperCase();
+    // Robust initials generation - handle null, undefined, empty strings
+    let initials = 'T'; // Default fallback
+    
+    if (name && typeof name === 'string' && name.trim()) {
+      const cleanName = name.trim();
+      const words = cleanName.split(/\s+/);
+      
+      if (words.length >= 2) {
+        // Take first letter of first and last word
+        initials = (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+      } else {
+        // Take first two letters of single word, or just first letter
+        initials = cleanName.length >= 2 
+          ? cleanName.substring(0, 2).toUpperCase()
+          : cleanName.charAt(0).toUpperCase();
+      }
+    }
+    
     const svg = `
       <svg width="96" height="96" xmlns="http://www.w3.org/2000/svg">
         <rect width="96" height="96" fill="#475569"/>
-        <text x="48" y="58" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#ffffff" text-anchor="middle">${initial}</text>
+        <text x="48" y="58" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#ffffff" text-anchor="middle">${initials}</text>
       </svg>
     `;
     return `data:image/svg+xml;base64,${btoa(svg)}`;
@@ -951,7 +975,7 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
           alt={tutor.name || 'Tutor'}
           className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700 object-cover"
           fallback={generateInitialsImage(tutor.name)}
-          loading="lazy"
+          loading="eager"
           placeholder={true}
         />
         <div className="flex-grow text-center sm:text-left">
@@ -1395,9 +1419,7 @@ const B2BHomePage = () => {
   
   // Get dynamic minimum price from tutors API
   const { data: tutors = [] } = useTutors('B2B');
-  const minPrice = tutors.length > 0 
-    ? Math.min(...tutors.map(t => t.price)) 
-    : 850; // Fallback price
+  const minPrice = 475; // Hardcoded price
   
   useEffect(() => {
     if (isAuthenticated) {
@@ -1500,9 +1522,7 @@ const B2CHomePage = () => {
   
   // Get dynamic minimum price from tutors API
   const { data: tutors = [] } = useTutors('B2C');
-  const minPrice = tutors.length > 0 
-    ? Math.min(...tutors.map(t => t.price)) 
-    : 475; // Fallback price
+  const minPrice = 475; // Hardcoded price
 
   useEffect(() => {
     if (isAuthenticated) {
