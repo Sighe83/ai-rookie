@@ -1814,6 +1814,18 @@ const BookingPage = () => {
         return;
       }
       
+      // Validate session start time - sessions cannot be started before their scheduled time
+      if (selectedDateTime) {
+        const sessionDate = new Date(selectedDateTime);
+        const now = new Date();
+        
+        if (sessionDate <= now) {
+          setErrors({ general: 'En session kan ikke gennemføres før efter dens starttidspunkt.' });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
       // Calculate total price based on format
       let totalPrice = getSessionPrice(session, tutor);
       if (format === 'team' && formData.participants) {
@@ -2495,7 +2507,7 @@ const DashboardPage = () => {
                                   })}
                                 </p>
                               </div>
-                              {daysUntil !== null && (
+                              {daysUntil !== null && status === 'confirmed' && (
                                 <div className="inline-flex items-center px-2 py-1 bg-slate-700 rounded-lg">
                                   <p className="text-xs">
                                     {daysUntil > 0 ? (
@@ -2511,6 +2523,14 @@ const DashboardPage = () => {
                                         Session afholdt
                                       </span>
                                     )}
+                                  </p>
+                                </div>
+                              )}
+                              {status !== 'confirmed' && (
+                                <div className={`inline-flex items-center px-2 py-1 rounded-lg ${statusStyle.bg} ${statusStyle.border} border`}>
+                                  <div className={`w-2 h-2 rounded-full ${statusStyle.dot} mr-2`}></div>
+                                  <p className={`text-xs font-medium ${statusStyle.text}`}>
+                                    {statusStyle.label}
                                   </p>
                                 </div>
                               )}

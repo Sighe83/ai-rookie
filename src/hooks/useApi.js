@@ -504,12 +504,12 @@ export const useTutorStats = (tutorId) => {
       .gte('selected_date_time', startOfNext7Days.toISOString())
       .lte('selected_date_time', endOfNext7Days.toISOString());
 
-    // Get this month's bookings for earnings
+    // Get this month's bookings for earnings (both confirmed and completed)
     const { data: thisMonthBookings } = await supabase
       .from('bookings')
       .select('total_price, status')
       .eq('tutor_id', tutorId)
-      .eq('status', 'CONFIRMED')
+      .in('status', ['CONFIRMED', 'COMPLETED'])
       .gte('selected_date_time', startOfMonth.toISOString())
       .lte('selected_date_time', endOfMonth.toISOString());
 
