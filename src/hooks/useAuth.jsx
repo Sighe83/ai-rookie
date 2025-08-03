@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }) => {
   const initPromiseRef = useRef(null); // Track initialization promise to prevent multiple inits
   const userRoleRef = useRef(null); // Track user role to preserve during auth state changes
   const lastProfileFetchRef = useRef(null); // Track last profile fetch time to prevent spamming
+  const visibilityChangeTimeRef = useRef(null); // Track when visibility changes occur
 
   // Safe user profile fetch with error handling and retry logic
   const fetchUserProfile = useCallback(async (userId, isRetry = false, isBackground = false) => {
@@ -65,8 +66,8 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('fetchUserProfile: Starting profile fetch for userId:', userId, isRetry ? '(retry)' : '', isBackground ? '(background)' : '');
       
-      // Use more aggressive timeouts - shorter for better UX, especially on window focus
-      const timeoutMs = isBackground ? 5000 : (isRetry ? 7000 : 4000);
+      // Use longer timeouts to prevent frequent timeout errors
+      const timeoutMs = isBackground ? 15000 : (isRetry ? 20000 : 12000);
       
       const fetchPromise = supabase
         .from('users')
@@ -109,12 +110,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.warn('Profile fetch failed:', error);
       
-      // Only retry once and only for non-background fetches to avoid hanging the UI
-      if (!isRetry && !isBackground && error.message === 'Profile fetch timeout') {
-        console.log('fetchUserProfile: Retrying profile fetch after timeout...');
-        await new Promise(resolve => setTimeout(resolve, 500)); // Shorter wait
-        return fetchUserProfile(userId, true, isBackground);
-      }
+      // Don't retry on timeout - just return null and preserve existing user data
+      // Retries were causing double timeouts and hanging the UI
       
       return null;
     }
@@ -127,6 +124,14 @@ export const AuthProvider = ({ children }) => {
     mountedRef.current = true;
     
     console.log('useAuth: Starting initialization...');
+    
+    // Set up visibility change listener to track window focus events
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        visibilityChangeTimeRef.current = Date.now();
+        console.log('useAuth: Window visibility changed to visible at', visibilityChangeTimeRef.current);
+      }
+    };
     
     const initAuth = async () => {
       console.log('useAuth: Initializing auth state...');
@@ -210,6 +215,8 @@ export const AuthProvider = ({ children }) => {
           console.log('useAuth: No existing session found');
         }
         
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
         // Set up auth state listener
         if (mountedRef.current) {
           const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -219,17 +226,19 @@ export const AuthProvider = ({ children }) => {
               if (!mountedRef.current) return;
               
               if (event === 'SIGNED_IN' && session?.user) {
-                // Check if this is likely a window focus event (same user, already have user data)
-                const isLikelyWindowFocus = user && user.id === session.user.id;
+                // Check if this is likely a window focus/visibility change event
+                const now = Date.now();
+                const isRecentVisibilityChange = visibilityChangeTimeRef.current && (now - visibilityChangeTimeRef.current) < 1000;
+                const isLikelyWindowFocus = user && user.id === session.user.id && user.email === session.user.email;
                 
-                if (isLikelyWindowFocus) {
-                  // Skip profile fetch on window focus to prevent hanging - user data is already available
-                  console.log('useAuth: Skipping profile fetch on window focus, preserving existing user data');
+                if (isLikelyWindowFocus || isRecentVisibilityChange) {
+                  // Skip profile fetch on window focus/visibility change to prevent hanging
+                  console.log('useAuth: Skipping profile fetch on window focus/visibility change, preserving existing user data');
                   return;
                 }
                 
-                // Only fetch profile for genuine new logins
-                const profile = await fetchUserProfile(session.user.id, false, false);
+                // Only fetch profile for genuine new logins - use background fetch to not block UI
+                const profile = await fetchUserProfile(session.user.id, false, true);
                 
                 if (mountedRef.current) {
                   if (!profile) {
@@ -359,6 +368,8 @@ export const AuthProvider = ({ children }) => {
       mountedRef.current = false;
       userRoleRef.current = null; // Reset role ref
       lastProfileFetchRef.current = null; // Reset throttling
+      visibilityChangeTimeRef.current = null; // Reset visibility tracking
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
@@ -374,6 +385,14 @@ export const AuthProvider = ({ children }) => {
       initPromiseRef.current = null;
       userRoleRef.current = null; // Reset role ref on unmount
       lastProfileFetchRef.current = null; // Reset throttling on unmount
+      visibilityChangeTimeRef.current = null; // Reset visibility tracking on unmount
+      // Clean up visibility listener on unmount
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          visibilityChangeTimeRef.current = Date.now();
+        }
+      };
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
