@@ -37,7 +37,7 @@ const TutorProfile = () => {
       setProfile(tutorProfile);
     } catch (error) {
       console.error('Failed to load profile:', error);
-      setError('Failed to load profile');
+      setError('Kunne ikke indlæse profil');
     } finally {
       setLoading(false);
     }
@@ -83,8 +83,15 @@ const TutorProfile = () => {
   const handleProfileSave = async () => {
     try {
       setSaving(true);
+      setError(null);
       
-      // Update tutor profile
+      // Separate user data from tutor data
+      const userData = {
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+      };
+      
       const tutorData = {
         title: profile.title,
         specialty: profile.specialty,
@@ -93,12 +100,17 @@ const TutorProfile = () => {
         img: profile.img,
       };
       
-      await tutorManagementApi.updateProfile(tutorData);
+      // Update both user and tutor data
+      await Promise.all([
+        tutorManagementApi.updateUserData(userData),
+        tutorManagementApi.updateProfile(tutorData)
+      ]);
+      
       await loadProfile(); // Reload to get updated data
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to save profile:', error);
-      setError('Failed to save profile');
+      setError('Kunne ikke gemme profil. Prøv igen.');
     } finally {
       setSaving(false);
     }
@@ -110,7 +122,7 @@ const TutorProfile = () => {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading profile...</p>
+          <p className="text-slate-400">Indlæser profil...</p>
         </div>
       </div>
     );
@@ -124,7 +136,7 @@ const TutorProfile = () => {
           onClick={() => { setError(null); loadProfile(); }}
           className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
         >
-          Try Again
+          Prøv igen
         </button>
       </div>
     );
@@ -152,7 +164,7 @@ const TutorProfile = () => {
                 className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Gem'}
+                {saving ? 'Gemmer...' : 'Gem'}
               </button>
               <button
                 onClick={() => setIsEditing(false)}

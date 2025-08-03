@@ -606,6 +606,25 @@ export const tutorManagementApi = {
     return { data, success: true };
   },
 
+  updateUserData: async (userData) => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw new ApiError('Authentication failed', 401, userError);
+    if (!user) throw new ApiError('Not authenticated', 401);
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        ...userData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(error.message, 400, error);
+    return { data, success: true };
+  },
+
   uploadProfileImage: async (formData) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError) throw new ApiError('Authentication failed', 401, userError);
