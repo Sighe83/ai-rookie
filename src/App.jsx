@@ -574,8 +574,8 @@ const generateAvailabilitySlots = (tutorId) => {
     return [];
   }
   
-  // Generate availability for the next 14 days
-  for (let i = 1; i <= 14; i++) {
+  // Generate availability for the next 14 days starting from today
+  for (let i = 0; i <= 13; i++) {
     const date = safeDateUtils.addDays(today, i);
     if (!date) continue;
     
@@ -1055,11 +1055,21 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
   const getWeekDates = useMemo(() => {
     const dates = [];
     const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() + 1 + (currentWeek * 7));
+    
+    // Find the start of this week (Monday)
+    const startOfWeek = new Date(today);
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Calculate days to subtract to get to Monday
+    // For Sunday (0): go back 6 days to previous Monday
+    // For Monday (1): go back 0 days  
+    // For Tuesday (2): go back 1 day, etc.
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startOfWeek.setDate(today.getDate() - daysToSubtract + (currentWeek * 7));
+    
     for (let i = 0; i < 7; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
       dates.push(date);
     }
     return dates;
@@ -1136,6 +1146,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
           const hasSlots = availableSlots.length > 0;
           const isSelected = selectedDate && formatDateKey(selectedDate) === dateKey;
+          const isToday = dateKey === formatDateKey(new Date());
 
           return (
             <button
@@ -1145,6 +1156,8 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
               className={`p-3 rounded-lg text-center text-sm font-medium transition-all duration-200 ${
                 isSelected
                   ? `${theme.primary} text-white ring-2 ${theme.ring}`
+                  : isToday
+                  ? 'bg-blue-600/20 text-blue-400 border border-blue-600 hover:bg-blue-600/30'
                   : hasSlots
                   ? 'bg-slate-700 text-white hover:bg-slate-600'
                   : 'bg-slate-800 text-slate-600 cursor-not-allowed'
@@ -1176,13 +1189,24 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
               {slotsForSelectedDate.map((slot, slotIndex) => {
                 const dateTimeKey = `${formatDateKey(selectedDate)}T${slot.time}`;
                 const isSelected = selectedDateTime === dateTimeKey;
+                
+                // Check if this time slot has passed (only for today)
+                const isToday = formatDateKey(selectedDate) === formatDateKey(new Date());
+                const now = new Date();
+                const slotHour = parseInt(slot.time.split(':')[0]);
+                const currentHour = now.getHours();
+                const isPassed = isToday && slotHour <= currentHour;
+                
                 return (
                   <button
                     key={slotIndex}
                     type="button"
-                    onClick={() => onSelectDateTime(dateTimeKey)}
+                    onClick={() => !isPassed && onSelectDateTime(dateTimeKey)}
+                    disabled={isPassed}
                     className={`p-4 rounded-xl text-sm font-medium transition-all border-2 ${
-                      isSelected
+                      isPassed
+                        ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed opacity-50'
+                        : isSelected
                         ? `${theme.primary} text-white border-purple-400 shadow-lg`
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border-slate-600 hover:border-slate-500'
                     }`}
@@ -1200,7 +1224,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
                         </span>
                       </div>
                       <div className="text-xs mt-1 opacity-60">
-                        1 time
+                        {isPassed ? 'Passeret' : '1 time'}
                       </div>
                     </div>
                   </button>

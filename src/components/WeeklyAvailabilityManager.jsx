@@ -50,7 +50,15 @@ const WeeklyAvailabilityManager = () => {
   const getWeekStart = (weekOffset) => {
     const today = new Date();
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay() + 1 + (weekOffset * 7));
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Calculate days to subtract to get to Monday
+    // For Sunday (0): go back 6 days to previous Monday
+    // For Monday (1): go back 0 days  
+    // For Tuesday (2): go back 1 day
+    // etc.
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startOfWeek.setDate(today.getDate() - daysToSubtract + (weekOffset * 7));
     return startOfWeek;
   };
 
