@@ -216,6 +216,7 @@ export const OptimizedImage = ({
   src,
   alt = '',
   fallback,
+  initials, // Add initials prop for direct fallback rendering
   placeholder = true,
   width,
   height,
@@ -224,32 +225,69 @@ export const OptimizedImage = ({
   onError,
   ...props
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const [imageState, setImageState] = useState('loading'); // 'loading', 'loaded', 'error', 'fallback'
   const [imageSrc, setImageSrc] = useState(src);
   
   useEffect(() => {
     setImageSrc(src);
-    setIsLoading(true);
-    setHasError(false);
+    setImageState('loading');
   }, [src]);
   
   const handleLoad = (e) => {
-    setIsLoading(false);
+    setImageState('loaded');
     onLoad?.(e);
   };
   
   const handleError = (e) => {
-    setIsLoading(false);
-    setHasError(true);
-    if (fallback) {
+    if (fallback && imageState !== 'fallback') {
+      // Check if fallback is a data URL (SVG), if so render directly
+      if (fallback.startsWith('data:image/svg+xml')) {
+        setImageState('error'); // Will trigger fallback rendering below
+        return;
+      }
+      
       setImageSrc(fallback);
-      setHasError(false);
+      setImageState('fallback');
+      // Force immediate display of fallback by setting loaded state
+      setTimeout(() => setImageState('loaded'), 10);
+    } else {
+      setImageState('error');
     }
     onError?.(e);
   };
   
-  if (hasError && !fallback) {
+  // If we have an error and fallback is SVG, render it directly
+  if (imageState === 'error' && (fallback || initials)) {
+    // Use provided initials or try to extract from SVG fallback
+    let displayInitials = initials || 'T';
+    
+    if (!initials && fallback && fallback.startsWith('data:image/svg+xml')) {
+      try {
+        // Decode the URL-encoded SVG
+        const decodedSvg = decodeURIComponent(fallback.split(',')[1]);
+        
+        // Extract text content from SVG
+        const textMatch = decodedSvg.match(/>([A-Z]{1,2})</);
+        if (textMatch && textMatch[1]) {
+          displayInitials = textMatch[1];
+        }
+      } catch (error) {
+        console.warn('Failed to extract initials from SVG:', error);
+      }
+    }
+    
+    return (
+      <div 
+        className={`bg-slate-600 flex items-center justify-center text-white font-bold rounded-full ${className}`} 
+        style={{ width, height }}
+      >
+        <span className="text-2xl">{displayInitials}</span>
+      </div>
+    );
+  }
+  
+  // If we have an error and no fallback, show error state
+  if (imageState === 'error') {
     return (
       <div className={`bg-slate-600 flex items-center justify-center text-slate-400 ${className}`} style={{ width, height }}>
         <span className="text-sm">Kunne ikke indlæse billede</span>
@@ -259,7 +297,7 @@ export const OptimizedImage = ({
   
   return (
     <div className={`relative ${className}`} style={{ width, height }}>
-      {isLoading && placeholder && (
+      {imageState === 'loading' && placeholder && (
         <div className="absolute inset-0 bg-slate-600 animate-pulse flex items-center justify-center">
           <div className="text-slate-400 text-sm">Indlæser...</div>
         </div>
@@ -269,7 +307,7 @@ export const OptimizedImage = ({
         alt={alt}
         onLoad={handleLoad}
         onError={handleError}
-        className={`w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+        className={`w-full h-full object-cover ${imageState === 'loaded' ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}
         {...props}
       />
     </div>

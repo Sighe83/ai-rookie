@@ -14,8 +14,14 @@ import {
   OptimizedImage,
   Button,
   Card,
-  useToast
+  useToast,
+  Container,
+  StatusBadge,
+  LoadingSpinner
 } from './components/design-system';
+import { NavigationTabs } from './components/design-system/NavigationComponents.jsx';
+import { Header, EmptyState } from './components/design-system/LayoutComponents.jsx';
+import { SearchInput } from './components/design-system/FormComponents.jsx';
 import {
   Briefcase,
   Users,
@@ -728,10 +734,8 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
         onClick={() => onAuthClick('login')}
         variant="primary"
         size="sm"
-        className="shadow-lg"
       >
-        <LogIn className="w-4 h-4" />
-        <span>Kom i gang</span>
+        Log in
       </Button>
     </div>
   );
@@ -755,72 +759,50 @@ const SiteModeToggle = ({ onModeChange }) => {
   // If user is a tutor, show tutor-specific toggle
   if (isTutor) {
     return (
-      <Card className="flex items-center p-1">
-        <Button
-          disabled={true}
-          variant="primary"
-          size="sm"
-          className="shadow-lg shadow-purple-600/30"
-          title="Tutor mode - Aktiv"
-        >
+      <div className="bg-slate-700 p-1 rounded-lg flex items-center">
+        <div className="bg-purple-600 text-white px-3 py-2 rounded-md flex items-center gap-2 text-sm font-medium">
           <UserCheck className="w-4 h-4" />
           Tutor
-          <span className="text-xs bg-purple-500 px-1.5 py-0.5 rounded-full">Aktiv</span>
-          <Lock className="w-4 h-4 text-white" title="Låst - Tutor mode" />
-        </Button>
-      </Card>
+        </div>
+      </div>
     );
   }
   
   return (
-    <Card className="flex items-center p-1">
-      <Button
+    <div className="bg-slate-700 p-1 rounded-lg flex items-center">
+      <button
         onClick={() => siteMode !== 'b2b' && handleToggle()}
-        disabled={isAuthenticated}
-        variant={siteMode === 'b2b' ? 'primary' : 'outline'}
-        size="sm"
-        className={`${
-          siteMode === 'b2b' 
-            ? 'bg-green-600 shadow-lg shadow-green-600/30 hover:bg-green-700' 
-            : isAuthenticated 
-              ? 'text-slate-600 cursor-not-allowed'
-              : 'text-slate-400 hover:text-green-400'
-        }`}
-        title={isAuthenticated ? 'Du kan ikke skifte side-type efter login' : siteMode === 'b2b' ? 'Aktiv: B2B mode' : 'Skift til B2B mode'}
+        disabled={isAuthenticated && siteMode !== 'b2b'}
+        className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors ${
+          siteMode === 'b2b'
+            ? 'bg-green-600 text-white'
+            : 'text-slate-300 hover:text-white hover:bg-slate-600'
+        } ${isAuthenticated && siteMode !== 'b2b' ? 'opacity-50 cursor-not-allowed' : ''}`}
+        title={isAuthenticated ? (siteMode === 'b2b' ? 'B2B mode - Låst efter login' : 'Kan ikke skifte til B2B efter login') : (siteMode === 'b2b' ? 'B2B mode aktiv' : 'Skift til B2B mode')}
       >
         <Building2 className="w-4 h-4" />
         B2B
-        {siteMode === 'b2b' && (
-          <>
-            <span className="text-xs bg-green-500 px-1.5 py-0.5 rounded-full">Aktiv</span>
-            {isAuthenticated && <Lock className="w-4 h-4 text-white" title="Låst - Du kan ikke skifte side-type efter login" />}
-          </>
+        {siteMode === 'b2b' && isAuthenticated && (
+          <Lock className="w-3 h-3 text-green-200" />
         )}
-      </Button>
-      <Button
+      </button>
+      <button
         onClick={() => siteMode !== 'b2c' && handleToggle()}
-        disabled={isAuthenticated}
-        variant={siteMode === 'b2c' ? 'primary' : 'outline'}
-        size="sm"
-        className={`${
-          siteMode === 'b2c' 
-            ? 'bg-blue-600 shadow-lg shadow-blue-600/30 hover:bg-blue-700' 
-            : isAuthenticated 
-              ? 'text-slate-600 cursor-not-allowed'
-              : 'text-slate-400 hover:text-blue-400'
-        }`}
-        title={isAuthenticated ? 'Du kan ikke skifte side-type efter login' : siteMode === 'b2c' ? 'Aktiv: B2C mode' : 'Skift til B2C mode'}
+        disabled={isAuthenticated && siteMode !== 'b2c'}
+        className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors ${
+          siteMode === 'b2c'
+            ? 'bg-blue-600 text-white'
+            : 'text-slate-300 hover:text-white hover:bg-slate-600'
+        } ${isAuthenticated && siteMode !== 'b2c' ? 'opacity-50 cursor-not-allowed' : ''}`}
+        title={isAuthenticated ? (siteMode === 'b2c' ? 'B2C mode - Låst efter login' : 'Kan ikke skifte til B2C efter login') : (siteMode === 'b2c' ? 'B2C mode aktiv' : 'Skift til B2C mode')}
       >
         <UserIcon className="w-4 h-4" />
         B2C
-        {siteMode === 'b2c' && (
-          <>
-            <span className="text-xs bg-blue-500 px-1.5 py-0.5 rounded-full">Aktiv</span>
-            {isAuthenticated && <Lock className="w-4 h-4 text-white" title="Låst - Du kan ikke skifte side-type efter login" />}
-          </>
+        {siteMode === 'b2c' && isAuthenticated && (
+          <Lock className="w-3 h-3 text-blue-200" />
         )}
-      </Button>
-    </Card>
+      </button>
+    </div>
   );
 };
 
@@ -921,14 +903,72 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
                 onClose();
               }}
               variant="primary"
-              className="w-full justify-start text-base shadow-lg"
+              className="w-full justify-start text-base"
             >
-              <LogIn className="w-4 h-4" />
-              Kom i gang
+              Log in
             </Button>
           )}
         </div>
       </Card>
+    </div>
+  );
+};
+
+const TutorAvatar = ({ src, name, className }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!src);
+  
+  const getInitials = (name) => {
+    let initials = 'T';
+    if (name && typeof name === 'string' && name.trim()) {
+      const cleanName = name.trim();
+      const words = cleanName.split(/\s+/);
+      
+      if (words.length >= 2) {
+        initials = (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+      } else {
+        initials = cleanName.length >= 2 
+          ? cleanName.substring(0, 2).toUpperCase()
+          : cleanName.charAt(0).toUpperCase();
+      }
+    }
+    return initials;
+  };
+  
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
+  };
+  
+  const handleImageError = () => {
+    setIsLoading(false);
+    setHasError(true);
+  };
+  
+  // If no src or error, show initials immediately
+  if (!src || hasError) {
+    const initials = getInitials(name);
+    return (
+      <div className={`bg-slate-600 flex items-center justify-center text-white font-bold ${className}`}>
+        <span className="text-2xl">{initials}</span>
+      </div>
+    );
+  }
+  
+  return (
+    <div className={`relative ${className}`}>
+      {isLoading && (
+        <div className="absolute inset-0 bg-slate-600 animate-pulse flex items-center justify-center">
+          <span className="text-slate-400 text-sm">...</span>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={name || 'Avatar'}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        className={`w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
+      />
     </div>
   );
 };
@@ -948,35 +988,6 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
     imgType: typeof tutor.img
   });
   
-  // Function to generate initials fallback image
-  const generateInitialsImage = (name) => {
-    // Robust initials generation - handle null, undefined, empty strings
-    let initials = 'T'; // Default fallback
-    
-    if (name && typeof name === 'string' && name.trim()) {
-      const cleanName = name.trim();
-      const words = cleanName.split(/\s+/);
-      
-      if (words.length >= 2) {
-        // Take first letter of first and last word
-        initials = (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
-      } else {
-        // Take first two letters of single word, or just first letter
-        initials = cleanName.length >= 2 
-          ? cleanName.substring(0, 2).toUpperCase()
-          : cleanName.charAt(0).toUpperCase();
-      }
-    }
-    
-    const svg = `
-      <svg width="96" height="96" xmlns="http://www.w3.org/2000/svg">
-        <rect width="96" height="96" fill="#475569"/>
-        <text x="48" y="58" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#ffffff" text-anchor="middle">${initials}</text>
-      </svg>
-    `;
-    return `data:image/svg+xml;base64,${btoa(svg)}`;
-  };
-  
   // Function to get session price
   const getSessionPrice = (session) => {
     return session.price;
@@ -989,13 +1000,10 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
       }`}
     >
       <div className="p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-        <OptimizedImage
+        <TutorAvatar
           src={tutor.img}
-          alt={tutor.name || 'Tutor'}
-          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700 object-cover"
-          fallback={generateInitialsImage(tutor.name)}
-          loading="eager"
-          placeholder={true}
+          name={tutor.name}
+          className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto sm:mx-0 flex-shrink-0 border-4 border-slate-700"
         />
         <div className="flex-grow text-center sm:text-left">
           <h3 className="text-lg sm:text-xl font-bold text-white">{tutor.name || 'Ingen navn'}</h3>
@@ -1053,12 +1061,6 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
     </Card>
   );
 };
-
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center py-12">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-  </div>
-);
 
 const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => {
   const [currentWeek, setCurrentWeek] = useState(0);
@@ -1783,6 +1785,12 @@ const BookingPage = () => {
   }, [user]);
 
   const validateForm = () => {
+    console.log('🔍 validateForm called');
+    console.log('📊 Form data:', formData);
+    console.log('📅 Selected date time:', selectedDateTime);
+    console.log('🏢 Is B2B:', isB2B);
+    console.log('👥 Format:', format);
+    
     const newErrors = {};
     
     try {
@@ -1839,14 +1847,24 @@ const BookingPage = () => {
     }
     
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    console.log('📋 Validation errors:', newErrors);
+    console.log('✅ Form is valid:', isValid);
+    return isValid;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🚀 BookingPage handleSubmit called');
     
     try {
-      if (!validateForm()) return;
+      console.log('🔍 Validating form...');
+      if (!validateForm()) {
+        showError('Udfyld venligst alle påkrævede felter og vælg en tid.');
+        console.log('❌ Form validation failed', errors);
+        return;
+      }
+      console.log('✅ Form validation passed');
       
       setIsSubmitting(true);
       setErrors({});
@@ -1898,7 +1916,10 @@ const BookingPage = () => {
         notes: ''
       };
       
+      console.log('📋 Booking data prepared:', bookingData);
+      console.log('🌐 Calling createBooking...');
       const result = await createBooking(bookingData);
+      console.log('📥 CreateBooking result:', result);
       
       if (result.success) {
         const booking = {
@@ -2352,9 +2373,14 @@ const BookingSuccessPage = () => {
 const DashboardPage = () => {
   const { siteMode } = useSiteMode();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const theme = getThemeColors(siteMode, user);
   const { data: bookings = [], loading, error } = useBookings({ siteMode: siteMode.toUpperCase() });
   const isB2B = siteMode === 'b2b';
+  
+  // Add filtering state
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Debug logging for troubleshooting
   console.log('Dashboard render:', {
@@ -2365,6 +2391,65 @@ const DashboardPage = () => {
     loading,
     error: error ? error.toString() : null
   });
+
+  // Filter and search bookings
+  const filteredBookings = (bookings || [])
+    .filter(booking => {
+      const status = booking.status?.toLowerCase() || 'pending';
+      if (selectedStatus === 'all') return true;
+      return status === selectedStatus;
+    })
+    .filter(booking => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        booking.session?.title?.toLowerCase().includes(query) ||
+        booking.tutor?.user?.name?.toLowerCase().includes(query) ||
+        booking.tutor?.name?.toLowerCase().includes(query) ||
+        booking.company?.toLowerCase().includes(query) ||
+        booking.department?.toLowerCase().includes(query) ||
+        booking.contact_email?.toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => {
+      // Define priority order: pending (highest), confirmed, completed, cancelled (lowest)
+      const statusPriority = {
+        'pending': 1,
+        'confirmed': 2, 
+        'completed': 3,
+        'cancelled': 4
+      };
+      
+      const statusA = a.status?.toLowerCase() || 'pending';
+      const statusB = b.status?.toLowerCase() || 'pending';
+      const priorityA = statusPriority[statusA] || 999;
+      const priorityB = statusPriority[statusB] || 999;
+      
+      // If same status, sort by date (newest first)
+      if (priorityA === priorityB) {
+        const dateA = new Date(a.selected_date_time || a.created_at);
+        const dateB = new Date(b.selected_date_time || b.created_at);
+        return dateB - dateA;
+      }
+      
+      return priorityA - priorityB;
+    });
+
+  // Status labels and counts
+  const statusLabels = {
+    pending: 'Afventer bekræftelse',
+    confirmed: 'Bekræftet',
+    completed: 'Gennemført',
+    cancelled: 'Aflyst'
+  };
+
+  const statusCounts = {
+    all: (bookings || []).length,
+    pending: (bookings || []).filter(b => (b.status?.toLowerCase() || 'pending') === 'pending').length,
+    confirmed: (bookings || []).filter(b => (b.status?.toLowerCase() || 'pending') === 'confirmed').length,
+    completed: (bookings || []).filter(b => (b.status?.toLowerCase() || 'pending') === 'completed').length,
+    cancelled: (bookings || []).filter(b => (b.status?.toLowerCase() || 'pending') === 'cancelled').length
+  };
 
   if (loading) {
     return (
@@ -2422,12 +2507,40 @@ const DashboardPage = () => {
         </p>
       )}
       
-      {bookings.length > 0 ? (
-        <div className="space-y-6">
-          <Card className="p-6">
+      <div className="space-y-6">
+        {/* Status Filter Tabs using NavigationTabs */}
+        <NavigationTabs
+          tabs={[
+            { id: 'all', label: 'Alle', badge: statusCounts.all },
+            { id: 'pending', label: 'Afventer', badge: statusCounts.pending },
+            { id: 'confirmed', label: 'Bekræftet', badge: statusCounts.confirmed },
+            { id: 'completed', label: 'Gennemført', badge: statusCounts.completed },
+            { id: 'cancelled', label: 'Aflyst', badge: statusCounts.cancelled }
+          ]}
+          activeTab={selectedStatus}
+          onTabChange={setSelectedStatus}
+        />
+
+        {/* Search Input */}
+        <Card className="p-4">
+          <SearchInput
+            placeholder="Søg i bookings..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </Card>
+
+        {(bookings || []).length > 0 ? (
+          <>
+            <Card className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <h2 className="text-2xl font-bold text-white">
                 {isB2B ? 'Jeres bookings' : 'Dine bookings'}
+                {(filteredBookings || []).length !== (bookings || []).length && (
+                  <span className="text-lg text-slate-400 ml-2">
+                    ({(filteredBookings || []).length} af {(bookings || []).length})
+                  </span>
+                )}
               </h2>
               <button
                 onClick={(e) => {
@@ -2441,8 +2554,10 @@ const DashboardPage = () => {
                 {isB2B ? 'Book ny workshop' : 'Book ny session'}
               </button>
             </div>
-            <div className="space-y-6">
-              {bookings.map((booking) => {
+            
+            {filteredBookings.length > 0 ? (
+              <div className="space-y-6">
+                {filteredBookings.map((booking) => {
                 // Calculate days until session
                 const sessionDate = booking.selected_date_time ? new Date(booking.selected_date_time) : null;
                 const today = new Date();
@@ -2644,12 +2759,32 @@ const DashboardPage = () => {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            ) : (
+              <EmptyState
+                icon={Calendar}
+                title="Ingen bookings"
+                description={
+                  searchQuery 
+                    ? `Ingen bookings matcher "${searchQuery}"` 
+                    : selectedStatus === 'all' 
+                      ? 'Du har ingen bookings endnu.'
+                      : `Ingen bookings med status: ${statusLabels[selectedStatus]}`
+                }
+              />
+            )}
           </Card>
           
           <Card className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <h2 className="text-2xl font-bold text-white">Statistik</h2>
+              <h2 className="text-2xl font-bold text-white">
+                Statistik
+                {(filteredBookings || []).length !== (bookings || []).length && (
+                  <span className="text-lg text-slate-400 ml-2">
+                    (Filtreret visning)
+                  </span>
+                )}
+              </h2>
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -2664,44 +2799,54 @@ const DashboardPage = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <p className="text-3xl font-bold text-green-400">{bookings.length}</p>
-                <p className="text-slate-400">{isB2B ? 'Bookede workshops' : 'Bookede sessioner'}</p>
+                <p className="text-3xl font-bold text-green-400">{filteredBookings.length}</p>
+                <p className="text-slate-400">
+                  {selectedStatus === 'all' ? (isB2B ? 'Bookede workshops' : 'Bookede sessioner') : statusLabels[selectedStatus]}
+                </p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold text-blue-400">
-                  {bookings.reduce((sum, b) => sum + b.totalPrice, 0).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                  {(filteredBookings || []).reduce((sum, b) => sum + (b.totalPrice || 0), 0).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
                 </p>
-                <p className="text-slate-400">Total investering</p>
+                <p className="text-slate-400">
+                  {(filteredBookings || []).length !== (bookings || []).length ? 'Filtreret investering' : 'Total investering'}
+                </p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold text-yellow-400">
-                  {isB2B ? new Set(bookings.map(b => b.department)).size : new Set(bookings.map(b => b.tutor.name)).size}
+                  {isB2B 
+                    ? new Set(filteredBookings.map(b => b.department).filter(Boolean)).size 
+                    : new Set(filteredBookings.map(b => b.tutor?.name || b.tutor?.user?.name).filter(Boolean)).size
+                  }
                 </p>
-                <p className="text-slate-400">{isB2B ? 'Afdelinger involveret' : 'Forskellige tutorer'}</p>
+                <p className="text-slate-400">
+                  {isB2B ? 'Afdelinger involveret' : 'Forskellige tutorer'}
+                  {(filteredBookings || []).length !== (bookings || []).length && ' (filtreret)'}
+                </p>
               </div>
             </div>
           </Card>
-        </div>
-      ) : (
-        <div className="bg-slate-800 p-10 rounded-lg flex flex-col items-center gap-6">
-          <ClipboardCheck className="w-14 h-14 text-slate-400" />
-          <div className="text-center">
-            <p className="text-slate-300 text-lg mb-2">Ingen bookings endnu</p>
-            <p className="text-slate-400 max-w-xl mb-6">
-              {isB2B 
+          </>
+        ) : (
+          <EmptyState
+            icon={Calendar}
+            title="Ingen bookings endnu"
+            description={
+              isB2B 
                 ? 'Når I har booket jeres første workshop, vil I kunne følge progression og resultater her.'
                 : 'Når du har booket din første session, vil du kunne følge din progression og resultater her.'
-              }
-            </p>
-            <button
-              onClick={() => navigate('/tutors')}
-              className={`${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
-            >
-              {isB2B ? 'Find eksperter' : 'Find en tutor'}
-            </button>
-          </div>
-        </div>
-      )}
+            }
+            action={
+              <Button
+                onClick={() => navigate('/tutors')}
+                variant="primary"
+              >
+                {isB2B ? 'Find eksperter' : 'Find en tutor'}
+              </Button>
+            }
+          />
+        )}
+      </div>
     </div>
   );
 };

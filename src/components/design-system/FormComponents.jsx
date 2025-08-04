@@ -1,6 +1,35 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { Eye, EyeOff, ChevronDown, Search } from 'lucide-react';
 import { useTheme } from './DesignSystem.jsx';
+
+export const SearchInput = ({ 
+  placeholder = "Søg...",
+  value,
+  onChange,
+  className = '',
+  ...props 
+}) => {
+  const { colors } = useTheme();
+  
+  const baseClasses = 'w-full bg-slate-700 rounded-md py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900';
+  const focusClasses = `${colors.primaryRing}`;
+  
+  const classes = `${baseClasses} ${focusClasses} ${className}`;
+  
+  return (
+    <div className="relative flex-1">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        className={classes}
+        {...props}
+      />
+    </div>
+  );
+};
 
 export const PasswordInput = ({ 
   placeholder = "Password",
@@ -243,6 +272,7 @@ export const FileUpload = ({
 };
 
 export default {
+  SearchInput,
   PasswordInput,
   Select,
   Textarea,
