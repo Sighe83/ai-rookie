@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Save, RotateCcw, ArrowLeft, ArrowRight, CalendarCheck, CheckCircle } from 'lucide-react';
 import { availabilityApi, tutorManagementApi } from '../services/api.js';
+import { useToast } from './design-system';
 
 const WeeklyAvailabilityManager = () => {
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
+  
   // Generate time slots using SessionUtils business rules (8:00-17:00, excluding lunch)
   const generateValidTimeSlots = () => {
     const slots = [];
@@ -24,7 +27,6 @@ const WeeklyAvailabilityManager = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [tutorId, setTutorId] = useState(null);
   const [savedTemplates, setSavedTemplates] = useState({});
   const [isDragging, setIsDragging] = useState(false);
@@ -97,7 +99,9 @@ const WeeklyAvailabilityManager = () => {
       setTutorId(response.data.id);
     } catch (error) {
       console.error('Failed to load tutor profile:', error);
-      setError('Kunne ikke indlæse din tutor-profil. Sørg for at du er logget korrekt ind.');
+      const errorMessage = 'Kunne ikke indlæse din tutor-profil. Sørg for at du er logget korrekt ind.';
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     }
   };
 
@@ -218,7 +222,9 @@ const WeeklyAvailabilityManager = () => {
       }
     } catch (error) {
       console.error('Failed to load availability:', error);
-      setError('Kunne ikke indlæse tilgængelighed');
+      const errorMessage = 'Kunne ikke indlæse tilgængelighed';
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -420,12 +426,13 @@ const WeeklyAvailabilityManager = () => {
       // Exit edit mode after successful save
       setIsEditMode(false);
       
-      setSuccess('Tilgængelighed gemt!');
-      setTimeout(() => setSuccess(null), 3000);
+      showSuccessToast('Tilgængelighed gemt succesfuldt!');
       
     } catch (error) {
       console.error('Failed to save availability:', error);
-      setError('Kunne ikke gemme tilgængelighed');
+      const errorMessage = 'Kunne ikke gemme tilgængelighed';
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -469,11 +476,10 @@ const WeeklyAvailabilityManager = () => {
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
-        <p className="text-red-400">{error}</p>
+      <div className="text-center py-12">
         <button 
           onClick={() => { setError(null); loadExistingAvailability(); }}
-          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
         >
           Prøv igen
         </button>
@@ -483,14 +489,6 @@ const WeeklyAvailabilityManager = () => {
 
   return (
     <div className="space-y-6">
-      {success && (
-        <div className="bg-green-500/10 border border-green-500 rounded-lg p-4 text-center">
-          <p className="text-green-400 flex items-center justify-center gap-2">
-            <CheckCircle className="w-5 h-5" />
-            {success}
-          </p>
-        </div>
-      )}
 
       {/* Week Navigation */}
       <div className="border-2 border-slate-700 bg-slate-800 rounded-xl p-4 sm:p-6">

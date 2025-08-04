@@ -8,7 +8,14 @@ import UserProfile from './components/UserProfile';
 import AdminGate from './components/AdminGate';
 import TutorDashboard from './components/TutorDashboard';
 import AuthDebug from './components/AuthDebug';
-import OptimizedImage from './components/OptimizedImage.jsx';
+import { 
+  ThemeProvider, 
+  ToastProvider, 
+  OptimizedImage,
+  Button,
+  Card,
+  useToast
+} from './components/design-system';
 import {
   Briefcase,
   Users,
@@ -702,26 +709,30 @@ const AuthButtons = ({ onAuthClick, onProfileClick }) => {
   if (isAuthenticated && user) {
     return (
       <div className="flex items-center gap-2">
-        <button
+        <Button
           onClick={onProfileClick}
-          className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-white text-sm"
+          variant="secondary"
+          size="sm"
+          className="text-sm"
         >
           <UserIcon className="w-4 h-4" />
           <span className="hidden sm:block">{user.name}</span>
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="flex items-center">
-      <button
+      <Button
         onClick={() => onAuthClick('login')}
-        className={`flex items-center gap-1 px-4 py-2 ${theme.primary} ${theme.primaryHover} rounded-lg transition-colors text-white text-sm font-semibold shadow-lg`}
+        variant="primary"
+        size="sm"
+        className="shadow-lg"
       >
         <LogIn className="w-4 h-4" />
         <span>Kom i gang</span>
-      </button>
+      </Button>
     </div>
   );
 };
@@ -744,32 +755,36 @@ const SiteModeToggle = ({ onModeChange }) => {
   // If user is a tutor, show tutor-specific toggle
   if (isTutor) {
     return (
-      <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
-        <button
+      <Card className="flex items-center p-1">
+        <Button
           disabled={true}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 bg-purple-600 text-white shadow-lg shadow-purple-600/30"
+          variant="primary"
+          size="sm"
+          className="shadow-lg shadow-purple-600/30"
           title="Tutor mode - Aktiv"
         >
           <UserCheck className="w-4 h-4" />
           Tutor
           <span className="text-xs bg-purple-500 px-1.5 py-0.5 rounded-full">Aktiv</span>
           <Lock className="w-4 h-4 text-white" title="Låst - Tutor mode" />
-        </button>
-      </div>
+        </Button>
+      </Card>
     );
   }
   
   return (
-    <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-600">
-      <button
+    <Card className="flex items-center p-1">
+      <Button
         onClick={() => siteMode !== 'b2b' && handleToggle()}
         disabled={isAuthenticated}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
+        variant={siteMode === 'b2b' ? 'primary' : 'outline'}
+        size="sm"
+        className={`${
           siteMode === 'b2b' 
-            ? 'bg-green-600 text-white shadow-lg shadow-green-600/30' 
+            ? 'bg-green-600 shadow-lg shadow-green-600/30 hover:bg-green-700' 
             : isAuthenticated 
               ? 'text-slate-600 cursor-not-allowed'
-              : 'text-slate-400 hover:text-green-400 hover:bg-slate-700'
+              : 'text-slate-400 hover:text-green-400'
         }`}
         title={isAuthenticated ? 'Du kan ikke skifte side-type efter login' : siteMode === 'b2b' ? 'Aktiv: B2B mode' : 'Skift til B2B mode'}
       >
@@ -781,16 +796,18 @@ const SiteModeToggle = ({ onModeChange }) => {
             {isAuthenticated && <Lock className="w-4 h-4 text-white" title="Låst - Du kan ikke skifte side-type efter login" />}
           </>
         )}
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={() => siteMode !== 'b2c' && handleToggle()}
         disabled={isAuthenticated}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 ${
+        variant={siteMode === 'b2c' ? 'primary' : 'outline'}
+        size="sm"
+        className={`${
           siteMode === 'b2c' 
-            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+            ? 'bg-blue-600 shadow-lg shadow-blue-600/30 hover:bg-blue-700' 
             : isAuthenticated 
               ? 'text-slate-600 cursor-not-allowed'
-              : 'text-slate-400 hover:text-blue-400 hover:bg-slate-700'
+              : 'text-slate-400 hover:text-blue-400'
         }`}
         title={isAuthenticated ? 'Du kan ikke skifte side-type efter login' : siteMode === 'b2c' ? 'Aktiv: B2C mode' : 'Skift til B2C mode'}
       >
@@ -802,8 +819,8 @@ const SiteModeToggle = ({ onModeChange }) => {
             {isAuthenticated && <Lock className="w-4 h-4 text-white" title="Låst - Du kan ikke skifte side-type efter login" />}
           </>
         )}
-      </button>
-    </div>
+      </Button>
+    </Card>
   );
 };
 
@@ -856,7 +873,7 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
   return (
     <div className="fixed inset-0 z-50 md:hidden">
       <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
-      <div className="fixed top-0 right-0 h-full w-64 bg-slate-800 shadow-xl">
+      <Card className="fixed top-0 right-0 h-full w-64 shadow-xl rounded-l-lg">
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <span className="text-white font-bold">Menu</span>
           <button onClick={onClose} className="text-slate-400 hover:text-white p-2 -mr-2">
@@ -886,30 +903,32 @@ const MobileMenu = ({ isOpen, onClose, currentPage, onAuthClick, onProfileClick,
         {/* Auth Section */}
         <div className="p-4 border-t border-slate-700">
           {isAuthenticated ? (
-            <button
+            <Button
               onClick={() => {
                 onProfileClick();
                 onClose();
               }}
-              className="w-full flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-white text-base"
+              variant="secondary"
+              className="w-full justify-start text-base"
             >
               <UserIcon className="w-4 h-4" />
               Min Profil
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               onClick={() => {
                 onAuthClick('login');
                 onClose();
               }}
-              className={`w-full flex items-center gap-2 px-4 py-3 ${theme.primary} ${theme.primaryHover} rounded-lg transition-colors text-white text-base font-semibold shadow-lg`}
+              variant="primary"
+              className="w-full justify-start text-base shadow-lg"
             >
               <LogIn className="w-4 h-4" />
               Kom i gang
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };
@@ -964,8 +983,8 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
   };
   
   return (
-    <div
-      className={`bg-slate-800 rounded-lg overflow-hidden transition-all duration-300 ${
+    <Card
+      className={`overflow-hidden transition-all duration-300 ${
         isExpanded ? `ring-2 ${theme.ring}` : 'hover:bg-slate-700/50'
       }`}
     >
@@ -1018,19 +1037,20 @@ const TutorCard = ({ tutor, onSelect, isExpanded, onExpand }) => {
                   {!isB2B && (
                     <p className="text-xl font-bold text-white">{getSessionPrice(session).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.</p>
                   )}
-                  <button
+                  <Button
                     onClick={() => onSelect(tutor, session)}
-                    className={`${!isB2B ? 'mt-1' : ''} ${theme.primary} ${theme.primaryLightHover} text-white text-sm sm:text-base font-bold py-3 px-4 sm:px-5 rounded-lg transition-colors flex items-center justify-center gap-2 w-full sm:w-auto min-h-[44px]`}
+                    variant="primary"
+                    className={`${!isB2B ? 'mt-1' : ''} text-sm sm:text-base font-bold w-full sm:w-auto min-h-[44px]`}
                   >
                     Book <ArrowRight size={16} />
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 };
 
@@ -1144,39 +1164,41 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
 
   if (!tutor || !tutor.id) {
     return (
-      <div className="bg-slate-800 rounded-lg p-6">
+      <Card className="p-6">
         <div className="text-center py-8 text-slate-400">
           <CalendarDays className="w-12 h-12 mx-auto mb-2 opacity-50" />
           <p>Tutor-information ikke tilgængelig.</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (loading) {
     return (
-      <div className="bg-slate-800 rounded-lg p-6 text-center py-8 text-slate-400">
+      <Card className="p-6 text-center py-8 text-slate-400">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
         <p>Indlæser ledige tider...</p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-slate-800 rounded-lg p-4 sm:p-6">
+    <Card className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
           <Calendar className="w-5 h-5" />
           1. Vælg en dato
         </h3>
         <div className="flex items-center justify-center gap-2">
-          <button
+          <Button
             onClick={() => setCurrentWeek(Math.max(0, currentWeek - 1))}
             disabled={currentWeek === 0}
-            className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="secondary"
+            size="sm"
+            className="min-h-[44px] min-w-[44px]"
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+          </Button>
           <span className="text-slate-300 font-medium px-2 sm:px-4 text-center text-sm sm:text-base whitespace-nowrap">
             {(() => {
               const weekStart = getWeekDates[0];
@@ -1184,13 +1206,15 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
               return `${weekStart?.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })} - ${weekEnd?.toLocaleDateString('da-DK', { day: 'numeric', month: 'short' })}`;
             })()}
           </span>
-          <button
+          <Button
             onClick={() => setCurrentWeek(Math.min(maxWeeks - 1, currentWeek + 1))}
             disabled={currentWeek >= maxWeeks - 1}
-            className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="secondary"
+            size="sm"
+            className="min-h-[44px] min-w-[44px]"
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1406,7 +1430,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           <p>Denne tutor har desværre ingen ledige tider i de kommende uger.</p>
         </div>
       )}
-    </div>
+    </Card>
   );
 };
 
@@ -1449,7 +1473,7 @@ const B2BHomePage = () => {
         </p>
       </section>
 
-      <section className="bg-slate-800/50 rounded-lg p-10 max-w-6xl mx-auto">
+      <Card className="p-10 max-w-6xl mx-auto bg-slate-800/50">
         <h2 className="text-3xl font-bold text-center text-white mb-2">
           Din bundlinje
         </h2>
@@ -1459,7 +1483,7 @@ const B2BHomePage = () => {
           KPI‑erne.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div className="border-2 border-green-500 bg-slate-800 p-6 rounded-lg shadow-xl shadow-green-500/20">
+          <Card className="border-2 border-green-500 p-6 shadow-xl shadow-green-500/20">
             <Briefcase className="w-10 h-10 mx-auto text-green-400 mb-2" />
             <p className="font-bold text-green-400 text-sm mb-1">0‑2 MDR.</p>
             <h3 className="text-xl font-bold text-white mt-2 mb-1">
@@ -1468,8 +1492,8 @@ const B2BHomePage = () => {
             <p className="text-slate-300 mt-2 text-sm">
               Se konkrete KPI‑løft og en payback‑tid på max 8 uger.
             </p>
-          </div>
-          <div className="border-2 border-green-500 bg-slate-800 p-6 rounded-lg">
+          </Card>
+          <Card className="border-2 border-green-500 p-6">
             <Users className="w-10 h-10 mx-auto text-green-400 mb-2" />
             <p className="font-bold text-green-400 text-sm mb-1">6 MDR.</p>
             <h3 className="text-xl font-bold text-white mt-2 mb-1">
@@ -1478,8 +1502,8 @@ const B2BHomePage = () => {
             <p className="text-slate-400 mt-2 text-sm">
               Hele afdelingen arbejder sikkert med AI‑flows og best practices.
             </p>
-          </div>
-          <div className="border-2 border-green-500 bg-slate-800 p-6 rounded-lg">
+          </Card>
+          <Card className="border-2 border-green-500 p-6">
             <TrendingUp className="w-10 h-10 mx-auto text-green-400 mb-2" />
             <p className="font-bold text-green-400 text-sm mb-1">1 ÅR</p>
             <h3 className="text-xl font-bold text-white mt-2 mb-1">
@@ -1488,9 +1512,9 @@ const B2BHomePage = () => {
             <p className="text-slate-400 mt-2 text-sm">
               AI‑kompetencer forankret på tværs af organisationen.
             </p>
-          </div>
+          </Card>
         </div>
-      </section>
+      </Card>
 
       <section className="max-w-4xl mx-auto">
         <h2 className="text-3xl font-bold text-center text-white mb-8">
@@ -1498,15 +1522,15 @@ const B2BHomePage = () => {
         </h2>
         <div className="space-y-8">
           {b2bTestimonials.map((testimonial, i) => (
-            <div
+            <Card
               key={i}
-              className="bg-slate-800 p-6 rounded-lg shadow-lg max-w-2xl mx-auto"
+              className="p-6 shadow-lg max-w-2xl mx-auto"
             >
               <p className="text-slate-300 text-lg italic">"{testimonial.quote}"</p>
               <p className="mt-4 font-bold text-white text-right">
                 – {testimonial.name}, <span className="text-slate-400">{testimonial.role}</span>
               </p>
-            </div>
+            </Card>
           ))}
         </div>
       </section>
@@ -1553,14 +1577,14 @@ const B2CHomePage = () => {
         </div>
       </section>
       
-      <section className="bg-slate-800/50 rounded-lg p-8 max-w-6xl mx-auto">
+      <Card className="p-8 max-w-6xl mx-auto bg-slate-800/50">
         <h2 className="text-3xl font-bold text-center text-white mb-2">Din karriere</h2>
         <p className="text-center text-slate-400 mb-10 max-w-3xl mx-auto">
           AI-kompetencer er på en rejse fra at være en unik fordel til at blive en fundamental forventning. Her ser du, hvorfor det er en fordel at handle nu.
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div className="border-2 border-blue-500 bg-slate-800 p-6 rounded-lg shadow-xl shadow-blue-500/20">
+          <Card className="border-2 border-blue-500 p-6 shadow-xl shadow-blue-500/20">
             <Rocket className="w-10 h-10 mx-auto text-blue-400 mb-2" />
             <p className="font-bold text-blue-400 text-sm mb-1">0‑2 MDR.</p>
             <h3 className="text-xl font-bold text-white mt-2 mb-1">
@@ -1569,8 +1593,8 @@ const B2CHomePage = () => {
             <p className="text-slate-300 mt-2 text-sm">
               Spar 2‑4 timer om ugen og imponer chefen med hurtige AI‑løsninger.
             </p>
-          </div>
-          <div className="border-2 border-blue-500 bg-slate-800 p-6 rounded-lg">
+          </Card>
+          <Card className="border-2 border-blue-500 p-6">
             <Award className="w-10 h-10 mx-auto text-blue-400 mb-2" />
             <p className="font-bold text-blue-400 text-sm mb-1">6 MDR.</p>
             <h3 className="text-xl font-bold text-white mt-2 mb-1">
@@ -1579,8 +1603,8 @@ const B2CHomePage = () => {
             <p className="text-slate-400 mt-2 text-sm">
               Du er nu "AI‑champ" i teamet og driver små projekter på egne ben.
             </p>
-          </div>
-          <div className="border-2 border-blue-500 bg-slate-800 p-6 rounded-lg">
+          </Card>
+          <Card className="border-2 border-blue-500 p-6">
             <TrendingUp className="w-10 h-10 mx-auto text-blue-400 mb-2" />
             <p className="font-bold text-blue-400 text-sm mb-1">1 ÅR</p>
             <h3 className="text-xl font-bold text-white mt-2 mb-1">
@@ -1589,9 +1613,9 @@ const B2CHomePage = () => {
             <p className="text-slate-400 mt-2 text-sm">
               Du har dokumenteret impact og står stærkt til løn‑ eller stillingshop.
             </p>
-          </div>
+          </Card>
         </div>
-      </section>
+      </Card>
 
       <section className="max-w-4xl mx-auto">
         <h2 className="text-3xl font-bold text-center text-white mb-8">
@@ -1599,12 +1623,12 @@ const B2CHomePage = () => {
         </h2>
         <div className="space-y-8">
           {b2cTestimonials.map((testimonial, index) => (
-            <div key={index} className="bg-slate-800 p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
+            <Card key={index} className="p-6 shadow-lg max-w-2xl mx-auto">
               <p className="text-slate-300 text-lg italic">"{testimonial.quote}"</p>
               <p className="mt-4 font-bold text-white text-right">
                 – {testimonial.name}, <span className="font-normal text-slate-400">{testimonial.role}</span>
               </p>
-            </div>
+            </Card>
           ))}
         </div>
       </section>
@@ -1698,6 +1722,7 @@ const BookingPage = () => {
   const { user, isAuthenticated } = useAuth();
   const { createBooking, loading: bookingLoading, error: bookingError, clearError } = useCreateBooking();
   const theme = getThemeColors(siteMode, user);
+  const { success, error: showError } = useToast();
   
   const isB2B = siteMode === 'b2b';
   const [format, setFormat] = useState(isB2B ? 'team' : 'individual');
@@ -1829,7 +1854,9 @@ const BookingPage = () => {
       
       // Validate required data exists
       if (!tutor || !session) {
-        setErrors({ general: 'Tutor eller session information mangler. Prøv at vælge en tutor igen.' });
+        const errorMessage = 'Tutor eller session information mangler. Prøv at vælge en tutor igen.';
+        setErrors({ general: errorMessage });
+        showError(errorMessage);
         setIsSubmitting(false);
         return;
       }
@@ -1840,7 +1867,9 @@ const BookingPage = () => {
         const now = new Date();
         
         if (sessionDate <= now) {
-          setErrors({ general: 'En session kan ikke gennemføres før efter dens starttidspunkt.' });
+          const errorMessage = 'En session kan ikke gennemføres før efter dens starttidspunkt.';
+          setErrors({ general: errorMessage });
+          showError(errorMessage);
           setIsSubmitting(false);
           return;
         }
@@ -1880,6 +1909,8 @@ const BookingPage = () => {
           siteMode
         };
         
+        success('Booking sendt succesfuldt! Du vil snart høre fra tutoren.');
+        
         if (isB2B) {
           navigate('/booking-success', { state: { booking } });
         } else {
@@ -1891,6 +1922,7 @@ const BookingPage = () => {
           setErrors({ 
             general: result.error 
           });
+          showError(result.error);
         }
       }
     } catch (error) {
@@ -1901,6 +1933,7 @@ const BookingPage = () => {
         setErrors({ 
           general: errorMessage
         });
+        showError(errorMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -1933,7 +1966,7 @@ const BookingPage = () => {
   if (!isB2B && isBooked) {
     return (
       <div className="max-w-2xl mx-auto py-20 text-center">
-        <div className="bg-slate-800 p-8 rounded-lg">
+        <Card className="p-8">
           <Award className="w-16 h-16 mx-auto text-green-400" />
           <h1 className="text-3xl font-bold text-white mt-4">Fantastisk! Du er i gang.</h1>
           <p className="text-slate-300 mt-2">
@@ -1963,16 +1996,17 @@ const BookingPage = () => {
               </p>
             </div>
           )}
-          <button
+          <Button
             onClick={() => {
               const isTutor = user?.role === 'TUTOR';
               navigate(isTutor ? '/tutor-dashboard' : '/dashboard');
             }}
-            className={`mt-6 ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
+            variant="primary"
+            className="mt-6"
           >
             Se dit Karriere-Dashboard
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -1993,12 +2027,7 @@ const BookingPage = () => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-slate-800 p-8 rounded-lg space-y-6">
-        {errors.general && (
-          <div className="bg-red-900/50 border border-red-600 rounded-lg p-4">
-            <p className="text-red-200 text-sm">{errors.general}</p>
-          </div>
-        )}
+      <Card as="form" onSubmit={handleSubmit} className="p-8 space-y-6">
         {isB2B ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2199,24 +2228,22 @@ const BookingPage = () => {
               Du sparer {(getSessionPrice(session, tutor) * 0.3).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr. med gruppesession!
             </p>
           )}
-          <button
+          <Button
             type="submit"
             disabled={isSubmitting || bookingLoading}
-            className={`mt-4 w-full ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg flex items-center justify-center gap-2`}
+            variant="primary"
+            size="lg"
+            className="mt-4 w-full"
+            loading={isSubmitting || bookingLoading}
           >
-            {(isSubmitting || bookingLoading) ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Behandler...
-              </>
-            ) : (
+            {!(isSubmitting || bookingLoading) && (
               <>
                 {isB2B ? 'Bekræft booking' : 'Bekræft og send forespørgsel'} <ArrowRight size={20} />
               </>
             )}
-          </button>
+          </Button>
         </div>
-      </form>
+      </Card>
 
       {/* AuthModal for unauthenticated users */}
       <AuthModal 
@@ -2259,7 +2286,7 @@ const BookingSuccessPage = () => {
 
   return (
     <div className="max-w-2xl mx-auto py-20 text-center">
-      <div className="bg-slate-800 p-8 rounded-lg">
+      <Card className="p-8">
         <Award className="w-16 h-16 mx-auto text-green-400" />
         <h1 className="text-3xl font-bold text-white mt-4">
           Tak for jeres booking!
@@ -2299,23 +2326,25 @@ const BookingSuccessPage = () => {
           )}
         </div>
         <div className="flex gap-4 mt-6">
-          <button
+          <Button
             onClick={() => {
               const isTutor = user?.role === 'TUTOR';
               navigate(isTutor ? '/tutor-dashboard' : '/dashboard');
             }}
-            className={`flex-1 ${theme.primary} ${theme.primaryLightHover} text-white font-bold py-2 px-6 rounded-lg transition-colors`}
+            variant="primary"
+            className="flex-1"
           >
             Gå til Dashboard
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => navigate('/')}
-            className="flex-1 bg-slate-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-slate-500 transition-colors"
+            variant="secondary"
+            className="flex-1"
           >
             Tilbage til forsiden
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };
@@ -2369,12 +2398,12 @@ const DashboardPage = () => {
             >
               Prøv igen
             </button>
-            <button
+            <Button
               onClick={() => window.location.href = '/'}
-              className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded-lg transition-colors"
+              variant="secondary"
             >
               Tilbage til forsiden
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -2395,7 +2424,7 @@ const DashboardPage = () => {
       
       {bookings.length > 0 ? (
         <div className="space-y-6">
-          <div className="bg-slate-800 p-6 rounded-lg">
+          <Card className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <h2 className="text-2xl font-bold text-white">
                 {isB2B ? 'Jeres bookings' : 'Dine bookings'}
@@ -2469,7 +2498,7 @@ const DashboardPage = () => {
                     {/* Mobile-optimized content */}
                     <div className="space-y-3 sm:space-y-4">
                       {/* Tutor Information - Compact */}
-                      <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
+                      <Card className="p-3 sm:p-4">
                         <div className="flex items-center gap-3">
                           {booking.tutor?.img ? (
                             <img
@@ -2496,10 +2525,10 @@ const DashboardPage = () => {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </Card>
 
                       {/* Combined Session Info - Mobile Optimized */}
-                      <div className="bg-slate-800 rounded-lg p-3 sm:p-4">
+                      <Card className="p-3 sm:p-4">
                         <div className="space-y-3">
                           {/* Date and Time */}
                           {sessionDate ? (
@@ -2591,7 +2620,7 @@ const DashboardPage = () => {
                             </div>
                           )}
                         </div>
-                      </div>
+                      </Card>
                     </div>
 
                     {/* Contact Information - Mobile Optimized */}
@@ -2616,9 +2645,9 @@ const DashboardPage = () => {
                 );
               })}
             </div>
-          </div>
+          </Card>
           
-          <div className="bg-slate-800 p-6 rounded-lg">
+          <Card className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
               <h2 className="text-2xl font-bold text-white">Statistik</h2>
               <button
@@ -2651,7 +2680,7 @@ const DashboardPage = () => {
                 <p className="text-slate-400">{isB2B ? 'Afdelinger involveret' : 'Forskellige tutorer'}</p>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       ) : (
         <div className="bg-slate-800 p-10 rounded-lg flex flex-col items-center gap-6">
@@ -2882,9 +2911,24 @@ export default function App() {
     <AdminGate>
       <AuthProvider>
         <SiteModeProvider>
-          <AppContent />
+          <ThemeProviderWrapper>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </ThemeProviderWrapper>
         </SiteModeProvider>
       </AuthProvider>
     </AdminGate>
   );
 }
+
+const ThemeProviderWrapper = ({ children }) => {
+  const { siteMode } = useContext(SiteModeContext) || { siteMode: 'b2b' };
+  const { user } = useAuth();
+  
+  return (
+    <ThemeProvider siteMode={siteMode} userRole={user?.role}>
+      {children}
+    </ThemeProvider>
+  );
+};

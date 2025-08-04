@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Trash2, Edit, Save, X, Copy, RotateCcw, CalendarDays } from 'lucide-react';
 import { availabilityApi, tutorManagementApi } from '../services/api.js';
 import { SessionUtils } from '../utils/sessionUtils.js';
+import { useToast } from './design-system';
 
 const TutorAvailability = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -21,6 +22,8 @@ const TutorAvailability = () => {
   const [loading, setLoading] = useState(true);
   const [tutorId, setTutorId] = useState(null);
   const [error, setError] = useState(null);
+  
+  const { success, error: showError } = useToast();
 
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
@@ -73,8 +76,10 @@ const TutorAvailability = () => {
       const response = await tutorManagementApi.getProfile();
       setTutorId(response.data.id);
     } catch (error) {
+      const errorMessage = 'Kunne ikke indlæse tutor profil';
       console.error('Failed to load tutor profile:', error);
-      setError('Failed to load tutor profile');
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -121,8 +126,10 @@ const TutorAvailability = () => {
       
       setAvailability(availabilityMap);
     } catch (error) {
+      const errorMessage = 'Kunne ikke indlæse tilgængelighed';
       console.error('Failed to load availability:', error);
-      setError('Failed to load availability');
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -193,6 +200,7 @@ const TutorAvailability = () => {
       const validationError = validateTimeSlot(newSlot.hour, existingSlots);
       if (validationError) {
         setError(validationError);
+        showError(validationError);
         return;
       }
       
@@ -217,9 +225,12 @@ const TutorAvailability = () => {
       
       setNewSlot({ hour: '' });
       setIsAddingSlot(false);
+      success('Tidslot tilføjet succesfuldt');
     } catch (error) {
+      const errorMessage = 'Kunne ikke tilføje tidslot';
       console.error('Failed to add time slot:', error);
-      setError('Failed to add time slot');
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -233,9 +244,12 @@ const TutorAvailability = () => {
 
       await availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots);
       await loadAvailability();
+      success('Tidslot slettet succesfuldt');
     } catch (error) {
+      const errorMessage = 'Kunne ikke slette tidslot';
       console.error('Failed to delete time slot:', error);
-      setError('Failed to delete time slot');
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -251,6 +265,7 @@ const TutorAvailability = () => {
       const overlapError = checkTimeSlotOverlap(updatedSlot.startTime, updatedSlot.endTime, otherSlots);
       if (overlapError) {
         setError(overlapError);
+        showError(overlapError);
         return;
       }
       
@@ -261,9 +276,12 @@ const TutorAvailability = () => {
       await availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots);
       await loadAvailability();
       setEditingSlot(null);
+      success('Tidslot opdateret succesfuldt');
     } catch (error) {
+      const errorMessage = 'Kunne ikke opdatere tidslot';
       console.error('Failed to update time slot:', error);
-      setError('Failed to update time slot');
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -277,7 +295,9 @@ const TutorAvailability = () => {
       const sourceSlots = availability[sourceDateKey] || [];
       
       if (sourceSlots.length === 0) {
-        setError('Ingen tidsslots at kopiere fra den valgte dag');
+        const errorMessage = 'Ingen tidsslots at kopiere fra den valgte dag';
+        setError(errorMessage);
+        showError(errorMessage);
         return;
       }
 
@@ -292,9 +312,12 @@ const TutorAvailability = () => {
       await loadAvailability();
       setShowCopyModal(false);
       setCopySource(null);
+      success('Tilgængelighed kopieret succesfuldt');
     } catch (error) {
+      const errorMessage = 'Kunne ikke kopiere tilgængelighed';
       console.error('Failed to copy availability:', error);
-      setError('Kunne ikke kopiere tilgængelighed');
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -306,7 +329,9 @@ const TutorAvailability = () => {
       const sourceSlots = availability[sourceDateKey] || [];
       
       if (sourceSlots.length === 0) {
-        setError('Ingen tidsslots at kopiere fra den valgte dag');
+        const errorMessage = 'Ingen tidsslots at kopiere fra den valgte dag';
+        setError(errorMessage);
+        showError(errorMessage);
         return;
       }
 
@@ -316,22 +341,19 @@ const TutorAvailability = () => {
       
       await copyAvailabilityToDay(sourceDate, targetDate);
     } catch (error) {
+      const errorMessage = 'Kunne ikke kopiere tilgængelighed til ugen';
       console.error('Failed to copy availability to week:', error);
-      setError('Kunne ikke kopiere tilgængelighed til ugen');
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
   // Bulk creation function
   const createBulkAvailability = async () => {
-    if (!tutorId || !bulkPattern.dayOfWeek || !bulkPattern.startTime || !bulkPattern.endTime) {
-      setError('Alle felter er påkrævet for masseoprettelse');
-      return;
-    }
-
-    // Validate time slot
-    const timeError = checkTimeSlotOverlap(bulkPattern.startTime, bulkPattern.endTime, []);
-    if (timeError) {
-      setError(timeError);
+    if (!tutorId || !bulkPattern.dayOfWeek || !bulkPattern.hour) {
+      const errorMessage = 'Alle felter er påkrævet for masseoprettelse';
+      setError(errorMessage);
+      showError(errorMessage);
       return;
     }
 
@@ -347,17 +369,19 @@ const TutorAvailability = () => {
         const dateKey = formatDate(targetDate);
         const existingSlots = availability[dateKey] || [];
         
-        // Check if this would overlap with existing slots
-        const overlapError = checkTimeSlotOverlap(bulkPattern.startTime, bulkPattern.endTime, existingSlots);
-        if (!overlapError) {
-          const newSlot = {
-            startTime: bulkPattern.startTime,
-            endTime: bulkPattern.endTime,
-            isBooked: false
-          };
-          
-          const updatedSlots = [...existingSlots, newSlot]
-            .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        // Create time slot based on hour pattern (similar to addTimeSlot)
+        const hour = parseInt(bulkPattern.hour);
+        const timeSlot = {
+          time: `${hour.toString().padStart(2, '0')}:00`,
+          available: true,
+          booked: false
+        };
+        
+        // Check if this hour already exists
+        const existsAlready = existingSlots.some(slot => slot.time === timeSlot.time);
+        if (!existsAlready) {
+          const updatedSlots = [...existingSlots, timeSlot]
+            .sort((a, b) => a.time.localeCompare(b.time));
           
           promises.push(
             availabilityApi.updateAvailability(tutorId, dateKey, updatedSlots)
@@ -368,10 +392,13 @@ const TutorAvailability = () => {
       await Promise.all(promises);
       await loadAvailability();
       setShowBulkCreate(false);
-      setBulkPattern({ dayOfWeek: '', startTime: '', endTime: '', weeks: 4 });
+      setBulkPattern({ dayOfWeek: '', hour: '', weeks: 4 });
+      success(`Masseoprettelse fuldført! ${promises.length} tidslots oprettet.`);
     } catch (error) {
+      const errorMessage = 'Kunne ikke oprette massedisponibilitet';
       console.error('Failed to create bulk availability:', error);
-      setError('Kunne ikke oprette massedisponibilitet');
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -392,13 +419,12 @@ const TutorAvailability = () => {
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
-        <p className="text-red-400">{error}</p>
+      <div className="text-center py-12">
         <button 
           onClick={() => { setError(null); loadTutorProfile(); }}
-          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
         >
-          Try Again
+          Prøv igen
         </button>
       </div>
     );
