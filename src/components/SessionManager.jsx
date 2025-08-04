@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, Save, X, BookOpen, Clock, DollarSign } from 'lucide-react';
+import { Button, Card, useToast } from './design-system';
 import { tutorManagementApi, sessionsApi } from '../services/api.js';
 
 const SessionManager = () => {
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
+  
   const [editingSessions, setEditingSessions] = useState({});
   const [isAddingSession, setIsAddingSession] = useState(false);
   const [sessions, setSessions] = useState([]);
@@ -32,7 +35,9 @@ const SessionManager = () => {
       setSessions(response.data.sessions || []);
     } catch (error) {
       console.error('Failed to load data:', error);
-      setError('Failed to load sessions');
+      const errorMessage = 'Kunne ikke indlæse sessioner';
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -43,9 +48,12 @@ const SessionManager = () => {
       await sessionsApi.updateSession(sessionId, updatedSession);
       await loadData(); // Reload to get updated data
       setEditingSessions(prev => ({ ...prev, [sessionId]: false }));
+      showSuccessToast('Session opdateret succesfuldt');
     } catch (error) {
       console.error('Failed to save session:', error);
-      setError('Failed to save session');
+      const errorMessage = 'Kunne ikke gemme session';
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     }
   };
 
@@ -64,9 +72,12 @@ const SessionManager = () => {
       await loadData(); // Reload to get updated data
       setNewSession({ title: '', description: '', price: '' });
       setIsAddingSession(false);
+      showSuccessToast('Session tilføjet succesfuldt');
     } catch (error) {
       console.error('Failed to add session:', error);
-      setError('Failed to add session');
+      const errorMessage = 'Kunne ikke tilføje session';
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     }
   };
 
@@ -81,6 +92,7 @@ const SessionManager = () => {
       console.log('🔄 Reloading data...');
       await loadData(); // Reload to get updated data
       console.log('✅ Session deletion completed successfully');
+      showSuccessToast('Session slettet succesfuldt');
       
     } catch (error) {
       console.error('❌ Failed to delete session:', error);
@@ -91,7 +103,9 @@ const SessionManager = () => {
         hint: error.hint,
         stack: error.stack
       });
-      setError(`Failed to delete session: ${error.message || 'Unknown error'}`);
+      const errorMessage = `Kunne ikke slette session: ${error.message || 'Ukendt fejl'}`;
+      setError(errorMessage);
+      showErrorToast(errorMessage);
     }
   };
 
@@ -108,14 +122,14 @@ const SessionManager = () => {
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500 rounded-lg p-6 text-center">
-        <p className="text-red-400">{error}</p>
-        <button 
+      <div className="text-center py-12">
+        <Button 
           onClick={() => { setError(null); loadData(); }}
-          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg"
+          variant="primary"
+          className="mt-4"
         >
           Prøv igen
-        </button>
+        </Button>
       </div>
     );
   }
@@ -123,7 +137,7 @@ const SessionManager = () => {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="bg-slate-800 rounded-lg p-4 sm:p-6">
+      <Card className="p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
           <div className="flex-1">
             <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3">
@@ -320,7 +334,7 @@ const SessionManager = () => {
             ))
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

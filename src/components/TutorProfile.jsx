@@ -2,8 +2,23 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, Building, Briefcase, DollarSign, Save, Edit, Upload, Camera } from 'lucide-react';
 import { tutorManagementApi } from '../services/api.js';
 import { SessionUtils } from '../utils/sessionUtils.js';
-import OptimizedImage from './OptimizedImage.jsx';
 import { processProfileImage } from '../utils/imageCompression.js';
+
+// Design System imports
+import {
+  Card,
+  Button,
+  Input,
+  Textarea,
+  FormField,
+  Container,
+  Header,
+  OptimizedImage,
+  ImageUpload,
+  Avatar,
+  useToast,
+  LoadingSpinner
+} from './design-system';
 
 const TutorProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -13,6 +28,7 @@ const TutorProfile = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const { success, error: showError } = useToast();
 
 
   useEffect(() => {
@@ -40,6 +56,7 @@ const TutorProfile = () => {
     } catch (error) {
       console.error('Failed to load profile:', error);
       setError('Kunne ikke indlæse profil');
+      showError('Kunne ikke indlæse profil');
     } finally {
       setLoading(false);
     }
@@ -70,10 +87,12 @@ const TutorProfile = () => {
       
       // Update profile with new image URL
       setProfile(prev => ({ ...prev, img: response.data.imageUrl }));
+      success('Profilbillede uploadet!');
       
     } catch (error) {
       console.error('Failed to upload image:', error);
       setError(error.message || 'Kunne ikke uploade billedet. Prøv igen.');
+      showError(error.message || 'Kunne ikke uploade billedet. Prøv igen.');
     } finally {
       setUploading(false);
     }
@@ -107,9 +126,11 @@ const TutorProfile = () => {
       
       await loadProfile(); // Reload to get updated data
       setIsEditing(false);
+      success('Profil gemt!');
     } catch (error) {
       console.error('Failed to save profile:', error);
       setError('Kunne ikke gemme profil. Prøv igen.');
+      showError('Kunne ikke gemme profil. Prøv igen.');
     } finally {
       setSaving(false);
     }
@@ -118,262 +139,298 @@ const TutorProfile = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8 sm:py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-purple-500 mx-auto mb-3 sm:mb-4"></div>
-          <p className="text-slate-400 text-sm sm:text-base">Indlæser profil...</p>
+      <Container>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <LoadingSpinner size="lg" className="mx-auto mb-4" />
+            <p className="text-slate-400">Indlæser profil...</p>
+          </div>
         </div>
-      </div>
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 sm:p-6 text-center">
-        <p className="text-red-400 text-sm sm:text-base">{error}</p>
-        <button 
-          onClick={() => { setError(null); loadProfile(); }}
-          className="mt-3 sm:mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base"
-        >
-          Prøv igen
-        </button>
-      </div>
+      <Container>
+        <Card className="text-center">
+          <div className="p-6">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Button 
+              variant="danger"
+              onClick={() => { setError(null); loadProfile(); }}
+            >
+              Prøv igen
+            </Button>
+          </div>
+        </Card>
+      </Container>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Profile Information */}
-      <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 sm:p-6 hover:border-purple-500/50 transition-colors">
-        <div className="mb-4 sm:mb-6">
-          <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
-            <User className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
-            Profil information
-          </h3>
-        </div>
+    <Container>
+      <Header 
+        title="Min Profil" 
+        subtitle="Administrer dine profiloplysninger og indstillinger"
+        actions={
+          <div className="flex gap-2">
+            {isEditing ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEditing(false);
+                    loadProfile(); // Reset changes
+                  }}
+                >
+                  Annuller
+                </Button>
+                <Button 
+                  variant="primary" 
+                  icon={Save}
+                  loading={saving}
+                  onClick={handleProfileSave}
+                >
+                  Gem
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="primary" 
+                icon={Edit}
+                onClick={() => setIsEditing(true)}
+              >
+                Rediger
+              </Button>
+            )}
+          </div>
+        }
+      />
 
+      <div className="space-y-6">
         {/* Profile Image Section */}
-        <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
-          <h4 className="text-sm sm:text-base font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
-            <Camera className="w-4 h-4 text-purple-400" />
-            Profilbillede
-          </h4>
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-            <div className="relative flex-shrink-0">
-              <OptimizedImage
-                src={profile.img}
-                alt={profile.name || 'Profil billede'}
-                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-slate-600 object-cover"
-                fallback={`data:image/svg+xml;base64,${btoa(`
-                  <svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="128" height="128" fill="#7c3aed" rx="64"/>
-                    <text x="64" y="78" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#ffffff" text-anchor="middle">${SessionUtils.generateInitials(profile.name)}</text>
-                  </svg>
-                `)}`}
-                loading="eager"
-                placeholder={true}
-              />
-              {uploading && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-purple-500"></div>
+        <Card className="mb-6">
+          <div className="p-6">
+            <h4 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+              <Camera className="w-4 h-4 text-purple-400" />
+              Profilbillede
+            </h4>
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="relative flex-shrink-0">
+                <Avatar
+                  src={profile.img}
+                  name={profile.name}
+                  size="xl"
+                  className="border-4 border-slate-600"
+                />
+                {uploading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                    <LoadingSpinner size="sm" />
+                  </div>
+                )}
+              </div>
+              
+              {isEditing && (
+                <div className="flex-1 space-y-2">
+                  <ImageUpload
+                    onUpload={handleImageUpload}
+                    accept="image/*"
+                    maxSize={10485760}
+                    currentImage={profile.img}
+                    className="w-full sm:w-auto"
+                  />
+                  <p className="text-xs text-slate-400 text-center sm:text-left">
+                    Max 10MB, automatisk komprimeret til optimal størrelse
+                  </p>
+                </div>
+              )}
+              
+              {!isEditing && (
+                <div className="flex-1 text-center sm:text-left">
+                  <p className="text-slate-300 text-sm">Profilbillede</p>
+                  <p className="text-slate-400 text-xs mt-1">Vises på din tutor profil</p>
                 </div>
               )}
             </div>
-            
-            {isEditing && (
-              <div className="flex-1 space-y-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center gap-2 justify-center w-full sm:w-auto text-sm"
-                >
-                  <Camera className="w-4 h-4" />
-                  {uploading ? 'Uploader...' : 'Skift billede'}
-                </button>
-                <p className="text-xs text-slate-500 text-center sm:text-left">Max 10MB, automatisk komprimeret til optimal størrelse</p>
-              </div>
-            )}
-            
-            {!isEditing && (
-              <div className="flex-1 text-center sm:text-left">
-                <p className="text-slate-300 text-sm">Profilbillede</p>
-                <p className="text-slate-400 text-xs mt-1">Vises på din tutor profil</p>
-              </div>
-            )}
           </div>
-        </div>
+        </Card>
 
-        {/* Information Sections */}
-        <div className="space-y-4 sm:space-y-6">
-            {/* Contact Information Section */}
-            <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-3 sm:p-4">
-              <h4 className="text-sm sm:text-base font-semibold text-white mb-3 flex items-center gap-2">
-                <Mail className="w-4 h-4 text-purple-400" />
-                Kontakt information
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                    <User className="w-4 h-4 inline mr-1" />
-                    Navn
-                  </label>
+        {/* Contact Information Section */}
+        <Card>
+          <div className="p-6">
+            <h4 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+              <Mail className="w-4 h-4 text-purple-400" />
+              Kontakt information
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                label="Navn"
+                icon={User}
+                required
+              >
                 {isEditing ? (
-                  <input
+                  <Input
                     type="text"
                     value={profile.name}
                     onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
+                    placeholder="Dit fulde navn"
                   />
                 ) : (
-                  <p className="text-white text-sm sm:text-base py-1">{profile.name}</p>
+                  <div className="text-white py-2">{profile.name}</div>
                 )}
-                </div>
+              </FormField>
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                    <Mail className="w-4 h-4 inline mr-1" />
-                    Email
-                  </label>
+              <FormField
+                label="Email"
+                icon={Mail}
+                required
+              >
                 {isEditing ? (
-                  <input
+                  <Input
                     type="email"
                     value={profile.email}
                     onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
+                    placeholder="din@email.com"
                   />
                 ) : (
-                  <p className="text-white text-sm sm:text-base py-1 break-all">{profile.email}</p>
+                  <div className="text-white py-2 break-all">{profile.email}</div>
                 )}
-                </div>
+              </FormField>
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                    <Phone className="w-4 h-4 inline mr-1" />
-                    Telefon
-                  </label>
+              <FormField
+                label="Telefon"
+                icon={Phone}
+              >
                 {isEditing ? (
-                  <input
+                  <Input
                     type="tel"
                     value={profile.phone}
                     onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
+                    placeholder="+45 12 34 56 78"
                   />
                 ) : (
-                  <p className="text-white text-sm sm:text-base py-1">{profile.phone}</p>
+                  <div className="text-white py-2">{profile.phone}</div>
                 )}
-                </div>
+              </FormField>
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">
-                    <Briefcase className="w-4 h-4 inline mr-1" />
-                    Titel
-                  </label>
+              <FormField
+                label="Titel"
+                icon={Briefcase}
+              >
                 {isEditing ? (
-                  <input
+                  <Input
                     type="text"
                     value={profile.title}
                     onChange={(e) => setProfile(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
+                    placeholder="Din professionelle titel"
                   />
                 ) : (
-                  <p className="text-white text-sm sm:text-base py-1">{profile.title}</p>
+                  <div className="text-white py-2">{profile.title}</div>
                 )}
-                </div>
-              </div>
+              </FormField>
             </div>
+          </div>
+        </Card>
 
-            {/* Professional Information Section */}
-            <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-3 sm:p-4">
-              <h4 className="text-sm sm:text-base font-semibold text-white mb-3 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-purple-400" />
-                Professionel information
-              </h4>
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Specialeområde</label>
+        {/* Professional Information Section */}
+        <Card>
+          <div className="p-6">
+            <h4 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-purple-400" />
+              Professionel information
+            </h4>
+            <div className="space-y-4">
+              <FormField
+                label="Specialeområde"
+                icon={Building}
+              >
                 {isEditing ? (
-                  <input
+                  <Input
                     type="text"
                     value={profile.specialty}
                     onChange={(e) => setProfile(prev => ({ ...prev, specialty: e.target.value }))}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base"
+                    placeholder="Dit hovedspeciale eller fagområde"
                   />
                 ) : (
-                  <p className="text-white text-sm sm:text-base py-1">{profile.specialty}</p>
+                  <div className="text-white py-2">{profile.specialty}</div>
                 )}
-                </div>
+              </FormField>
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Erfaring</label>
+              <FormField
+                label="Erfaring"
+                description="Beskriv din baggrund, erfaring og specialkompetencer"
+              >
                 {isEditing ? (
-                  <textarea
+                  <Textarea
                     value={profile.experience}
                     onChange={(e) => setProfile(prev => ({ ...prev, experience: e.target.value }))}
                     rows={5}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[120px]"
                     placeholder="Beskriv din erfaring, baggrund og specialkompetencer..."
+                    className="min-h-[120px]"
                   />
                 ) : (
-                  <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.experience}</p>
+                  <div className="text-white py-2 leading-relaxed whitespace-pre-line">{profile.experience}</div>
                 )}
-                </div>
+              </FormField>
 
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1 sm:mb-2">Værdiforslag</label>
+              <FormField
+                label="Værdiforslag"
+                description="Hvad kan du tilbyde dine kunder? Hvad gør dig unik?"
+              >
                 {isEditing ? (
-                  <textarea
+                  <Textarea
                     value={profile.value_prop}
                     onChange={(e) => setProfile(prev => ({ ...prev, value_prop: e.target.value }))}
                     rows={4}
-                    className="w-full bg-slate-700 text-white rounded-md px-3 py-2 sm:py-3 text-sm sm:text-base resize-y min-h-[100px]"
                     placeholder="Hvad kan du tilbyde dine kunder? Hvad gør dig unik?"
+                    className="min-h-[100px]"
                   />
                 ) : (
-                  <p className="text-white text-sm sm:text-base py-1 leading-relaxed whitespace-pre-line">{profile.value_prop}</p>
+                  <div className="text-white py-2 leading-relaxed whitespace-pre-line">{profile.value_prop}</div>
                 )}
-                </div>
-              </div>
+              </FormField>
             </div>
-        </div>
+          </div>
+        </Card>
 
         {/* Action Buttons */}
         <div className="mt-6 pt-4 border-t border-slate-700">
           {!isEditing ? (
-            <button
+            <Button
+              variant="primary"
+              icon={Edit}
               onClick={() => setIsEditing(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base justify-center w-full sm:w-auto"
+              className="w-full sm:w-auto"
             >
-              <Edit className="w-4 h-4" />
               Rediger profil
-            </button>
+            </Button>
           ) : (
             <div className="flex flex-col sm:flex-row gap-2">
-              <button
+              <Button
+                variant="primary"
+                icon={Save}
+                loading={saving}
                 onClick={handleProfileSave}
-                disabled={saving}
-                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base justify-center"
+                className="flex-1 sm:flex-initial"
               >
-                <Save className="w-4 h-4" />
                 {saving ? 'Gemmer...' : 'Gem'}
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 sm:py-3 rounded-lg font-medium transition-colors text-sm sm:text-base justify-center"
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditing(false);
+                  loadProfile(); // Reset changes
+                }}
+                className="flex-1 sm:flex-initial"
               >
                 Annuller
-              </button>
+              </Button>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </Container>
   );
 };
 

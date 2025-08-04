@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { User, Mail, Phone, Building, Briefcase, Lock, Save, X, Edit, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button, Card, useToast } from './design-system';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   const { user, updateProfile, logout, changePassword } = useAuth();
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
   const navigate = useNavigate();
   const isB2B = siteMode === 'b2b';
   const [isEditing, setIsEditing] = useState(false);
@@ -17,7 +19,6 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -26,9 +27,6 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
   });
   const [passwordErrors, setPasswordErrors] = useState({});
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('');
-  const timeoutRef = React.useRef(null);
-  const passwordTimeoutRef = React.useRef(null);
   const [isFormDirty, setIsFormDirty] = useState(false);
 
   // Calculate profile completion percentage
@@ -57,41 +55,18 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
     }
   }, [user]);
 
-  // Reset editing state when modal closes and cleanup timeouts
+  // Reset editing state when modal closes
   React.useEffect(() => {
     if (!isOpen) {
-      // Clear any active timeouts
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      if (passwordTimeoutRef.current) {
-        clearTimeout(passwordTimeoutRef.current);
-        passwordTimeoutRef.current = null;
-      }
-      
       // Modal closed - reset for next time
       setIsEditing(false);
       setErrors({});
-      setSuccessMessage('');
       setShowPasswordChange(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordErrors({});
-      setPasswordSuccessMessage('');
     }
   }, [isOpen]);
 
-  // Cleanup timeouts on unmount
-  React.useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      if (passwordTimeoutRef.current) {
-        clearTimeout(passwordTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const validateForm = () => {
     const newErrors = {};
@@ -144,7 +119,6 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    setSuccessMessage('');
     setErrors({});
 
     try {
@@ -153,8 +127,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
       if (result.success) {
         setIsEditing(false);
         setIsFormDirty(false);
-        setSuccessMessage('Profil opdateret succesfuldt');
-        timeoutRef.current = setTimeout(() => setSuccessMessage(''), 3000);
+        showSuccessToast('Profil opdateret succesfuldt');
       } else {
         // Handle updateProfile errors
         setErrors({
@@ -207,19 +180,15 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
     if (!validatePasswordForm()) return;
 
     setIsChangingPassword(true);
-    setPasswordSuccessMessage('');
     setPasswordErrors({});
 
     try {
       const result = await changePassword(passwordData.currentPassword, passwordData.newPassword);
       
       if (result.success) {
-        setPasswordSuccessMessage('Adgangskode ændret succesfuldt');
+        showSuccessToast('Adgangskode ændret succesfuldt');
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        passwordTimeoutRef.current = setTimeout(() => {
-          setPasswordSuccessMessage('');
-          setShowPasswordChange(false);
-        }, 2000);
+        setShowPasswordChange(false);
       } else {
         setPasswordErrors({
           general: result.error || 'Adgangskode ændring fejlede. Prøv igen.'
@@ -252,33 +221,29 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-slate-800 rounded-lg w-full max-w-md md:max-w-lg lg:max-w-xl mx-auto max-h-[95vh] overflow-y-auto">
+      <Card className="w-full max-w-md md:max-w-lg lg:max-w-xl mx-auto max-h-[95vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-slate-700">
           <h2 className="text-xl font-bold text-white">Min Profil</h2>
-          <button
+          <Button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            variant="ghost"
+            size="sm"
+            className="text-slate-400 hover:text-white"
           >
             <X className="w-6 h-6" />
-          </button>
+          </Button>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Success Message */}
-          {successMessage && (
-            <div className="bg-green-900/50 border border-green-600 rounded-lg p-3">
-              <p className="text-green-200 text-sm">{successMessage}</p>
-            </div>
-          )}
 
           {/* Visual editing indicator */}
           {isEditing && (
-            <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 mb-4">
+            <Card className="bg-blue-900/30 border border-blue-500/30 p-3 mb-4">
               <div className="flex items-center gap-2">
                 <Edit className="w-4 h-4 text-blue-400" />
                 <p className="text-blue-200 text-sm">Du redigerer din profil</p>
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Progress indicator for form completion */}
@@ -321,13 +286,6 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
             </div>
           </div>
 
-          {/* Error Messages */}
-          {errors.general && (
-            <div className="bg-red-900/50 border border-red-600 rounded-lg p-3 flex items-start gap-2">
-              <div className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5">⚠</div>
-              <p className="text-red-200 text-sm">{errors.general}</p>
-            </div>
-          )}
 
           {/* Profile Form */}
           <form onSubmit={handleSave} className="space-y-6 md:space-y-4">
@@ -470,36 +428,32 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
               {isEditing ? (
                 <>
                   {/* Primary Action - Save */}
-                  <button
+                  <Button
                     type="submit"
                     disabled={isSubmitting || !isFormDirty || Object.keys(errors).length > 0}
-                    className={`flex-1 min-h-[44px] text-base font-semibold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed
-                      transition-all duration-200 flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2
-                      focus:ring-offset-slate-800 shadow-lg hover:shadow-xl ${isSubmitting ? 'cursor-wait' : ''}
-                      ${Object.keys(errors).length > 0 ? 'bg-red-600 cursor-not-allowed' :
-                        !isFormDirty ? 'bg-gray-600 cursor-not-allowed' :
-                        isB2B ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-                      } text-white`}
+                    variant={Object.keys(errors).length > 0 ? 'danger' : 'primary'}
+                    size="lg"
+                    className="flex-1"
+                    loading={isSubmitting}
                   >
-                    {isSubmitting ? (
+                    {!isSubmitting && (
                       <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                        Gemmer...
-                      </>
-                    ) : Object.keys(errors).length > 0 ? (
-                      'Ret fejl først'
-                    ) : !isFormDirty ? (
-                      'Ingen ændringer'
-                    ) : (
-                      <>
-                        <Save className="w-5 h-5" />
-                        Gem ændringer
+                        {Object.keys(errors).length > 0 ? (
+                          'Ret fejl først'
+                        ) : !isFormDirty ? (
+                          'Ingen ændringer'
+                        ) : (
+                          <>
+                            <Save className="w-5 h-5" />
+                            Gem ændringer
+                          </>
+                        )}
                       </>
                     )}
-                  </button>
+                  </Button>
 
                   {/* Secondary Action - Cancel */}
-                  <button
+                  <Button
                     type="button"
                     onClick={() => {
                       if (isFormDirty) {
@@ -516,26 +470,26 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                         lastUserId: user.id
                       });
                       setErrors({});
-                      setSuccessMessage('');
                       setIsFormDirty(false);
                     }}
-                    className="flex-1 min-h-[44px] text-base bg-slate-600 hover:bg-slate-500 text-white font-medium py-3 px-6 rounded-lg
-                    transition-all duration-200 focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-800"
+                    variant="secondary"
+                    size="lg"
+                    className="flex-1"
                   >
                     Annuller
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
+                <Button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className={`w-full min-h-[44px] text-base font-semibold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center gap-2
-                  focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 shadow-lg hover:shadow-xl
-                  ${isB2B ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'} text-white`}
+                  variant="primary"
+                  size="lg"
+                  className="w-full shadow-lg"
                 >
                   <Edit className="w-5 h-5" />
                   Rediger profil
-                </button>
+                </Button>
               )}
             </div>
           </form>
@@ -545,20 +499,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
             <div className="border-t border-slate-700 pt-4">
               <h3 className="text-lg font-semibold text-white mb-4">Skift adgangskode</h3>
               
-              {/* Password Success Message */}
-              {passwordSuccessMessage && (
-                <div className="bg-green-900/50 border border-green-600 rounded-lg p-3 mb-4">
-                  <p className="text-green-200 text-sm">{passwordSuccessMessage}</p>
-                </div>
-              )}
 
-              {/* Password Error Messages */}
-              {passwordErrors.general && (
-                <div className="bg-red-900/50 border border-red-600 rounded-lg p-3 mb-4 flex items-start gap-2">
-                  <div className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5">⚠</div>
-                  <p className="text-red-200 text-sm">{passwordErrors.general}</p>
-                </div>
-              )}
 
               <div className="space-y-4">
                 <div>
@@ -637,7 +578,6 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
                       setShowPasswordChange(false);
                       setPasswordData({currentPassword: '', newPassword: '', confirmPassword: ''});
                       setPasswordErrors({});
-                      setPasswordSuccessMessage('');
                     }}
                     disabled={isChangingPassword}
                     className="flex-1 bg-slate-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -682,7 +622,7 @@ const UserProfile = ({ isOpen, onClose, siteMode = 'b2b' }) => {
             })()}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

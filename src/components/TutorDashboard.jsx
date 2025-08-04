@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Users, Settings, BookOpen, Clock, DollarSign, TrendingUp, CalendarDays, AlertCircle } from 'lucide-react';
+import { Button, Card, useToast } from './design-system';
 import TutorBookings from './TutorBookings';
 import TutorProfile from './TutorProfile';
 import WeeklyAvailabilityManager from './WeeklyAvailabilityManager';
@@ -11,10 +12,18 @@ import { supabase } from '../services/supabase';
 const TutorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { user } = useAuth();
+  const { error: showError } = useToast();
   
   // Get tutor data first, then stats
   const { data: tutorData, loading: tutorLoading } = useTutorByUserId(user?.id);
   const { data: stats, loading: statsLoading, error: statsError } = useTutorStats(tutorData?.id);
+
+  // Show error toast when stats error occurs
+  useEffect(() => {
+    if (statsError) {
+      showError(`Kunne ikke indlæse statistikker: ${statsError}`);
+    }
+  }, [statsError, showError]);
   
   // Get next booking and pending bookings
   const { data: nextBooking } = useSupabaseQuery(async () => {
@@ -106,31 +115,24 @@ const TutorDashboard = () => {
       default:
         return (
           <div className="space-y-6">
-            {/* Error Display */}
-            {statsError && (
-              <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 text-red-400">
-                Kunne ikke indlæse statistikker: {statsError}
-              </div>
-            )}
-            
             {/* Stats Overview */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {dashboardStats.map((stat, index) => (
-                <div key={index} className="bg-slate-800 border border-slate-700 rounded-lg p-3 sm:p-6 hover:border-purple-500/50 transition-colors">
+                <Card key={index} className="p-3 sm:p-6 hover:border-purple-500/50 transition-colors">
                   <div className="flex items-center justify-between mb-2 sm:mb-3">
                     <stat.icon className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
                   </div>
                   <p className="text-lg sm:text-2xl font-bold text-white mb-1">{stat.value}</p>
                   <p className="text-slate-300 text-xs sm:text-sm font-medium">{stat.subtitle}</p>
                   <p className="text-slate-400 text-xs mt-1 hidden sm:block">{stat.label}</p>
-                </div>
+                </Card>
               ))}
             </div>
 
             {/* Important Bookings */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
               {/* Next Booking */}
-              <div className="bg-slate-800 rounded-lg p-4 sm:p-6 border border-slate-700">
+              <Card className="p-4 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4 flex items-center gap-2">
                   <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
                   <span className="hidden sm:inline">Næste booking</span>
@@ -156,12 +158,14 @@ const TutorDashboard = () => {
                         })}
                       </span>
                     </div>
-                    <button
+                    <Button
                       onClick={() => setActiveTab('bookings')}
-                      className="w-full mt-2 sm:mt-3 bg-green-600/20 hover:bg-green-600/30 text-green-400 py-2 rounded-lg text-xs sm:text-sm transition-colors"
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2 sm:mt-3 bg-green-600/20 hover:bg-green-600/30 text-green-400 border-green-400/50"
                     >
                       Se alle
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="text-center py-3 sm:py-4">
@@ -169,10 +173,10 @@ const TutorDashboard = () => {
                     <p className="text-slate-400 text-xs sm:text-sm">Ingen kommende</p>
                   </div>
                 )}
-              </div>
+              </Card>
 
               {/* Pending Bookings */}
-              <div className="bg-slate-800 rounded-lg p-4 sm:p-6 border border-slate-700">
+              <Card className="p-4 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                   <span className="hidden sm:inline">Afventer bekræftelse ({pendingBookings?.length || 0})</span>
@@ -181,7 +185,7 @@ const TutorDashboard = () => {
                 {pendingBookings && pendingBookings.length > 0 ? (
                   <div className="space-y-2 sm:space-y-3">
                     {pendingBookings.slice(0, 2).map((booking) => (
-                      <div key={booking.id} className="p-2 sm:p-3 bg-slate-700 rounded-lg">
+                      <Card key={booking.id} className="p-2 sm:p-3 bg-slate-700">
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <h4 className="text-white font-medium text-xs sm:text-sm leading-tight flex-1">{booking.session?.title}</h4>
                           <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded flex-shrink-0">Afventer</span>
@@ -196,14 +200,16 @@ const TutorDashboard = () => {
                             minute: '2-digit'
                           })}
                         </p>
-                      </div>
+                      </Card>
                     ))}
-                    <button
+                    <Button
                       onClick={() => setActiveTab('bookings')}
-                      className="w-full mt-2 sm:mt-3 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 py-2 rounded-lg text-xs sm:text-sm transition-colors"
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2 sm:mt-3 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border-yellow-400/50"
                     >
                       Bekræft alle
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="text-center py-3 sm:py-4">
@@ -211,7 +217,7 @@ const TutorDashboard = () => {
                     <p className="text-slate-400 text-xs sm:text-sm">Ingen afventende</p>
                   </div>
                 )}
-              </div>
+              </Card>
             </div>
           </div>
         );
