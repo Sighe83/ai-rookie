@@ -197,6 +197,7 @@ export const Card = ({
   children, 
   className = '',
   hover = false,
+  as: Component = 'div',
   ...props 
 }) => {
   const { colors } = useTheme();
@@ -214,9 +215,9 @@ export const Card = ({
   const classes = `${baseClasses} ${variants[variant]} ${hoverClasses} ${className}`;
   
   return (
-    <div className={classes} {...props}>
+    <Component className={classes} {...props}>
       {children}
-    </div>
+    </Component>
   );
 };
 

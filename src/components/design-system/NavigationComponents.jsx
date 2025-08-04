@@ -48,7 +48,7 @@ export const NavigationTabs = ({
             >
               {tab.icon && <tab.icon className="w-4 h-4 mr-2 inline" />}
               {tab.label}
-              {tab.badge && (
+              {tab.badge != null && tab.badge > 0 && (
                 <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${colors.primary} text-white`}>
                   {tab.badge}
                 </span>
