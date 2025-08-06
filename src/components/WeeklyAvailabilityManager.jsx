@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Save, RotateCcw, ArrowLeft, ArrowRight, CalendarCheck, CheckCircle } from 'lucide-react';
 import { availabilityApi, tutorManagementApi } from '../services/api.js';
 import { useToast } from './design-system';
+import { useTutorStats } from '../hooks/useApi';
 
 const WeeklyAvailabilityManager = () => {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   
-  // Generate time slots using SessionUtils business rules (8:00-17:00, excluding lunch)
+  // Generate time slots using SessionUtils business rules (8:00-17:00)
   const generateValidTimeSlots = () => {
     const slots = [];
     // Use SessionUtils for consistent business rules
     for (let hour = 8; hour <= 17; hour++) {
-      if (hour === 12) continue; // Skip lunch hour (12:00-13:00)
       const timeSlot = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
       slots.push(timeSlot);
     }
@@ -52,6 +52,24 @@ const WeeklyAvailabilityManager = () => {
     return checkDate < today;
   };
 
+  // Check if a specific time slot is in the past - only show future time slots
+  const isTimeSlotInPast = (weekOffset, dayIndex, timeSlot) => {
+    const now = new Date();
+    const currentWeekStart = getWeekStart(weekOffset);
+    const slotDate = new Date(currentWeekStart);
+    slotDate.setDate(slotDate.getDate() + dayIndex);
+    
+    // Parse the time slot (e.g., "08:00-09:00")
+    const startTime = timeSlot.split('-')[0];
+    const [hours, minutes] = startTime.split(':').map(Number);
+    
+    const slotDateTime = new Date(slotDate);
+    slotDateTime.setHours(hours, minutes || 0, 0, 0);
+    
+    return slotDateTime <= now; // Past if start time has occurred
+  };
+
+
   const getWeekStart = (weekOffset) => {
     const today = new Date();
     const startOfWeek = new Date(today);
@@ -78,17 +96,6 @@ const WeeklyAvailabilityManager = () => {
     }
   }, [tutorId, currentWeekView]);
 
-  // Ensure selected mobile day is not in the past
-  useEffect(() => {
-    const isPastDay = isDateInPast(currentWeekView, selectedMobileDay);
-    if (isPastDay) {
-      // Find first non-past day
-      const firstAvailableDay = dayKeys.findIndex((_, index) => !isDateInPast(currentWeekView, index));
-      if (firstAvailableDay !== -1) {
-        setSelectedMobileDay(firstAvailableDay);
-      }
-    }
-  }, [currentWeekView, selectedMobileDay]);
 
   const loadTutorProfile = async () => {
     try {
@@ -110,9 +117,18 @@ const WeeklyAvailabilityManager = () => {
       const response = await tutorManagementApi.getTutorBookings();
       const weekStart = getWeekStart(currentWeekView);
       const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+      weekEnd.setHours(23, 59, 59, 999); // Include full Sunday
       
       // Filter bookings for current week and transform them
       const weekBookings = {};
+      
+      console.log('WeeklyAvailabilityManager - Loading bookings:', {
+        totalBookings: response.data?.length || 0,
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+        currentWeekView
+      });
+      
       response.data.forEach(booking => {
         const bookingDate = new Date(booking.selected_date_time);
         if (bookingDate >= weekStart && bookingDate <= weekEnd) {
@@ -132,6 +148,11 @@ const WeeklyAvailabilityManager = () => {
             sessionTitle: booking.session?.title || 'Unknown Session'
           });
         }
+      });
+      
+      console.log('WeeklyAvailabilityManager - Processed bookings:', {
+        weekBookings,
+        bookingsCount: Object.values(weekBookings).flat().length
       });
       
       setWeeklyBookings(prev => ({
@@ -397,6 +418,37 @@ const WeeklyAvailabilityManager = () => {
     return dayDate;
   };
 
+  // Helper function to get week offset for a specific date
+  const getWeekOffsetForDate = (targetDate) => {
+    const today = new Date();
+    const todayWeekStart = getWeekStart(0);
+    const targetWeekStart = getWeekStart(0);
+    
+    // Calculate which Monday the target date belongs to
+    const targetDay = targetDate.getDay();
+    const daysFromMonday = targetDay === 0 ? 6 : targetDay - 1; // Convert Sunday=0 to 6 days from Monday
+    const targetMonday = new Date(targetDate);
+    targetMonday.setDate(targetDate.getDate() - daysFromMonday);
+    targetMonday.setHours(0, 0, 0, 0);
+    
+    // Calculate difference in weeks
+    const diffTime = targetMonday.getTime() - todayWeekStart.getTime();
+    const diffWeeks = Math.round(diffTime / (7 * 24 * 60 * 60 * 1000));
+    
+    return diffWeeks;
+  };
+
+  // Helper function to create DateTime for a time slot
+  const getDateTimeForSlot = (date, timeSlot) => {
+    const startTime = timeSlot.split('-')[0];
+    const [hours, minutes] = startTime.split(':').map(Number);
+    
+    const slotDateTime = new Date(date);
+    slotDateTime.setHours(hours, minutes || 0, 0, 0);
+    
+    return slotDateTime;
+  };
+
   const saveTemplates = async () => {
     if (!tutorId) {
       setError('Tutor ID ikke fundet');
@@ -438,27 +490,20 @@ const WeeklyAvailabilityManager = () => {
     }
   };
 
-  // Calculate stats for future/available slots only (using saved data)
+  // Calculate stats using SAME logic and data source as overview
   const getFutureAvailableStats = () => {
-    const savedTemplate = getSavedTemplate();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use the same hook as overview to get identical results
+    const { data: stats } = useTutorStats(tutorId);
     
-    let totalFutureSlots = 0;
-    let activeFutureDays = 0;
+    if (!stats) {
+      return { totalSlots: 0, activeDays: 0 };
+    }
     
-    dayKeys.forEach((dayKey, dayIndex) => {
-      const dayDate = getDateForDay(currentWeekView, dayIndex);
-      if (dayDate >= today) {
-        const daySlots = savedTemplate[dayKey] || [];
-        if (daySlots.length > 0) {
-          totalFutureSlots += daySlots.length;
-          activeFutureDays += 1;
-        }
-      }
-    });
-    
-    return { totalSlots: totalFutureSlots, activeDays: activeFutureDays };
+    // Return the same available slots count as overview
+    return { 
+      totalSlots: stats.nextWeekAvailableSlots || 0, 
+      activeDays: stats.nextWeekAvailableSlots > 0 ? 7 : 0 // Simplified for now
+    };
   };
   
   const stats = getFutureAvailableStats();
@@ -502,7 +547,6 @@ const WeeklyAvailabilityManager = () => {
               <button
                 onClick={() => setCurrentWeekView(currentWeekView - 1)}
                 className="p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-                disabled={currentWeekView <= 0}
               >
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
@@ -536,11 +580,12 @@ const WeeklyAvailabilityManager = () => {
               {dayNames.map((day, index) => {
                 const isPastDay = isDateInPast(currentWeekView, index);
                 const dayKey = dayKeys[index];
-                // Only count future saved slots
-                const dayDate = getDateForDay(currentWeekView, index);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const savedSlots = dayDate >= today ? (getSavedTemplate()[dayKey]?.length || 0) : 0;
+                // Only count future saved slots (where start time has not occurred)
+                const savedSlotsForDay = getSavedTemplate()[dayKey] || [];
+                const futureSavedSlots = savedSlotsForDay.filter(timeSlot => {
+                  return !isTimeSlotInPast(currentWeekView, index, timeSlot);
+                });
+                const savedSlots = futureSavedSlots.length;
                 
                 return (
                   <div 
@@ -605,17 +650,20 @@ const WeeklyAvailabilityManager = () => {
                   return (
                     <button
                       key={day}
-                      onClick={() => !isPastDay && setSelectedMobileDay(index)}
-                      disabled={isPastDay}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isPastDay
-                          ? 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
-                          : selectedMobileDay === index
+                      onClick={() => setSelectedMobileDay(index)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors relative ${
+                        selectedMobileDay === index
                           ? 'bg-purple-600 text-white'
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                       }`}
                     >
-                      {day.slice(0, 3)}
+                      {/* Gray overlay for past days */}
+                      {isPastDay && (
+                        <div className="absolute inset-0 bg-gray-500/30 rounded-lg pointer-events-none"></div>
+                      )}
+                      <span className={`relative z-10 ${isPastDay ? 'text-slate-400' : ''}`}>
+                        {day.slice(0, 3)}
+                      </span>
                     </button>
                   );
                 })}
@@ -642,60 +690,61 @@ const WeeklyAvailabilityManager = () => {
                     {timeSlots.map((timeSlot) => {
                       const isSelected = getCurrentTemplate()[dayKey]?.includes(timeSlot) || false;
                       const isSaved = getSavedTemplate()[dayKey]?.includes(timeSlot) || false;
-                      const isPastSlot = isDateInPast(currentWeekView, dayIndex);
+                      const isPastSlot = isTimeSlotInPast(currentWeekView, dayIndex, timeSlot);
                       const inDragRange = isInDragRange(dayKey, timeSlot);
                       const booking = getBookingForTimeSlot(dayKey, timeSlot);
                       const isBooked = !!booking;
                       
                       // Determine slot state for visual distinction
-                      const isNewlySelected = isSelected && !isSaved; // Selected but not saved
-                      const isNewlyDeselected = !isSelected && isSaved; // Was saved but now deselected
+                      const isNewlySelected = isSelected && !isSaved;
+                      const isNewlyDeselected = !isSelected && isSaved;
                       
                       return (
                         <div
                           key={timeSlot}
-                          className={`h-12 rounded-lg border-2 transition-all ${
-                            isPastSlot
-                              ? 'bg-slate-700/30 border-slate-600 cursor-not-allowed opacity-50'
-                              : isBooked
-                                ? 'cursor-not-allowed'
-                                : !isEditMode
-                                  ? 'cursor-default'
-                                  : 'cursor-pointer'
+                          className={`h-12 rounded-lg border-2 transition-all relative ${
+                            isBooked
+                              ? 'cursor-not-allowed'
+                              : !isEditMode || isPastSlot
+                                ? 'cursor-default'
+                                : 'cursor-pointer'
                           } ${
-                            isPastSlot
-                              ? ''
-                              : isBooked
-                                ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/25' // Booked slots in blue
-                                : inDragRange && isSelecting
-                                  ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
-                                  : inDragRange && !isSelecting
-                                    ? 'bg-slate-600 border-slate-500'
-                                    : isNewlySelected
-                                      ? 'bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/25' // New selections in yellow
-                                      : isNewlyDeselected
-                                        ? 'bg-red-600/20 border-red-500 shadow-lg shadow-red-500/25' // Deselected in red
-                                        : isSelected && isSaved
-                                          ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25' // Saved selections in purple
-                                          : isEditMode
-                                            ? 'bg-slate-800 border-slate-600 hover:border-slate-500 hover:bg-slate-700'
-                                            : 'bg-slate-800 border-slate-600'
+                            isBooked
+                              ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/25'
+                              : inDragRange && isSelecting
+                                ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
+                                : inDragRange && !isSelecting
+                                  ? 'bg-slate-600 border-slate-500'
+                                  : isNewlySelected
+                                    ? 'bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/25'
+                                    : isNewlyDeselected
+                                      ? 'bg-red-600/20 border-red-500 shadow-lg shadow-red-500/25'
+                                      : isSelected && isSaved
+                                        ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
+                                        : isEditMode && !isPastSlot
+                                          ? 'bg-slate-800 border-slate-600 hover:border-slate-500 hover:bg-slate-700'
+                                          : 'bg-slate-800 border-slate-600'
                           }`}
                           onMouseDown={(e) => !isPastSlot && !isBooked && isEditMode && handleIntervalStart(dayKey, timeSlot, e)}
                           onMouseEnter={() => !isPastSlot && !isBooked && isEditMode && handleIntervalMove(dayKey, timeSlot)}
                           title={`${timeSlot} - ${isPastSlot ? 'Fortid' : isBooked ? `Booket: ${booking.clientName} (${booking.status})` : isSelected ? 'Tilgængelig' : 'Ikke tilgængelig'}`}
                         >
-                          {!isPastSlot && (
-                            <div className="h-full flex items-center justify-center text-white text-xs font-bold">
-                              {isBooked ? (
-                                <div className="text-center">
-                                  <div>{booking.status.toUpperCase()}</div>
-                                </div>
-                              ) : (isSelected || inDragRange || isNewlyDeselected) ? (
-                                <div>{isNewlySelected ? 'NY' : isNewlyDeselected ? 'FJERNET' : 'LEDIG'}</div>
-                              ) : null}
-                            </div>
+                          {/* Gray overlay for past items */}
+                          {isPastSlot && (
+                            <div className="absolute inset-0 bg-gray-500/30 rounded-lg pointer-events-none"></div>
                           )}
+                          
+                          <div className={`h-full flex items-center justify-center text-xs font-bold relative z-10 ${
+                            isPastSlot ? 'text-slate-400' : 'text-white'
+                          }`}>
+                            {isBooked ? (
+                              <div className="text-center">
+                                <div>{booking.status.toUpperCase()}</div>
+                              </div>
+                            ) : (isSelected || inDragRange || isNewlyDeselected) ? (
+                              <div>{isNewlySelected ? 'NY' : isNewlyDeselected ? 'FJERNET' : 'LEDIG'}</div>
+                            ) : null}
+                          </div>
                         </div>
                       );
                     })}
@@ -714,7 +763,7 @@ const WeeklyAvailabilityManager = () => {
                   const dayKey = dayKeys[selectedMobileDay];
                   const isSelected = getCurrentTemplate()[dayKey]?.includes(timeSlot) || false;
                   const isSaved = getSavedTemplate()[dayKey]?.includes(timeSlot) || false;
-                  const isPastSlot = isDateInPast(currentWeekView, selectedMobileDay);
+                  const isPastSlot = isTimeSlotInPast(currentWeekView, selectedMobileDay, timeSlot);
                   const booking = getBookingForTimeSlot(dayKey, timeSlot);
                   const isBooked = !!booking;
                   
@@ -727,25 +776,28 @@ const WeeklyAvailabilityManager = () => {
                       key={timeSlot}
                       onClick={() => !isPastSlot && !isBooked && isEditMode && toggleTimeSlot(dayKey, timeSlot)}
                       disabled={isPastSlot || isBooked}
-                      className={`p-4 rounded-xl border-2 transition-all font-medium text-center min-h-[60px] flex items-center justify-center ${
-                        isPastSlot
-                          ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed opacity-50'
-                          : isBooked
+                      className={`p-4 rounded-xl border-2 transition-all font-medium text-center min-h-[60px] flex items-center justify-center relative ${
+                        isBooked
                           ? 'bg-blue-600/20 border-blue-500 text-blue-300 cursor-not-allowed'
-                          : !isEditMode
+                          : !isEditMode || isPastSlot
                           ? 'cursor-default'
                           : isNewlySelected
-                          ? 'bg-yellow-600/20 border-yellow-500 text-yellow-300' // Newly selected
+                          ? 'bg-yellow-600/20 border-yellow-500 text-yellow-300'
                           : isNewlyDeselected
-                          ? 'bg-red-600/20 border-red-500 text-red-300' // Newly deselected
+                          ? 'bg-red-600/20 border-red-500 text-red-300'
                           : isSelected
-                          ? 'bg-purple-600 border-purple-400 text-white' // Selected
+                          ? 'bg-purple-600 border-purple-400 text-white'
                           : isEditMode
                           ? 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
                           : 'bg-slate-700 border-slate-600 text-slate-300'
                       }`}
                     >
-                      <div>
+                      {/* Gray overlay for past items */}
+                      {isPastSlot && (
+                        <div className="absolute inset-0 bg-gray-500/30 rounded-xl pointer-events-none"></div>
+                      )}
+                      
+                      <div className={`relative z-10 ${isPastSlot ? 'text-slate-400' : ''}`}>
                         {isBooked ? (
                           <>
                             <div className="font-bold text-sm">{timeSlot.split('-')[0]}</div>

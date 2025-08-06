@@ -40,7 +40,7 @@ model Tutor {
   updatedAt    DateTime            @updatedAt @map("updated_at")
   bookings     Booking[]
   sessions     Session[]
-  availability TutorAvailability[]
+  timeSlots   TutorTimeSlot[]
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("tutors")
@@ -87,9 +87,10 @@ model Booking {
   updatedAt        DateTime  @updatedAt @map("updated_at")
   confirmedAt      DateTime? @map("confirmed_at")
   cancelledAt      DateTime? @map("cancelled_at")
-  session          Session   @relation(fields: [sessionId], references: [id])
-  tutor            Tutor     @relation(fields: [tutorId], references: [id])
-  user             User      @relation(fields: [userId], references: [id])
+  session          Session         @relation(fields: [sessionId], references: [id])
+  tutor            Tutor           @relation(fields: [tutorId], references: [id])
+  user             User            @relation(fields: [userId], references: [id])
+  timeSlots        TutorTimeSlot[]
 
   @@index([sessionId])
   @@index([tutorId])
@@ -97,17 +98,28 @@ model Booking {
   @@map("bookings")
 }
 
-model TutorAvailability {
-  id        String   @id @default(uuid()) @db.Uuid
-  tutorId   String   @map("tutor_id") @db.Uuid
-  date      DateTime @db.Date
-  timeSlots Json     @map("time_slots")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+model TutorTimeSlot {
+  id          String    @id @default(uuid()) @db.Uuid
+  tutorId     String    @map("tutor_id") @db.Uuid
+  date        DateTime  @db.Date
+  startTime   DateTime  @map("start_time") @db.Time
+  endTime     DateTime  @map("end_time") @db.Time
+  isAvailable Boolean   @default(true) @map("is_available")
+  isBooked    Boolean   @default(false) @map("is_booked")
+  bookingId   String?   @map("booking_id") @db.Uuid
+  clientName  String?   @map("client_name")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  tutor       Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  booking     Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
 
-  @@unique([tutorId, date])
-  @@map("tutor_availability")
+  @@unique([tutorId, date, startTime, endTime], name: "no_overlapping_slots")
+  @@index([tutorId])
+  @@index([date])
+  @@index([tutorId, date])
+  @@index([isAvailable, isBooked])
+  @@map("tutor_time_slots")
 }
 
 model SystemSettings {

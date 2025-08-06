@@ -5,6 +5,7 @@ import TutorBookings from './TutorBookings';
 import TutorProfile from './TutorProfile';
 import WeeklyAvailabilityManager from './WeeklyAvailabilityManager';
 import SessionManager from './SessionManager';
+import DashboardDebug from './DashboardDebug';
 import { useAuth } from '../hooks/useAuth';
 import { useTutorStats, useTutorByUserId, useSupabaseQuery } from '../hooks/useApi';
 import { supabase } from '../services/supabase';
@@ -66,7 +67,8 @@ const TutorDashboard = () => {
     { id: 'bookings', label: 'Bookinger', icon: Calendar },
     { id: 'availability', label: 'Tilgængelighed', icon: CalendarDays },
     { id: 'sessions', label: 'Sessioner', icon: BookOpen },
-    { id: 'profile', label: 'Profil', icon: Settings }
+    { id: 'profile', label: 'Profil', icon: Settings },
+    { id: 'debug', label: 'Debug', icon: AlertCircle }
   ];
 
   // Create stats array with real data
@@ -80,7 +82,7 @@ const TutorDashboard = () => {
       color: 'purple' 
     },
     { 
-      label: 'Næste uge', 
+      label: 'Kommende 7 dage', 
       value: isLoading ? '...' : (stats?.nextWeekAvailableSlots || '0'), 
       subtitle: 'Ledige slots', 
       icon: Clock, 
@@ -88,7 +90,7 @@ const TutorDashboard = () => {
     },
     { 
       label: 'Denne måned', 
-      value: isLoading ? '...' : `${Math.round(stats?.monthlyEarnings || 0)} kr`, 
+      value: isLoading ? '...' : `${stats?.monthlyEarnings || 0} kr`, 
       subtitle: 'Indtjening', 
       icon: DollarSign, 
       color: 'purple' 
@@ -112,6 +114,8 @@ const TutorDashboard = () => {
         return <SessionManager />;
       case 'profile':
         return <TutorProfile />;
+      case 'debug':
+        return <DashboardDebug />;
       default:
         return (
           <div className="space-y-6">

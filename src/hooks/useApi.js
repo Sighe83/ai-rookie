@@ -489,61 +489,177 @@ export const useTutorStats = (tutorId) => {
     }
 
     const now = new Date();
-    const startOfNext7Days = new Date(now);
-    const endOfNext7Days = new Date(now);
-    endOfNext7Days.setDate(now.getDate() + 7); // 7 days from now
+    
+    // Fix date ranges - 7 dage (i dag + 6 dage frem) men kun kommende tider
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0); // Start of today
+    
+    const endOf7Days = new Date(now);
+    endOf7Days.setDate(now.getDate() + 6);
+    endOf7Days.setHours(23, 59, 59, 999); // End of 6th day from today
     
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
 
-    // Get next 7 days' bookings
-    const { data: next7DaysBookings } = await supabase
+    // Get next 7 days' bookings (confirmed or pending) - only future start times
+    const { data: allNext7DaysBookings, error: bookingsError } = await supabase
       .from('bookings')
-      .select('total_price, status')
+      .select('id, total_price, status, selected_date_time')
       .eq('tutor_id', tutorId)
-      .gte('selected_date_time', startOfNext7Days.toISOString())
-      .lte('selected_date_time', endOfNext7Days.toISOString());
+      .in('status', ['CONFIRMED', 'PENDING']) // Include both confirmed and pending
+      .gte('selected_date_time', startOfToday.toISOString())
+      .lte('selected_date_time', endOf7Days.toISOString());
+    
+    // Count only future bookings, but keep all for potential display
+    let futureBookingsCount = 0;
+    allNext7DaysBookings?.forEach(booking => {
+      const bookingDateTime = new Date(booking.selected_date_time);
+      const isFuture = bookingDateTime > now;
+      
+      // Debug individual bookings
+      console.log('Booking filter debug:', {
+        bookingId: booking.id,
+        bookingTime: booking.selected_date_time,
+        bookingDateTime: bookingDateTime.toISOString(),
+        currentTime: now.toISOString(),
+        isFuture,
+        timeDiff: bookingDateTime.getTime() - now.getTime()
+      });
+      
+      if (isFuture) {
+        futureBookingsCount++;
+      }
+    });
+    
+    // Keep all bookings for display, but count only future ones
+    const next7DaysBookings = allNext7DaysBookings || [];
+    const next7DaysCount = futureBookingsCount;
+      
+    if (bookingsError) {
+      console.error('Error fetching next 7 days bookings:', bookingsError);
+    }
+    
+    console.log('Next 7 days bookings query result:', {
+      tutorId,
+      dateRange: `${startOfToday.toISOString()} to ${endOf7Days.toISOString()}`,
+      totalBookingsInRange: allNext7DaysBookings?.length || 0,
+      futureBookingsOnly: next7DaysBookings?.length || 0,
+      currentTime: now.toISOString(),
+      bookings: next7DaysBookings
+    });
 
-    // Get this month's bookings for earnings (both confirmed and completed)
-    const { data: thisMonthBookings } = await supabase
+    // Get this month's earnings - only completed sessions count for earnings
+    const { data: thisMonthBookings, error: earningsError } = await supabase
       .from('bookings')
-      .select('total_price, status')
+      .select('total_price, status, selected_date_time')
       .eq('tutor_id', tutorId)
-      .in('status', ['CONFIRMED', 'COMPLETED'])
+      .eq('status', 'COMPLETED') // Only completed sessions count for earnings
       .gte('selected_date_time', startOfMonth.toISOString())
       .lte('selected_date_time', endOfMonth.toISOString());
+      
+    if (earningsError) {
+      console.error('Error fetching monthly earnings:', earningsError);
+    }
+    
+    console.log('Monthly earnings query result:', {
+      tutorId,
+      monthRange: `${startOfMonth.toISOString()} to ${endOfMonth.toISOString()}`,
+      bookingsFound: thisMonthBookings?.length || 0,
+      totalEarnings: thisMonthBookings?.reduce((sum, booking) => sum + (booking.total_price || 0), 0) || 0,
+      bookings: thisMonthBookings
+    });
 
     // Get total completed sessions
-    const { data: completedSessions } = await supabase
+    const { data: completedSessions, error: completedError } = await supabase
       .from('bookings')
-      .select('id')
+      .select('id, selected_date_time')
       .eq('tutor_id', tutorId)
       .eq('status', 'COMPLETED');
-
-    // Calculate next week availability (simplified - would need availability system)
-    const nextWeekStart = new Date(endOfNext7Days);
-    nextWeekStart.setDate(endOfNext7Days.getDate() + 1);
-    const nextWeekEnd = new Date(nextWeekStart);
-    nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
+      
+    if (completedError) {
+      console.error('Error fetching completed sessions:', completedError);
+    }
     
-    // For now, estimate available slots (could be improved with actual availability data)
-    const estimatedWeeklySlots = 40; // 8 hours/day * 5 days
-    const { data: nextWeekBookings } = await supabase
-      .from('bookings')
-      .select('id')
-      .eq('tutor_id', tutorId)
-      .gte('selected_date_time', nextWeekStart.toISOString())
-      .lte('selected_date_time', nextWeekEnd.toISOString());
+    console.log('Completed sessions query result:', {
+      tutorId,
+      completedFound: completedSessions?.length || 0,
+      sessions: completedSessions
+    });
 
-    const next7DaysCount = next7DaysBookings?.length || 0;
+    // Get actual available slots for the next 7 days (same period as bookings)
+    
+    // Get available time slots for the next 7 days from the new table
+    let availableSlots = 0;
+    const todayDate = startOfToday.toISOString().split('T')[0];
+    const endDate = endOf7Days.toISOString().split('T')[0];
+    
+    try {
+      const { data: allAvailableTimeSlots, error: timeSlotsError } = await supabase
+        .from('tutor_time_slots')
+        .select('id, date, start_time, is_available, is_booked')
+        .eq('tutor_id', tutorId)
+        .eq('is_available', true)
+        .eq('is_booked', false)
+        .gte('date', todayDate)
+        .lte('date', endDate);
+      
+      if (!timeSlotsError && allAvailableTimeSlots) {
+        // Count only future slots, but keep all for potential display
+        let futureAvailableSlotsCount = 0;
+        allAvailableTimeSlots.forEach(slot => {
+          const slotDateTime = new Date(`${slot.date}T${slot.start_time}`);
+          if (slotDateTime > now) {
+            futureAvailableSlotsCount++;
+          }
+        });
+        
+        availableSlots = futureAvailableSlotsCount;
+        console.log('Available slots from tutor_time_slots:', {
+          tutorId,
+          dateRange: `${todayDate} to ${endDate}`,
+          totalSlotsInRange: allAvailableTimeSlots.length,
+          futureSlotsOnly: availableSlots,
+          currentTime: now.toISOString(),
+          allSlots: allAvailableTimeSlots
+        });
+      } else {
+        // Fallback: Use old estimation method if new table doesn't exist
+        console.warn('Could not fetch from tutor_time_slots, using fallback calculation', timeSlotsError);
+        const estimatedWeeklySlots = 70; // 10 hours/day * 7 days (8:00-18:00 = 10 timer per dag)
+        const { data: next7DaysBookingsForSlots } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('tutor_id', tutorId)
+          .gte('selected_date_time', startOfToday.toISOString())
+          .lte('selected_date_time', endOf7Days.toISOString());
+        availableSlots = Math.max(0, estimatedWeeklySlots - (next7DaysBookingsForSlots?.length || 0));
+      }
+    } catch (error) {
+      console.warn('Error fetching available slots:', error);
+      availableSlots = 0;
+    }
+
+    // next7DaysCount already defined above as futureBookingsCount
     const monthlyEarnings = thisMonthBookings?.reduce((sum, booking) => sum + (booking.total_price || 0), 0) || 0;
     const completedCount = completedSessions?.length || 0;
-    const availableSlots = Math.max(0, estimatedWeeklySlots - (nextWeekBookings?.length || 0));
+
+    // Debug logging
+    console.log('Tutor Stats Debug:', {
+      tutorId,
+      next7DaysCount,
+      availableSlots,
+      monthlyEarnings,
+      completedCount,
+      availableSlotsDateRange: `${todayDate} to ${endDate}`
+    });
 
     return {
       next7DaysBookings: next7DaysCount,
       nextWeekAvailableSlots: availableSlots,
-      monthlyEarnings: monthlyEarnings / 100, // Convert from øre to kroner
+      monthlyEarnings: monthlyEarnings, // Already in kroner, no conversion needed
       totalCompletedSessions: completedCount
     };
   }, [tutorId]);

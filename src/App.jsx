@@ -609,8 +609,6 @@ const generateAvailabilitySlots = (tutorId) => {
     const endHour = tutorId % 3 === 0 ? 17 : 16;
     
     for (let hour = startHour; hour <= endHour; hour++) {
-      // Skip lunch hour (12-13)
-      if (hour === 12) continue;
       
       // Use seeded randomness for consistent results per tutor
       const seed = tutorId * 1000 + i * 100 + hour;

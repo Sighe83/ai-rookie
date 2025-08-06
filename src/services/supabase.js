@@ -191,7 +191,7 @@ export const dbHelpers = {
       .select(`
         *,
         user:users(name, email),
-        availability:tutor_availability(*)
+        timeSlots:tutor_time_slots(*)
       `)
       .eq('id', id)
       .eq('is_active', true)
@@ -268,7 +268,7 @@ export const dbHelpers = {
   // Get availability
   getAvailability: async (tutorId, startDate, endDate) => {
     let query = supabase
-      .from('tutor_availability')
+      .from('tutor_time_slots')
       .select('*')
       .eq('tutor_id', tutorId)
       .order('date', { ascending: true });
@@ -310,13 +310,13 @@ export const realtimeHelpers = {
   // Subscribe to tutor availability
   subscribeToTutorAvailability: (tutorId, callback) => {
     return supabase
-      .channel('tutor_availability')
+      .channel('tutor_time_slots')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'tutor_availability',
+          table: 'tutor_time_slots',
           filter: `tutor_id=eq.${tutorId}`
         },
         (payload) => {
