@@ -719,7 +719,17 @@ const WeeklyAvailabilityManager = () => {
                             isPastSlot 
                               ? 'opacity-50 border-2 border-dashed border-slate-500' // Past items: faded with dashed border
                               : isBooked
-                                ? 'border-2 bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/25'
+                                ? `border-2 ${
+                                    booking.status.toLowerCase() === 'confirmed' 
+                                      ? 'bg-purple-500/10 border-purple-500' 
+                                      : booking.status.toLowerCase() === 'pending'
+                                      ? 'bg-yellow-500/10 border-yellow-500'
+                                      : booking.status.toLowerCase() === 'completed'
+                                      ? 'bg-blue-500/10 border-blue-500'
+                                      : booking.status.toLowerCase() === 'cancelled'
+                                      ? 'bg-red-500/10 border-red-500'
+                                      : 'bg-slate-500/10 border-slate-500'
+                                  }`
                                 : inDragRange && isSelecting
                                   ? 'border-2 bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
                                   : inDragRange && !isSelecting
@@ -729,14 +739,14 @@ const WeeklyAvailabilityManager = () => {
                                       : isNewlyDeselected
                                         ? 'border-2 bg-red-600/20 border-red-500 shadow-lg shadow-red-500/25'
                                         : isSelected && isSaved
-                                          ? 'border-2 bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
+                                          ? 'border-2 bg-emerald-500/10 border-emerald-500'
                                           : isEditMode && !isPastSlot
                                             ? 'border-2 bg-slate-800 border-slate-600 hover:border-slate-500 hover:bg-slate-700'
                                             : 'border-2 bg-slate-800 border-slate-600'
                           }`}
                           onMouseDown={(e) => !isPastSlot && !isBooked && isEditMode && handleIntervalStart(dayKey, timeSlot, e)}
                           onMouseEnter={() => !isPastSlot && !isBooked && isEditMode && handleIntervalMove(dayKey, timeSlot)}
-                          title={`${timeSlot} - ${isPastSlot ? 'Fortid' : isBooked ? `Booket: ${booking.clientName} (${booking.status})` : isSelected ? 'Tilgængelig' : 'Ikke tilgængelig'}`}
+                          title={`${timeSlot} - ${isPastSlot ? 'Fortid' : isBooked ? `Booket: ${booking.clientName} (${booking.status.toLowerCase() === 'confirmed' ? 'Bekræftet' : booking.status.toLowerCase() === 'pending' ? 'Afventer' : booking.status.toLowerCase() === 'completed' ? 'Gennemført' : booking.status.toLowerCase() === 'cancelled' ? 'Aflyst' : booking.status})` : isSelected ? 'Tilgængelig' : 'Ikke tilgængelig'}`}
                         >
                           {/* Diagonal stripe pattern for past items */}
                           {isPastSlot && (
@@ -749,14 +759,22 @@ const WeeklyAvailabilityManager = () => {
                           )}
                           
                           <div className={`h-full flex items-center justify-center text-xs font-bold relative z-10 ${
-                            isPastSlot ? 'text-slate-300' : 'text-white'
+                            isPastSlot ? 'text-slate-400' : 'text-white'
                           }`}>
                             {isBooked ? (
                               <div className="text-center">
-                                <div>{booking.status.toUpperCase()}</div>
+                                <div className="text-xs">
+                                  {booking.status.toLowerCase() === 'confirmed' ? 'BEKRÆFTET' :
+                                   booking.status.toLowerCase() === 'pending' ? 'AFVENTER' :
+                                   booking.status.toLowerCase() === 'completed' ? 'GENNEMFØRT' :
+                                   booking.status.toLowerCase() === 'cancelled' ? 'AFLYST' :
+                                   booking.status}
+                                </div>
                               </div>
                             ) : (isSelected || inDragRange || isNewlyDeselected) ? (
-                              <div>{isNewlySelected ? 'NY' : isNewlyDeselected ? 'FJERNET' : 'LEDIG'}</div>
+                              <div className="text-xs">
+                                {isNewlySelected ? 'NY' : isNewlyDeselected ? 'FJERNET' : 'LEDIG'}
+                              </div>
                             ) : null}
                           </div>
                         </div>
@@ -794,7 +812,17 @@ const WeeklyAvailabilityManager = () => {
                         isPastSlot
                           ? 'opacity-60 border-2 border-dashed border-slate-500 bg-slate-800 cursor-default' // Past items: faded with dashed border
                           : isBooked
-                          ? 'border-2 bg-blue-600/20 border-blue-500 text-blue-300 cursor-not-allowed'
+                          ? `border-2 cursor-not-allowed ${
+                              booking.status.toLowerCase() === 'confirmed' 
+                                ? 'bg-purple-500/10 border-purple-500' 
+                                : booking.status.toLowerCase() === 'pending'
+                                ? 'bg-yellow-500/10 border-yellow-500'
+                                : booking.status.toLowerCase() === 'completed'
+                                ? 'bg-blue-500/10 border-blue-500'
+                                : booking.status.toLowerCase() === 'cancelled'
+                                ? 'bg-red-500/10 border-red-500'
+                                : 'bg-slate-500/10 border-slate-500'
+                            }`
                           : !isEditMode
                           ? 'border-2 bg-slate-700 border-slate-600 text-slate-300 cursor-default'
                           : isNewlySelected
@@ -802,7 +830,7 @@ const WeeklyAvailabilityManager = () => {
                           : isNewlyDeselected
                           ? 'border-2 bg-red-600/20 border-red-500 text-red-300'
                           : isSelected
-                          ? 'border-2 bg-purple-600 border-purple-400 text-white'
+                          ? 'border-2 bg-emerald-500/10 border-emerald-500 text-slate-300'
                           : 'border-2 bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
                       }`}
                     >
@@ -820,16 +848,22 @@ const WeeklyAvailabilityManager = () => {
                         isPastSlot ? 'text-slate-300' : ''
                       }`}>
                         {isBooked ? (
-                          <>
-                            <div className="font-bold text-sm">{timeSlot.split('-')[0]}</div>
-                            <div className="text-xs opacity-75">{booking.status.toUpperCase()}</div>
-                            <div className="text-xs opacity-90 truncate mt-1">{booking.clientName}</div>
-                          </>
+                          <div className="text-center">
+                            <div className="font-bold text-sm mb-1">{timeSlot.split('-')[0]}</div>
+                            <div className="text-xs mb-1">
+                              {booking.status.toLowerCase() === 'confirmed' ? 'BEKRÆFTET' :
+                               booking.status.toLowerCase() === 'pending' ? 'AFVENTER' :
+                               booking.status.toLowerCase() === 'completed' ? 'GENNEMFØRT' :
+                               booking.status.toLowerCase() === 'cancelled' ? 'AFLYST' :
+                               booking.status}
+                            </div>
+                            <div className="text-xs opacity-75 truncate">{booking.clientName}</div>
+                          </div>
                         ) : (
-                          <>
+                          <div className="text-center">
                             <div className="font-bold text-lg">{timeSlot.split('-')[0]}</div>
                             <div className="text-sm opacity-75">{timeSlot.split('-')[1]}</div>
-                          </>
+                          </div>
                         )}
                       </div>
                     </button>
