@@ -652,16 +652,23 @@ const WeeklyAvailabilityManager = () => {
                       key={day}
                       onClick={() => setSelectedMobileDay(index)}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors relative ${
-                        selectedMobileDay === index
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        isPastDay 
+                          ? 'opacity-60 border border-dashed border-slate-500 bg-slate-800 text-slate-300'
+                          : selectedMobileDay === index
+                          ? 'bg-purple-600 text-white border border-purple-500'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
                       }`}
                     >
-                      {/* Gray overlay for past days */}
+                      {/* Subtle stripe pattern for past days */}
                       {isPastDay && (
-                        <div className="absolute inset-0 bg-gray-500/30 rounded-lg pointer-events-none"></div>
+                        <div 
+                          className="absolute inset-0 rounded-lg pointer-events-none z-0"
+                          style={{
+                            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(148, 163, 184, 0.1) 3px, rgba(148, 163, 184, 0.1) 6px)'
+                          }}
+                        ></div>
                       )}
-                      <span className={`relative z-10 ${isPastDay ? 'text-slate-400' : ''}`}>
+                      <span className="relative z-10">
                         {day.slice(0, 3)}
                       </span>
                     </button>
@@ -702,40 +709,47 @@ const WeeklyAvailabilityManager = () => {
                       return (
                         <div
                           key={timeSlot}
-                          className={`h-12 rounded-lg border-2 transition-all relative ${
+                          className={`h-12 rounded-lg transition-all relative ${
                             isBooked
                               ? 'cursor-not-allowed'
                               : !isEditMode || isPastSlot
                                 ? 'cursor-default'
                                 : 'cursor-pointer'
                           } ${
-                            isBooked
-                              ? 'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/25'
-                              : inDragRange && isSelecting
-                                ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
-                                : inDragRange && !isSelecting
-                                  ? 'bg-slate-600 border-slate-500'
-                                  : isNewlySelected
-                                    ? 'bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/25'
-                                    : isNewlyDeselected
-                                      ? 'bg-red-600/20 border-red-500 shadow-lg shadow-red-500/25'
-                                      : isSelected && isSaved
-                                        ? 'bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
-                                        : isEditMode && !isPastSlot
-                                          ? 'bg-slate-800 border-slate-600 hover:border-slate-500 hover:bg-slate-700'
-                                          : 'bg-slate-800 border-slate-600'
+                            isPastSlot 
+                              ? 'opacity-50 border-2 border-dashed border-slate-500' // Past items: faded with dashed border
+                              : isBooked
+                                ? 'border-2 bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-500/25'
+                                : inDragRange && isSelecting
+                                  ? 'border-2 bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
+                                  : inDragRange && !isSelecting
+                                    ? 'border-2 bg-slate-600 border-slate-500'
+                                    : isNewlySelected
+                                      ? 'border-2 bg-yellow-600/20 border-yellow-500 shadow-lg shadow-yellow-500/25'
+                                      : isNewlyDeselected
+                                        ? 'border-2 bg-red-600/20 border-red-500 shadow-lg shadow-red-500/25'
+                                        : isSelected && isSaved
+                                          ? 'border-2 bg-purple-600 border-purple-500 shadow-lg shadow-purple-500/25'
+                                          : isEditMode && !isPastSlot
+                                            ? 'border-2 bg-slate-800 border-slate-600 hover:border-slate-500 hover:bg-slate-700'
+                                            : 'border-2 bg-slate-800 border-slate-600'
                           }`}
                           onMouseDown={(e) => !isPastSlot && !isBooked && isEditMode && handleIntervalStart(dayKey, timeSlot, e)}
                           onMouseEnter={() => !isPastSlot && !isBooked && isEditMode && handleIntervalMove(dayKey, timeSlot)}
                           title={`${timeSlot} - ${isPastSlot ? 'Fortid' : isBooked ? `Booket: ${booking.clientName} (${booking.status})` : isSelected ? 'Tilgængelig' : 'Ikke tilgængelig'}`}
                         >
-                          {/* Gray overlay for past items */}
+                          {/* Diagonal stripe pattern for past items */}
                           {isPastSlot && (
-                            <div className="absolute inset-0 bg-gray-500/30 rounded-lg pointer-events-none"></div>
+                            <div 
+                              className="absolute inset-0 rounded-lg pointer-events-none z-0"
+                              style={{
+                                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(148, 163, 184, 0.1) 4px, rgba(148, 163, 184, 0.1) 8px)'
+                              }}
+                            ></div>
                           )}
                           
                           <div className={`h-full flex items-center justify-center text-xs font-bold relative z-10 ${
-                            isPastSlot ? 'text-slate-400' : 'text-white'
+                            isPastSlot ? 'text-slate-300' : 'text-white'
                           }`}>
                             {isBooked ? (
                               <div className="text-center">
@@ -776,28 +790,35 @@ const WeeklyAvailabilityManager = () => {
                       key={timeSlot}
                       onClick={() => !isPastSlot && !isBooked && isEditMode && toggleTimeSlot(dayKey, timeSlot)}
                       disabled={isPastSlot || isBooked}
-                      className={`p-4 rounded-xl border-2 transition-all font-medium text-center min-h-[60px] flex items-center justify-center relative ${
-                        isBooked
-                          ? 'bg-blue-600/20 border-blue-500 text-blue-300 cursor-not-allowed'
-                          : !isEditMode || isPastSlot
-                          ? 'cursor-default'
+                      className={`p-4 rounded-xl transition-all font-medium text-center min-h-[60px] flex items-center justify-center relative ${
+                        isPastSlot
+                          ? 'opacity-60 border-2 border-dashed border-slate-500 bg-slate-800 cursor-default' // Past items: faded with dashed border
+                          : isBooked
+                          ? 'border-2 bg-blue-600/20 border-blue-500 text-blue-300 cursor-not-allowed'
+                          : !isEditMode
+                          ? 'border-2 bg-slate-700 border-slate-600 text-slate-300 cursor-default'
                           : isNewlySelected
-                          ? 'bg-yellow-600/20 border-yellow-500 text-yellow-300'
+                          ? 'border-2 bg-yellow-600/20 border-yellow-500 text-yellow-300'
                           : isNewlyDeselected
-                          ? 'bg-red-600/20 border-red-500 text-red-300'
+                          ? 'border-2 bg-red-600/20 border-red-500 text-red-300'
                           : isSelected
-                          ? 'bg-purple-600 border-purple-400 text-white'
-                          : isEditMode
-                          ? 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
-                          : 'bg-slate-700 border-slate-600 text-slate-300'
+                          ? 'border-2 bg-purple-600 border-purple-400 text-white'
+                          : 'border-2 bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:border-slate-500'
                       }`}
                     >
-                      {/* Gray overlay for past items */}
+                      {/* Diagonal stripe pattern for past items */}
                       {isPastSlot && (
-                        <div className="absolute inset-0 bg-gray-500/30 rounded-xl pointer-events-none"></div>
+                        <div 
+                          className="absolute inset-0 rounded-xl pointer-events-none z-0"
+                          style={{
+                            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(148, 163, 184, 0.15) 6px, rgba(148, 163, 184, 0.15) 12px)'
+                          }}
+                        ></div>
                       )}
                       
-                      <div className={`relative z-10 ${isPastSlot ? 'text-slate-400' : ''}`}>
+                      <div className={`relative z-10 ${
+                        isPastSlot ? 'text-slate-300' : ''
+                      }`}>
                         {isBooked ? (
                           <>
                             <div className="font-bold text-sm">{timeSlot.split('-')[0]}</div>
