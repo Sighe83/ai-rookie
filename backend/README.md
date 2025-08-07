@@ -95,7 +95,7 @@ The database includes these main models:
 - **Tutor** - Tutor profiles and information
 - **Session** - Available training sessions with individual pricing
 - **Booking** - Session bookings with contact info
-- **TutorAvailability** - Available time slots per tutor/date
+- **TutorTimeSlot** - Individual time slots per tutor/date with availability status
 
 ## Scripts
 

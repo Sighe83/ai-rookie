@@ -107,10 +107,10 @@ export class SessionUtils {
   /**
    * Generates valid time slots for a given date
    * @param {Date|string} date - The date to generate slots for
-   * @param {Array} excludeHours - Hours to exclude (e.g., [12] for lunch)
+   * @param {Array} excludeHours - Hours to exclude
    * @returns {Array} - Array of valid time slot objects
    */
-  static generateTimeSlots(date, excludeHours = [12]) {
+  static generateTimeSlots(date, excludeHours = []) {
     const targetDate = new Date(date);
     const slots = [];
 
@@ -204,7 +204,7 @@ export class SessionUtils {
         time: `${hour.toString().padStart(2, '0')}:00`,
         displayTime: `${hour.toString().padStart(2, '0')}:00 - ${(hour + 1).toString().padStart(2, '0')}:00`,
         dateTime: this.createHourOnlyDateTime(date, hour),
-        isValid: hour >= 8 && hour <= 17 && hour !== 12 // Business hours, no lunch
+        isValid: hour >= 8 && hour <= 17 // Business hours
       }))
       .filter(slot => slot.isValid);
   }

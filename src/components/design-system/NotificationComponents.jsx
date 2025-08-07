@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 import { useTheme } from './DesignSystem.jsx';
 
@@ -17,7 +17,11 @@ export const useToast = () => {
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   
-  const showToast = (toast) => {
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  }, []);
+  
+  const showToast = useCallback((toast) => {
     const id = Date.now() + Math.random();
     const newToast = {
       id,
@@ -35,27 +39,23 @@ export const ToastProvider = ({ children }) => {
     }
     
     return id;
-  };
+  }, [removeToast]);
   
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  };
-  
-  const success = (message, options = {}) => {
+  const success = useCallback((message, options = {}) => {
     return showToast({ ...options, type: 'success', message });
-  };
+  }, [showToast]);
   
-  const error = (message, options = {}) => {
+  const error = useCallback((message, options = {}) => {
     return showToast({ ...options, type: 'error', message });
-  };
+  }, [showToast]);
   
-  const warning = (message, options = {}) => {
+  const warning = useCallback((message, options = {}) => {
     return showToast({ ...options, type: 'warning', message });
-  };
+  }, [showToast]);
   
-  const info = (message, options = {}) => {
+  const info = useCallback((message, options = {}) => {
     return showToast({ ...options, type: 'info', message });
-  };
+  }, [showToast]);
   
   return (
     <ToastContext.Provider value={{ showToast, removeToast, success, error, warning, info }}>
@@ -96,15 +96,17 @@ export const Toast = ({
   
   useEffect(() => {
     // Animate in
-    setTimeout(() => setIsVisible(true), 10);
+    const timer = setTimeout(() => setIsVisible(true), 10);
+    return () => clearTimeout(timer);
   }, []);
   
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsLeaving(true);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       onClose?.();
     }, 200);
-  };
+    return () => clearTimeout(timer);
+  }, [onClose]);
   
   const types = {
     success: {
@@ -177,7 +179,10 @@ export const NotificationBell = ({
   const [isOpen, setIsOpen] = useState(false);
   const { colors } = useTheme();
   
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = React.useMemo(() => 
+    notifications.filter(n => !n.read).length, 
+    [notifications]
+  );
   
   return (
     <div className={`relative ${className}`}>

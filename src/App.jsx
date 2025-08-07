@@ -542,7 +542,7 @@ const B2C_FORMAT_LABEL = {
 
 const B2C_FORMAT_DESCRIPTION = {
   individual: 'Personlig session kun for dig',
-  group: 'Fælles session med andre deltagere - spar 30%',
+  group: 'Kommer snart',
 };
 
 // Safe date utilities
@@ -609,8 +609,6 @@ const generateAvailabilitySlots = (tutorId) => {
     const endHour = tutorId % 3 === 0 ? 17 : 16;
     
     for (let hour = startHour; hour <= endHour; hour++) {
-      // Skip lunch hour (12-13)
-      if (hour === 12) continue;
       
       // Use seeded randomness for consistent results per tutor
       const seed = tutorId * 1000 + i * 100 + hour;
@@ -1233,6 +1231,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           return (
             <button
               key={index}
+              type="button"
               onClick={() => hasSlots && !isPastDate && handleDateClick(date)}
               disabled={!hasSlots || isPastDate}
               className={`p-2 sm:p-3 rounded-lg text-center text-xs sm:text-sm font-medium transition-all duration-200 min-h-[60px] sm:min-h-[80px] ${
@@ -1276,6 +1275,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
             return (
               <button
                 key={index}
+                type="button"
                 onClick={() => !isPastDate && hasSlots && setSelectedMobileDay(index)}
                 disabled={isPastDate || !hasSlots}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -1646,6 +1646,7 @@ const HomePage = () => {
 
 const TutorsPage = () => {
   const [expandedId, setExpandedId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { siteMode } = useSiteMode();
   const { user } = useAuth();
@@ -1654,6 +1655,29 @@ const TutorsPage = () => {
   // Use API to fetch tutors
   const { data: tutors = [], loading, error } = useTutors(siteMode.toUpperCase());
   const isB2B = siteMode === 'b2b';
+  
+  // Filter tutors based on search query
+  const filteredTutors = tutors.filter(tutor => {
+    if (!searchQuery) return true;
+    
+    const searchTerm = searchQuery.toLowerCase();
+    const tutorName = (tutor.user?.name || tutor.name || '').toLowerCase();
+    const tutorTitle = (tutor.title || '').toLowerCase();
+    const tutorSpecialty = (tutor.specialty || '').toLowerCase();
+    const tutorBio = (tutor.bio || '').toLowerCase();
+    
+    // Search in sessions
+    const sessionMatches = tutor.sessions?.some(session => 
+      (session.title || '').toLowerCase().includes(searchTerm) ||
+      (session.description || '').toLowerCase().includes(searchTerm)
+    );
+    
+    return tutorName.includes(searchTerm) || 
+           tutorTitle.includes(searchTerm) || 
+           tutorSpecialty.includes(searchTerm) ||
+           tutorBio.includes(searchTerm) ||
+           sessionMatches;
+  });
   
   
   const handleSelect = (tutor, session) => {
@@ -1702,16 +1726,46 @@ const TutorsPage = () => {
           }
         </p>
       </div>
+      
+      {/* Search Input */}
+      <div className="mb-8">
+        <SearchInput
+          placeholder={isB2B ? "Søg efter eksperter, workshops eller kompetencer..." : "Søg efter tutorer, sessions eller emner..."}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+      
       <div className="space-y-6">
-        {tutors.map((tutor) => (
-          <TutorCard
-            key={tutor.id}
-            tutor={tutor}
-            isExpanded={expandedId === tutor.id}
-            onExpand={(id) => setExpandedId((prev) => (prev === id ? null : id))}
-            onSelect={handleSelect}
-          />
-        ))}
+        {filteredTutors.length > 0 ? (
+          filteredTutors.map((tutor) => (
+            <TutorCard
+              key={tutor.id}
+              tutor={tutor}
+              isExpanded={expandedId === tutor.id}
+              onExpand={(id) => setExpandedId((prev) => (prev === id ? null : id))}
+              onSelect={handleSelect}
+            />
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-slate-400 mb-4">
+              <h3 className="text-xl font-semibold mb-2">
+                {searchQuery ? 'Ingen resultater fundet' : 'Ingen tutorer tilgængelige'}
+              </h3>
+              {searchQuery && (
+                <p>
+                  Prøv at søge efter andre nøgleord eller <button 
+                    onClick={() => setSearchQuery('')}
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    ryd søgningen
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2203,21 +2257,24 @@ const BookingPage = () => {
               <legend className="text-slate-400 text-sm px-2">Vælg sessiontype</legend>
               <div className="space-y-3">
                 {Object.entries(B2C_FORMAT_LABEL).map(([key, label]) => (
-                  <label key={key} className="flex items-start gap-3 cursor-pointer">
+                  <label key={key} className={`flex items-start gap-3 ${key === 'group' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                     <input
                       type="radio"
                       name="format"
                       value={key}
                       checked={format === key}
                       onChange={() => setFormat(key)}
-                      className="mt-1 text-blue-600 focus:ring-blue-500"
+                      disabled={key === 'group'}
+                      className="mt-1 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="text-slate-300 font-medium">{label}</span>
-                        <span className="text-lg font-bold text-white">
-                          {(getSessionPrice(session, tutor) * B2C_FORMAT_MULTIPLIER[key]).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
-                        </span>
+                        {key !== 'group' && (
+                          <span className="text-lg font-bold text-white">
+                            {(getSessionPrice(session, tutor) * B2C_FORMAT_MULTIPLIER[key]).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr.
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-400 mt-1">
                         {B2C_FORMAT_DESCRIPTION[key]}

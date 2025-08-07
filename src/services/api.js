@@ -78,109 +78,114 @@ export const tutorsApi = {
   }
 };
 
-// Availability API - Direct Supabase queries with RLS
+// Availability API - Using new tutor_time_slots table
 export const availabilityApi = {
   getAvailability: async (tutorId, startDate, endDate) => {
     let query = supabase
-      .from('tutor_availability')
+      .from('tutor_time_slots')
       .select('*')
-      .eq('tutor_id', tutorId);
+      .eq('tutor_id', tutorId)
+      .eq('is_available', true);
 
     if (startDate) query = query.gte('date', startDate);
     if (endDate) query = query.lte('date', endDate);
 
-    const { data, error } = await query.order('date', { ascending: true });
+    const { data, error } = await query.order('date', { ascending: true }).order('start_time', { ascending: true });
     
     if (error) throw new ApiError(error.message, 400, error);
-    return { data, success: true };
+    
+    // Transform data to group by date for backward compatibility
+    const groupedData = {};
+    data?.forEach(slot => {
+      const dateKey = slot.date;
+      if (!groupedData[dateKey]) {
+        groupedData[dateKey] = {
+          date: dateKey,
+          time_slots: []
+        };
+      }
+      groupedData[dateKey].time_slots.push({
+        time: slot.start_time.substring(0, 5), // HH:MM format
+        available: slot.is_available,
+        booked: slot.is_booked,
+        clientName: slot.client_name || null // Handle missing client_name field
+      });
+    });
+    
+    return { data: Object.values(groupedData), success: true };
   },
 
   updateAvailability: async (tutorId, date, timeSlots) => {
     try {
-      // First try to find existing record
-      const { data: existing, error: findError } = await supabase
-        .from('tutor_availability')
-        .select('id')
-        .eq('tutor_id', tutorId)
-        .eq('date', date)
-        .maybeSingle();
-
-      if (findError) {
-        console.error('Error finding existing availability:', findError);
-        throw new ApiError(findError.message, 400, findError);
+      // Verify user has tutor permissions first
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new ApiError('Authentication required', 401, authError);
       }
 
-      let result;
-      if (existing) {
-        // Update existing record
-        console.log('Updating existing availability record:', existing.id);
-        result = await supabase
-          .from('tutor_availability')
-          .update({
-            time_slots: timeSlots,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id)
-          .select()
-          .single();
-      } else {
-        // Insert new record
-        console.log('Creating new availability record for tutor:', tutorId, 'date:', date);
+      // Verify the tutorId belongs to the authenticated user
+      const { data: tutorCheck, error: tutorError } = await supabase
+        .from('tutors')
+        .select('id, user_id')
+        .eq('id', tutorId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (tutorError || !tutorCheck) {
+        throw new ApiError('Unauthorized: Tutor not found or access denied', 403, tutorError);
+      }
+
+      // Delete existing time slots for this date
+      const { error: deleteError } = await supabase
+        .from('tutor_time_slots')
+        .delete()
+        .eq('tutor_id', tutorId)
+        .eq('date', date);
+
+      if (deleteError) {
+        console.error('Error deleting existing slots:', deleteError);
+        throw new ApiError(deleteError.message, 400, deleteError);
+      }
+
+      // Insert new time slots
+      const slotsToInsert = timeSlots.map(slot => {
+        const [startHour] = slot.time.split(':');
+        const startMinute = slot.time.includes(':') ? slot.time.split(':')[1] : '00';
+        const endHour = (parseInt(startHour) + 1).toString().padStart(2, '0');
         
-        // Verify user has tutor permissions first
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-          throw new ApiError('Authentication required', 401, authError);
-        }
-
-        // Verify the tutorId belongs to the authenticated user
-        const { data: tutorCheck, error: tutorError } = await supabase
-          .from('tutors')
-          .select('id, user_id')
-          .eq('id', tutorId)
-          .eq('user_id', user.id)
-          .single();
-
-        if (tutorError || !tutorCheck) {
-          throw new ApiError('Unauthorized: Tutor not found or access denied', 403, tutorError);
-        }
-
-        // Generate UUID on client side as fallback
-        const generateUUID = () => {
-          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-            return crypto.randomUUID();
-          }
-          // Fallback UUID generation
-          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-          });
-        };
-
-        const insertData = {
-          id: generateUUID(), // Explicitly provide UUID
+        return {
           tutor_id: tutorId,
           date: date,
-          time_slots: timeSlots
+          start_time: `${startHour.padStart(2, '0')}:${startMinute}:00`,
+          end_time: `${endHour}:${startMinute}:00`,
+          is_available: slot.available !== false,
+          is_booked: slot.booked === true
         };
-        console.log('Insert data:', insertData);
-        
-        result = await supabase
-          .from('tutor_availability')
-          .insert(insertData)
-          .select()
-          .single();
-      }
+      });
 
-      const { data, error } = result;
-      if (error) {
-        console.error('Database operation error:', error);
-        throw new ApiError(error.message, 400, error);
+      if (slotsToInsert.length > 0) {
+        const { data, error } = await supabase
+          .from('tutor_time_slots')
+          .insert(slotsToInsert)
+          .select();
+
+        if (error) {
+          console.error('Database insert error:', error);
+          
+          // If error is about missing column, provide helpful error message
+          if (error.message.includes('client_name')) {
+            throw new ApiError('Table structure mismatch. Please run the database migration or check table schema.', 400, error);
+          }
+          
+          throw new ApiError(error.message, 400, error);
+        }
+        
+        console.log('Availability operation successful:', data);
+        return { data, success: true };
+      } else {
+        // No slots to insert, return success
+        return { data: [], success: true };
       }
-      
-      console.log('Availability operation successful:', data);
-      return { data, success: true };
     } catch (err) {
       console.error('updateAvailability error:', err);
       if (err instanceof ApiError) throw err;
@@ -223,7 +228,7 @@ export const availabilityApi = {
           // Clear availability for days with no slots
           try {
             await supabase
-              .from('tutor_availability')
+              .from('tutor_time_slots')
               .delete()
               .eq('tutor_id', tutorId)
               .eq('date', date.toISOString().split('T')[0]);
