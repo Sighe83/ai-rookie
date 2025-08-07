@@ -179,6 +179,7 @@ export const Button = ({
   
   return (
     <button 
+      type="button"
       className={classes}
       disabled={disabled || loading}
       {...props}
@@ -300,6 +301,7 @@ export const Modal = ({
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">{title}</h2>
               <button 
+                type="button"
                 onClick={onClose}
                 className="text-slate-400 hover:text-white transition-colors"
               >
@@ -363,7 +365,7 @@ export const IconButton = ({
   const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`;
   
   return (
-    <button className={classes} {...props}>
+    <button type="button" className={classes} {...props}>
       <Icon className={iconSizes[size]} />
       {children}
     </button>
@@ -439,6 +441,7 @@ export const Tabs = ({ tabs, activeTab, onTabChange, className = '' }) => {
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            type="button"
             onClick={() => onTabChange(tab.id)}
             className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${
               activeTab === tab.id
@@ -499,6 +502,7 @@ export const Alert = ({ type = 'info', title, children, onClose }) => {
         </div>
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
             className={`${typeStyles.text} hover:text-white ml-3 flex-shrink-0`}
           >

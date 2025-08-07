@@ -1231,6 +1231,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           return (
             <button
               key={index}
+              type="button"
               onClick={() => hasSlots && !isPastDate && handleDateClick(date)}
               disabled={!hasSlots || isPastDate}
               className={`p-2 sm:p-3 rounded-lg text-center text-xs sm:text-sm font-medium transition-all duration-200 min-h-[60px] sm:min-h-[80px] ${
@@ -1274,6 +1275,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
             return (
               <button
                 key={index}
+                type="button"
                 onClick={() => !isPastDate && hasSlots && setSelectedMobileDay(index)}
                 disabled={isPastDate || !hasSlots}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
