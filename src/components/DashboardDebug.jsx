@@ -45,7 +45,7 @@ const DashboardDebug = () => {
         
         const { data: allAvailableSlots, error: availableError } = await supabase
           .from('tutor_time_slots')
-          .select('id, date, start_time, is_available, is_booked')
+          .select('id, date, start_time, status')
           .eq('tutor_id', tutorId)
           .gte('date', startDate.toISOString().split('T')[0])
           .lte('date', endDate.toISOString().split('T')[0]);
@@ -70,9 +70,9 @@ const DashboardDebug = () => {
           }
           slotsByDate[date].total++;
           
-          if (slot.is_booked) {
+          if (slot.status === 'BOOKED' || slot.status === 'PENDING') {
             slotsByDate[date].booked++;
-          } else if (slot.is_available) {
+          } else if (slot.status === 'AVAILABLE') {
             slotsByDate[date].available++;
           } else {
             slotsByDate[date].unavailable++;
@@ -81,9 +81,9 @@ const DashboardDebug = () => {
 
         results.availableSlots = {
           total: availableSlots?.length || 0,
-          available: availableSlots?.filter(s => s.is_available && !s.is_booked).length || 0,
-          booked: availableSlots?.filter(s => s.is_booked).length || 0,
-          unavailable: availableSlots?.filter(s => !s.is_available).length || 0,
+          available: availableSlots?.filter(s => s.status === 'AVAILABLE').length || 0,
+          booked: availableSlots?.filter(s => s.status === 'BOOKED' || s.status === 'PENDING').length || 0,
+          unavailable: availableSlots?.filter(s => s.status === 'UNAVAILABLE').length || 0,
           byDate: slotsByDate,
           data: availableSlots,
           error: availableError?.message

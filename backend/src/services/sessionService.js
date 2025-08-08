@@ -126,8 +126,7 @@ class SessionService {
       slots.push({
         time: `${hour.toString().padStart(2, '0')}:00`,
         dateTime: slotTime,
-        available: true,
-        booked: false,
+        status: 'AVAILABLE',
         duration: this.SESSION_DURATION_MINUTES
       });
     }

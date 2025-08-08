@@ -12,7 +12,8 @@ const tutorRoutes = require('./routes/tutors');
 const bookingRoutes = require('./routes/bookings');
 const availabilityRoutes = require('./routes/availability');
 const authRoutes = require('./routes/auth');
-// const paymentRoutes = require('./routes/payments');
+const paymentRoutes = require('./routes/payments');
+const bookingCleanupService = require('./services/bookingCleanupService');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -24,7 +25,9 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
     'https://ai-rookie.vercel.app',
     process.env.FRONTEND_URL
   ].filter(Boolean),
@@ -87,7 +90,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tutors', tutorRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/availability', availabilityRoutes);
-// app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -106,12 +109,16 @@ async function startServer() {
     // Initialize database
     await databaseService.initialize();
     
+    // Start booking cleanup service
+    bookingCleanupService.start();
+    
     // Start server
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
       console.log(`📊 Database: Supabase PostgreSQL`);
+      console.log(`🧹 Booking cleanup service started`);
     });
     
     return server;
@@ -123,9 +130,23 @@ async function startServer() {
 
 startServer();
 
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  bookingCleanupService.stop();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received. Shutting down gracefully...');
+  bookingCleanupService.stop();
+  process.exit(0);
+});
+
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.log('Unhandled Promise Rejection:', err.message);
+  bookingCleanupService.stop();
   process.exit(1);
 });
 

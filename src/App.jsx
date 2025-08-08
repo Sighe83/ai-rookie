@@ -8,6 +8,8 @@ import UserProfile from './components/UserProfile';
 import AdminGate from './components/AdminGate';
 import TutorDashboard from './components/TutorDashboard';
 import AuthDebug from './components/AuthDebug';
+import PaymentSuccess from './components/PaymentSuccess';
+import PaymentCancelled from './components/PaymentCancelled';
 import { 
   ThemeProvider, 
   ToastProvider, 
@@ -22,6 +24,7 @@ import {
 import { NavigationTabs } from './components/design-system/NavigationComponents.jsx';
 import { Header, EmptyState } from './components/design-system/LayoutComponents.jsx';
 import { SearchInput } from './components/design-system/FormComponents.jsx';
+import { createDenmarkDateTime } from './utils/timezone.js';
 import {
   Briefcase,
   Users,
@@ -617,8 +620,7 @@ const generateAvailabilitySlots = (tutorId) => {
       if (isAvailable) {
         availableSlots.push({
           time: `${hour.toString().padStart(2, '0')}:00`,
-          available: true,
-          booked: false,
+          status: 'AVAILABLE',
         });
       }
     }
@@ -654,8 +656,7 @@ const getTutorAvailability = async (tutorId) => {
       slots: Array.isArray(availability.time_slots) 
         ? availability.time_slots.map(slot => ({
             time: slot.time || slot.startTime,
-            available: slot.available !== undefined ? slot.available : !slot.isBooked,
-            booked: slot.booked !== undefined ? slot.booked : (slot.isBooked || false),
+            status: slot.status || 'AVAILABLE',
             endTime: slot.endTime
           }))
         : []
@@ -1093,7 +1094,8 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
     setSelectedDate(date);
     // Reset time selection when changing date
     const dateKey = formatDateKey(date);
-    if (!selectedDateTime || !selectedDateTime.startsWith(dateKey)) {
+    // Handle both old format (YYYY-MM-DDTHH:MM) and new timezone-aware format
+    if (!selectedDateTime || (!selectedDateTime.startsWith(dateKey + 'T') && !selectedDateTime.includes(dateKey))) {
       onSelectDateTime('');
     }
   };
@@ -1159,7 +1161,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
     const dateKey = formatDateKey(selectedDate);
     const allSlots = availabilityMap.get(dateKey) || [];
     // Only return available (unbooked) slots
-    return allSlots.filter(slot => slot.available && !slot.booked);
+    return allSlots.filter(slot => slot.status === 'AVAILABLE');
   }, [selectedDate, availabilityMap]);
 
   if (!tutor || !tutor.id) {
@@ -1222,7 +1224,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
       <div className="hidden md:grid md:grid-cols-7 gap-1 sm:gap-2">
         {getWeekDates.map((date, index) => {
           const dateKey = formatDateKey(date);
-          const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
+          const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.status === 'AVAILABLE') || [];
           const hasSlots = availableSlots.length > 0;
           const isSelected = selectedDate && formatDateKey(selectedDate) === dateKey;
           const isToday = dateKey === formatDateKey(new Date());
@@ -1267,7 +1269,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
         <div className="flex flex-wrap gap-2 mb-4">
           {getWeekDates.map((date, index) => {
             const dateKey = formatDateKey(date);
-            const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
+            const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.status === 'AVAILABLE') || [];
             const hasSlots = availableSlots.length > 0;
             const isPastDate = isDateInPast(date);
             const dayName = date.toLocaleDateString('da-DK', { weekday: 'short' });
@@ -1312,7 +1314,8 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           {slotsForSelectedDate.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
               {slotsForSelectedDate.map((slot, slotIndex) => {
-                const dateTimeKey = `${formatDateKey(selectedDate)}T${slot.time}`;
+                // Create timezone-aware datetime string for Denmark
+                const dateTimeKey = createDenmarkDateTime(formatDateKey(selectedDate), slot.time);
                 const isSelected = selectedDateTime === dateTimeKey;
                 
                 // Check if this time slot has passed (only for today)
@@ -1369,7 +1372,7 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
           if (!mobileDate || isDateInPast(mobileDate)) return null;
           
           const dateKey = formatDateKey(mobileDate);
-          const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.available && !slot.booked) || [];
+          const availableSlots = availabilityMap.get(dateKey)?.filter(slot => slot.status === 'AVAILABLE') || [];
           
           if (availableSlots.length === 0) return null;
 
@@ -1380,7 +1383,8 @@ const AvailabilityCalendar = ({ tutor, selectedDateTime, onSelectDateTime }) => 
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 {availableSlots.map((slot, slotIndex) => {
-                  const dateTimeKey = `${dateKey}T${slot.time}`;
+                  // Create timezone-aware datetime string for Denmark
+                  const dateTimeKey = createDenmarkDateTime(dateKey, slot.time);
                   const isSelected = selectedDateTime === dateTimeKey;
                   
                   // Check if this time slot has passed (only for today)
@@ -1986,10 +1990,17 @@ const BookingPage = () => {
         
         success('Booking sendt succesfuldt! Du vil snart høre fra tutoren.');
         
-        if (isB2B) {
-          navigate('/booking-success', { state: { booking } });
+        // Check if we have a payment URL to redirect to Stripe
+        if (result.data && result.data.paymentUrl) {
+          // Redirect to Stripe payment page
+          window.location.href = result.data.paymentUrl;
         } else {
-          setIsBooked(true);
+          // Fallback to original flow if no payment URL
+          if (isB2B) {
+            navigate('/booking-success', { state: { booking } });
+          } else {
+            setIsBooked(true);
+          }
         }
       } else {
         // Only show error if there's actually an error message
@@ -3059,6 +3070,8 @@ const AppContent = () => {
           <Route path="/tutors" element={<TutorsPage />} />
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/booking-success" element={<BookingSuccessPage />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/cancelled" element={<PaymentCancelled />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/tutor-dashboard" element={<TutorDashboard />} />
         </Routes>

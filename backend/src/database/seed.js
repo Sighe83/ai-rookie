@@ -176,8 +176,7 @@ async function seedDatabase() {
           return isAvailable;
         }).map(slot => ({
           time: slot.time,
-          available: slot.available,
-          booked: slot.booked
+          status: slot.status
         }));
         
         if (timeSlots.length > 0) {

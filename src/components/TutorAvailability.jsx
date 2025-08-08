@@ -113,8 +113,7 @@ const TutorAvailability = () => {
             id: `${item.date}-${index}`,
             time: time,
             hour: hour,
-            available: slot.available !== false,
-            booked: slot.booked || slot.isBooked || false,
+            status: slot.status || 'AVAILABLE', // Use new status field
             clientName: slot.clientName,
             duration: SessionUtils.SESSION_DURATION_MINUTES,
             displayTime: hour ? SessionUtils.formatSessionTime(
@@ -207,15 +206,13 @@ const TutorAvailability = () => {
       const hour = parseInt(newSlot.hour);
       const timeSlot = {
         time: `${hour.toString().padStart(2, '0')}:00`,
-        available: true,
-        booked: false
+        status: 'AVAILABLE'
       };
       
       const updatedSlots = [
         ...existingSlots.map(slot => ({
           time: slot.time,
-          available: slot.available,
-          booked: slot.booked
+          status: slot.status || 'AVAILABLE'
         })),
         timeSlot
       ].sort((a, b) => a.time.localeCompare(b.time));
@@ -303,9 +300,8 @@ const TutorAvailability = () => {
 
       // Create clean slots (remove id and booking info)
       const cleanSlots = sourceSlots.map(slot => ({
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        isBooked: false
+        time: slot.time,
+        status: 'AVAILABLE'
       }));
 
       await availabilityApi.updateAvailability(tutorId, targetDateKey, cleanSlots);
@@ -373,8 +369,7 @@ const TutorAvailability = () => {
         const hour = parseInt(bulkPattern.hour);
         const timeSlot = {
           time: `${hour.toString().padStart(2, '0')}:00`,
-          available: true,
-          booked: false
+          status: 'AVAILABLE'
         };
         
         // Check if this hour already exists
@@ -463,7 +458,7 @@ const TutorAvailability = () => {
           {weekDates.map((date, index) => {
             const dateKey = formatDate(date);
             const slotsCount = availability[dateKey]?.length || 0;
-            const bookedCount = availability[dateKey]?.filter(slot => slot.isBooked).length || 0;
+            const bookedCount = availability[dateKey]?.filter(slot => slot.status === 'BOOKED' || slot.status === 'PENDING').length || 0;
             const isSelected = dateKey === selectedDateKey;
             const isToday = dateKey === formatDate(new Date());
             
@@ -605,111 +600,36 @@ const TutorAvailability = () => {
               <div
                 key={slot.id}
                 className={`flex items-center justify-between p-4 rounded-lg border-2 ${
-                  slot.isBooked
+                  (slot.status === 'BOOKED' || slot.status === 'PENDING')
                     ? 'bg-blue-500/10 border-blue-500'
                     : 'bg-purple-500/10 border-purple-500'
                 }`}
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${
-                    slot.isBooked ? 'bg-blue-400' : 'bg-purple-400'
+                    (slot.status === 'BOOKED' || slot.status === 'PENDING') ? 'bg-blue-400' : 'bg-purple-400'
                   }`} />
                   
-                  {editingSlot === slot.id ? (
-                    <div className="flex gap-1 items-center">
-                      <select
-                        defaultValue={parseTime(slot.startTime).hour}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
-                        onChange={(e) => {
-                          const hour = e.target.value;
-                          const minute = parseTime(slot.startTime).minute;
-                          slot.startTime = formatTime(hour, minute);
-                        }}
-                      >
-                        <optgroup label="Normal">
-                          {generateHourOptions('business').map(hour => (
-                            <option key={hour.value} value={hour.value}>{hour.label}</option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Andre">
-                          {generateHourOptions().filter(hour => {
-                            const h = parseInt(hour.value);
-                            return h < 9 || h >= 17;
-                          }).map(hour => (
-                            <option key={hour.value} value={hour.value}>{hour.label}</option>
-                          ))}
-                        </optgroup>
-                      </select>
-                      <span className="text-slate-300">:</span>
-                      <select
-                        defaultValue={parseTime(slot.startTime).minute}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
-                        onChange={(e) => {
-                          const minute = e.target.value;
-                          const hour = parseTime(slot.startTime).hour;
-                          slot.startTime = formatTime(hour, minute);
-                        }}
-                      >
-                        {generateMinuteOptions().map(minute => (
-                          <option key={minute.value} value={minute.value}>{minute.label}</option>
-                        ))}
-                      </select>
-                      <span className="text-slate-300 mx-1">-</span>
-                      <select
-                        defaultValue={parseTime(slot.endTime).hour}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
-                        onChange={(e) => {
-                          const hour = e.target.value;
-                          const minute = parseTime(slot.endTime).minute;
-                          slot.endTime = formatTime(hour, minute);
-                        }}
-                      >
-                        <optgroup label="Normal">
-                          {generateHourOptions('business').map(hour => (
-                            <option key={hour.value} value={hour.value}>{hour.label}</option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Andre">
-                          {generateHourOptions().filter(hour => {
-                            const h = parseInt(hour.value);
-                            return h < 9 || h >= 17;
-                          }).map(hour => (
-                            <option key={hour.value} value={hour.value}>{hour.label}</option>
-                          ))}
-                        </optgroup>
-                      </select>
-                      <span className="text-slate-300">:</span>
-                      <select
-                        defaultValue={parseTime(slot.endTime).minute}
-                        className="bg-slate-600 text-white rounded px-2 py-1 text-sm focus:ring-2 focus:ring-purple-500"
-                        onChange={(e) => {
-                          const minute = e.target.value;
-                          const hour = parseTime(slot.endTime).hour;
-                          slot.endTime = formatTime(hour, minute);
-                        }}
-                      >
-                        {generateMinuteOptions().map(minute => (
-                          <option key={minute.value} value={minute.value}>{minute.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
+                  {/* Editing disabled for now */}
+                  {false ? null : (
                     <div>
                       <span className="text-white font-medium">
-                        {slot.startTime} - {slot.endTime}
+                        {slot.displayTime || slot.time}
                       </span>
-                      {slot.isBooked && slot.clientName && (
+                      {(slot.status === 'BOOKED' || slot.status === 'PENDING') && slot.clientName && (
                         <p className="text-blue-400 text-sm">Booket af {slot.clientName}</p>
                       )}
                     </div>
                   )}
                   
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    slot.isBooked
+                    (slot.status === 'BOOKED')
                       ? 'bg-blue-600 text-blue-100'
+                      : (slot.status === 'PENDING')
+                      ? 'bg-orange-600 text-orange-100'
                       : 'bg-purple-600 text-purple-100'
                   }`}>
-                    {slot.isBooked ? 'Booket' : 'Ledig'}
+                    {slot.status === 'BOOKED' ? 'Booket' : slot.status === 'PENDING' ? 'Afventer' : 'Ledig'}
                   </span>
                 </div>
 
@@ -717,32 +637,11 @@ const TutorAvailability = () => {
                   <button
                     onClick={() => deleteTimeSlot(slot.id)}
                     className="text-red-400 hover:text-red-300 p-1"
-                    disabled={slot.isBooked}
-                    title={slot.isBooked ? 'Kan ikke slette booket tid' : 'Slet tidsslot'}
+                    disabled={slot.status === 'BOOKED' || slot.status === 'PENDING'}
+                    title={(slot.status === 'BOOKED' || slot.status === 'PENDING') ? 'Kan ikke slette booket tid' : 'Slet tidsslot'}
                   >
                     <Trash2 className="w-4 h-4" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {!slot.isBooked && (
-                        <button
-                          onClick={() => setEditingSlot(slot.id)}
-                          className="text-purple-400 hover:text-purple-300 p-1"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      )}
-                      {!slot.isBooked && (
-                        <button
-                          onClick={() => deleteTimeSlot(slot.id)}
-                          className="text-red-400 hover:text-red-300 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </>
-                  )}
+                  </button>
                 </div>
               </div>
             ))

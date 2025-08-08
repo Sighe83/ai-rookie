@@ -80,8 +80,7 @@ const schemas = {
     timeSlots: Joi.array().items(
       Joi.object({
         time: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).required(),
-        available: Joi.boolean().required(),
-        booked: Joi.boolean().default(false)
+        status: Joi.string().valid('AVAILABLE', 'BOOKED', 'PENDING', 'UNAVAILABLE').required()
       })
     ).min(1).required()
   }),
