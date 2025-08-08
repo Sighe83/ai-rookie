@@ -391,9 +391,10 @@ export const useMutation = () => {
   return { mutate, loading, error, clearError };
 };
 
-// Hook for booking creation using direct Supabase with validation
+// Hook for booking creation using backend API with Stripe payment integration
 export const useCreateBooking = () => {
   const { mutate, loading, error, clearError } = useMutation();
+  const { api } = useApi();
 
   const createBooking = useCallback(async (bookingData) => {
     return await mutate(async () => {
@@ -415,69 +416,92 @@ export const useCreateBooking = () => {
       if (!emailRegex.test(bookingData.contactEmail.trim())) {
         throw new Error('Ugyldig email adresse');
       }
-      
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw new Error('Authentication fejlede');
-      if (!user) throw new Error('Ikke logget ind');
 
-      // Generate UUID for booking
-      const generateUUID = () => {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-          return crypto.randomUUID();
-        }
-        // Fallback UUID generation
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          const r = Math.random() * 16 | 0;
-          const v = c == 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
+      // Prepare booking data for backend API
+      const apiBookingData = {
+        tutorId: bookingData.tutorId,
+        sessionId: bookingData.sessionId,
+        selectedDateTime: bookingData.selectedDateTime,
+        contactName: bookingData.contactName.trim(),
+        contactEmail: bookingData.contactEmail.trim(),
+        contactPhone: bookingData.contactPhone?.trim() || null,
+        company: bookingData.company?.trim() || null,
+        department: bookingData.department?.trim() || null,
+        participants: bookingData.participants || 1,
+        format: bookingData.format || 'INDIVIDUAL',
+        siteMode: bookingData.siteMode || 'B2C',
+        notes: bookingData.notes?.trim() || null
       };
 
-      // Calculate total price if not provided
-      let totalPrice = bookingData.totalPrice || 0;
-      if (!totalPrice && bookingData.participants && bookingData.sessionPrice) {
-        totalPrice = bookingData.sessionPrice * bookingData.participants;
+      // Call backend API to create booking and get payment URL
+      const response = await api.post('/api/bookings', apiBookingData);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to create booking');
       }
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert([{
-          id: generateUUID(), // Explicitly provide UUID
-          user_id: user.id,
-          tutor_id: bookingData.tutorId,
-          session_id: bookingData.sessionId,
-          selected_date_time: bookingData.selectedDateTime,
-          total_price: totalPrice,
-          contact_name: bookingData.contactName.trim(),
-          contact_email: bookingData.contactEmail.trim(),
-          contact_phone: bookingData.contactPhone?.trim() || '',
-          company: bookingData.company?.trim() || '',
-          department: bookingData.department?.trim() || '',
-          participants: bookingData.participants || 1,
-          format: bookingData.format || 'INDIVIDUAL',
-          site_mode: bookingData.siteMode || 'B2C',
-          status: 'PENDING',
-          notes: bookingData.notes?.trim() || '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select(`
-          *,
-          tutor:tutors(*, user:users(name, email)),
-          session:sessions(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error('Booking creation error:', error);
-        throw error;
-      }
-      
-      return data;
+      return response;
     });
-  }, [mutate]);
+  }, [mutate, api]);
 
   return { createBooking, loading, error, clearError };
+};
+
+// Simple API hook for backend requests
+export const useApi = () => {
+  const api = {
+    get: async (url) => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${url}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('API GET error:', error);
+        throw error;
+      }
+    },
+    
+    post: async (url, data) => {
+      try {
+        console.log('Making POST request to:', `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${url}`);
+        console.log('Request data:', data);
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${url}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Response error:', errorText);
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Response data:', result);
+        return result;
+      } catch (error) {
+        console.error('API POST error:', error);
+        throw error;
+      }
+    }
+  };
+  
+  return { api };
 };
 
 // Hook for tutor dashboard statistics
@@ -599,10 +623,9 @@ export const useTutorStats = (tutorId) => {
     try {
       const { data: allAvailableTimeSlots, error: timeSlotsError } = await supabase
         .from('tutor_time_slots')
-        .select('id, date, start_time, is_available, is_booked')
+        .select('id, date, start_time, status')
         .eq('tutor_id', tutorId)
-        .eq('is_available', true)
-        .eq('is_booked', false)
+        .eq('status', 'AVAILABLE')
         .gte('date', todayDate)
         .lte('date', endDate);
       

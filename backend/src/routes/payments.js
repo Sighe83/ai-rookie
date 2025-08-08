@@ -1,12 +1,12 @@
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { databaseService } = require('../config/database');
-const auth = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Create payment intent
-router.post('/create-payment-intent', auth, async (req, res) => {
+router.post('/create-payment-intent', authMiddleware, async (req, res) => {
   try {
     const { amount, currency = 'dkk', bookingId, metadata = {} } = req.body;
 
@@ -77,7 +77,7 @@ router.post('/create-payment-intent', auth, async (req, res) => {
 });
 
 // Confirm payment
-router.post('/confirm-payment', auth, async (req, res) => {
+router.post('/confirm-payment', authMiddleware, async (req, res) => {
   try {
     const { paymentIntentId } = req.body;
 
@@ -95,7 +95,7 @@ router.post('/confirm-payment', auth, async (req, res) => {
       const booking = await databaseService.update('booking', {
         where: { paymentIntentId },
         data: { 
-          paymentStatus: 'COMPLETED',
+          unifiedStatus: 'CONFIRMED',
           paidAt: new Date()
         },
         include: {
@@ -146,6 +146,39 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
   try {
     switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object;
+        const bookingId = session.client_reference_id;
+        
+        if (bookingId) {
+          // Update booking to confirmed status (payment completed)
+          await databaseService.update('booking', {
+            where: { id: bookingId },
+            data: { 
+              unifiedStatus: 'CONFIRMED',
+              paidAt: new Date(),
+              confirmedAt: new Date()
+            }
+          });
+          
+          // No need to update time slots - booking status is single source of truth
+          // Time slot is now considered booked because booking status = CONFIRMED
+          
+          console.log('Payment completed for booking:', bookingId);
+        }
+        break;
+
+      case 'checkout.session.expired':
+        const expiredSession = event.data.object;
+        const expiredBookingId = expiredSession.client_reference_id;
+        
+        if (expiredBookingId) {
+          // Cancel the expired booking
+          await cancelExpiredBooking(expiredBookingId);
+          console.log('Checkout session expired for booking:', expiredBookingId);
+        }
+        break;
+
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object;
         
@@ -167,7 +200,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         // Update booking status
         await databaseService.getPrismaClient().booking.updateMany({
           where: { paymentIntentId: failedPayment.id },
-          data: { paymentStatus: 'FAILED' }
+          data: { unifiedStatus: 'EXPIRED' }
         });
         
         console.log('Payment failed:', failedPayment.id);
@@ -184,8 +217,35 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   }
 });
 
+// Helper function to cancel expired bookings and free up time slots
+async function cancelExpiredBooking(bookingId) {
+  try {
+    const booking = await databaseService.findUnique('booking', {
+      where: { id: bookingId }
+    });
+
+    if (booking && booking.status === 'AWAITING_PAYMENT') {
+      // Update booking to expired status
+      await databaseService.update('booking', {
+        where: { id: bookingId },
+        data: {
+          unifiedStatus: 'EXPIRED',
+          cancelledAt: new Date()
+        }
+      });
+
+      // No need to update time slots - booking cancellation automatically frees time slot
+      // Time slot availability is now determined by absence of active booking
+
+      console.log(`Cancelled expired booking ${bookingId} and freed time slot`);
+    }
+  } catch (error) {
+    console.error('Error cancelling expired booking:', error);
+  }
+}
+
 // Get payment status
-router.get('/status/:bookingId', auth, async (req, res) => {
+router.get('/status/:bookingId', authMiddleware, async (req, res) => {
   try {
     const { bookingId } = req.params;
 

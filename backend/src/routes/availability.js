@@ -26,19 +26,57 @@ router.get('/:tutorId', optionalAuth, async (req, res) => {
       });
     }
 
-    const timeSlots = await databaseService.findMany('tutorTimeSlot', {
+    // Get all base time slots for this tutor in the date range
+    const baseTimeSlots = await databaseService.findMany('tutorTimeSlot', {
       where: {
         tutorId: tutorId,
         date: {
           gte: start,
           lte: end
-        },
-        isAvailable: true
+        }
       },
       orderBy: [
         { date: 'asc' },
         { startTime: 'asc' }
       ]
+    });
+
+    // Get all active bookings for this tutor in the date range
+    const activeBookings = await databaseService.findMany('booking', {
+      where: {
+        tutorId: tutorId,
+        selectedDateTime: {
+          gte: start,
+          lte: end
+        },
+        unifiedStatus: {
+          in: ['CONFIRMED', 'AWAITING_PAYMENT']
+        }
+      }
+    });
+
+    // Create booking lookup for faster checking  
+    const bookedTimes = new Set();
+    activeBookings.forEach(booking => {
+      const bookingTime = new Date(booking.selectedDateTime);
+      const timeKey = `${bookingTime.toISOString().split('T')[0]}_${bookingTime.toLocaleString('en-US', {
+        timeZone: 'Europe/Copenhagen',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`;
+      bookedTimes.add(timeKey);
+    });
+
+    // Determine availability based on absence of bookings
+    const timeSlots = baseTimeSlots.map(slot => {
+      const slotTimeKey = `${slot.date.toISOString().split('T')[0]}_${slot.startTime.toTimeString().substring(0, 5)}`;
+      const isAvailable = !bookedTimes.has(slotTimeKey);
+      
+      return {
+        ...slot,
+        status: isAvailable ? 'AVAILABLE' : 'BOOKED'
+      };
     });
 
     // Transform data to group by date for backward compatibility
@@ -54,11 +92,9 @@ router.get('/:tutorId', optionalAuth, async (req, res) => {
       }
       groupedData[dateKey].timeSlots.push({
         time: slot.startTime.toTimeString().substring(0, 5), // HH:MM format
-        available: slot.isAvailable,
-        booked: slot.isBooked,
-        clientName: slot.clientName
+        status: slot.status
       });
-      if (slot.isAvailable && !slot.isBooked) {
+      if (slot.status === 'AVAILABLE') {
         groupedData[dateKey].hasAvailability = true;
       }
     });
@@ -106,8 +142,7 @@ router.post('/:tutorId', async (req, res) => {
     // Validate time slots format
     const validTimeSlots = timeSlots.every(slot => 
       slot.time && 
-      typeof slot.available === 'boolean' && 
-      typeof slot.booked === 'boolean'
+      (slot.status === undefined || ['AVAILABLE', 'UNAVAILABLE'].includes(slot.status))
     );
 
     if (!validTimeSlots) {
@@ -134,10 +169,7 @@ router.post('/:tutorId', async (req, res) => {
         tutorId: tutorId,
         date: new Date(date),
         startTime: new Date(`1970-01-01T${startHour.padStart(2, '0')}:${startMinute}:00`),
-        endTime: new Date(`1970-01-01T${endHour}:${startMinute}:00`),
-        isAvailable: slot.available !== false,
-        isBooked: slot.booked === true,
-        clientName: slot.clientName || null
+        endTime: new Date(`1970-01-01T${endHour}:${startMinute}:00`)
       };
     });
 
@@ -163,69 +195,7 @@ router.post('/:tutorId', async (req, res) => {
   }
 });
 
-// PATCH /api/availability/:tutorId/:date/book - Book a specific time slot
-router.patch('/:tutorId/:date/book', optionalAuth, async (req, res) => {
-  try {
-    const { tutorId, date } = req.params;
-    const { time } = req.body;
-
-    if (!time) {
-      return res.status(400).json({
-        success: false,
-        error: 'Time is required'
-      });
-    }
-
-    // Find the specific time slot
-    const [startHour, startMinute = '00'] = time.split(':');
-    const timeSlot = await databaseService.findFirst('tutorTimeSlot', {
-      where: {
-        tutorId: tutorId,
-        date: new Date(date),
-        startTime: new Date(`1970-01-01T${startHour.padStart(2, '0')}:${startMinute}:00`)
-      }
-    });
-
-    if (!timeSlot) {
-      return res.status(404).json({
-        success: false,
-        error: 'Time slot not found'
-      });
-    }
-
-    if (!timeSlot.isAvailable || timeSlot.isBooked) {
-      return res.status(400).json({
-        success: false,
-        error: 'Time slot is not available'
-      });
-    }
-
-    // Update the time slot to mark as booked
-    const updatedTimeSlot = await databaseService.update('tutorTimeSlot', {
-      where: {
-        id: timeSlot.id
-      },
-      data: {
-        isBooked: true
-      }
-    });
-
-    res.json({
-      success: true,
-      data: {
-        id: updatedTimeSlot.id,
-        date: updatedTimeSlot.date.toISOString().split('T')[0],
-        time: updatedTimeSlot.startTime.toTimeString().substring(0, 5),
-        isBooked: updatedTimeSlot.isBooked
-      }
-    });
-  } catch (error) {
-    console.error('Error booking time slot:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to book time slot'
-    });
-  }
-});
+// NOTE: Direct time slot booking removed - use /api/bookings endpoint instead
+// Time slots are now managed through the booking system as single source of truth
 
 module.exports = router;

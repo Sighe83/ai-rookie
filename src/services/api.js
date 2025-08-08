@@ -81,23 +81,57 @@ export const tutorsApi = {
 // Availability API - Using new tutor_time_slots table
 export const availabilityApi = {
   getAvailability: async (tutorId, startDate, endDate) => {
-    let query = supabase
+    // Get all base time slots for this tutor
+    let slotsQuery = supabase
       .from('tutor_time_slots')
       .select('*')
-      .eq('tutor_id', tutorId)
-      .eq('is_available', true);
+      .eq('tutor_id', tutorId);
 
-    if (startDate) query = query.gte('date', startDate);
-    if (endDate) query = query.lte('date', endDate);
+    if (startDate) slotsQuery = slotsQuery.gte('date', startDate);
+    if (endDate) slotsQuery = slotsQuery.lte('date', endDate);
 
-    const { data, error } = await query.order('date', { ascending: true }).order('start_time', { ascending: true });
+    const { data: slots, error: slotsError } = await slotsQuery.order('date', { ascending: true }).order('start_time', { ascending: true });
     
-    if (error) throw new ApiError(error.message, 400, error);
+    if (slotsError) throw new ApiError(slotsError.message, 400, slotsError);
     
-    // Transform data to group by date for backward compatibility
+    // Get all active bookings for this tutor in the date range
+    let bookingsQuery = supabase
+      .from('bookings')
+      .select('selected_date_time, status, payment_status, payment_expires_at')
+      .eq('tutor_id', tutorId);
+    
+    if (startDate) bookingsQuery = bookingsQuery.gte('selected_date_time', startDate);
+    if (endDate) bookingsQuery = bookingsQuery.lte('selected_date_time', endDate);
+    
+    const { data: bookings, error: bookingsError } = await bookingsQuery;
+    
+    if (bookingsError) throw new ApiError(bookingsError.message, 400, bookingsError);
+    
+    // Create booking lookup for faster checking
+    const bookedTimes = new Set();
+    const now = new Date();
+    bookings?.forEach(booking => {
+      // Only consider confirmed bookings or pending payments that haven't expired
+      const isActiveBooking = booking.status === 'CONFIRMED' || 
+        (booking.status === 'AWAITING_PAYMENT' && 
+         booking.payment_status === 'PENDING' && 
+         new Date(booking.payment_expires_at) > now);
+      
+      if (isActiveBooking) {
+        const bookingDateTime = new Date(booking.selected_date_time);
+        const dateStr = bookingDateTime.toISOString().split('T')[0];
+        const timeStr = bookingDateTime.toTimeString().substring(0, 5);
+        bookedTimes.add(`${dateStr}_${timeStr}`);
+      }
+    });
+    
+    // Transform data to group by date and determine availability
     const groupedData = {};
-    data?.forEach(slot => {
+    slots?.forEach(slot => {
       const dateKey = slot.date;
+      const timeKey = `${slot.date}_${slot.start_time.substring(0, 5)}`;
+      const isAvailable = !bookedTimes.has(timeKey);
+      
       if (!groupedData[dateKey]) {
         groupedData[dateKey] = {
           date: dateKey,
@@ -106,9 +140,7 @@ export const availabilityApi = {
       }
       groupedData[dateKey].time_slots.push({
         time: slot.start_time.substring(0, 5), // HH:MM format
-        available: slot.is_available,
-        booked: slot.is_booked,
-        clientName: slot.client_name || null // Handle missing client_name field
+        status: isAvailable ? 'AVAILABLE' : 'BOOKED'
       });
     });
     
@@ -158,8 +190,7 @@ export const availabilityApi = {
           date: date,
           start_time: `${startHour.padStart(2, '0')}:${startMinute}:00`,
           end_time: `${endHour}:${startMinute}:00`,
-          is_available: slot.available !== false,
-          is_booked: slot.booked === true
+          // No status needed - slots are just time definitions
         };
       });
 
@@ -211,8 +242,7 @@ export const availabilityApi = {
           const startTime = slot.split('-')[0];
           return {
             time: startTime,
-            available: true,
-            booked: false
+            status: 'AVAILABLE'
           };
         });
 
@@ -362,7 +392,7 @@ export const bookingsApi = {
       // Update the specific time slot to mark as booked
       const updatedTimeSlots = existing.time_slots.map(slot => {
         if (slot.time === timeString || slot.time === hour.toString()) {
-          return { ...slot, booked: true, available: false };
+          return { ...slot, status: 'BOOKED' };
         }
         return slot;
       });
@@ -470,7 +500,7 @@ export const bookingsApi = {
       // Update the specific time slot to mark as available again
       const updatedTimeSlots = existing.time_slots.map(slot => {
         if (slot.time === timeString || slot.time === hour.toString()) {
-          return { ...slot, booked: false, available: true };
+          return { ...slot, status: 'AVAILABLE' };
         }
         return slot;
       });

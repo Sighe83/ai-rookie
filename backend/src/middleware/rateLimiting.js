@@ -39,7 +39,7 @@ const passwordLimiter = rateLimit({
 // Rate limiting for booking creation
 const bookingLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5, // limit each IP to 5 booking attempts per 10 minutes
+  max: 50, // limit each IP to 50 booking attempts per 10 minutes (increased for development)
   message: {
     success: false,
     error: 'Too many booking attempts from this IP, please try again in 10 minutes.'

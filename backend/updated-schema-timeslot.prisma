@@ -1,0 +1,40 @@
+// Updated TutorTimeSlot model with simplified status enum
+// This replaces the confusing is_available and is_booked boolean columns
+
+enum TimeSlotStatus {
+  AVAILABLE   // Free for booking
+  BOOKED      // Has confirmed booking
+  PENDING     // Has awaiting payment booking (15-min window)
+  UNAVAILABLE // Tutor blocked this time
+}
+
+model TutorTimeSlot {
+  id        String          @id @default(uuid()) @db.Uuid
+  tutorId   String          @map("tutor_id") @db.Uuid
+  date      DateTime        @db.Date
+  startTime DateTime        @map("start_time") @db.Time
+  endTime   DateTime        @map("end_time") @db.Time
+  status    TimeSlotStatus  @default(AVAILABLE)  // NEW: Single status field
+  bookingId String?         @map("booking_id") @db.Uuid
+  clientName String?        @map("client_name")
+  notes     String?
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  tutor     Tutor          @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  booking   Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@unique([tutorId, date, startTime, endTime], name: "no_overlapping_slots")
+  @@index([tutorId])
+  @@index([date])
+  @@index([tutorId, date])
+  @@index([status])                    // NEW: Index on status
+  @@index([tutorId, status])          // NEW: Composite index for common queries
+  @@map("tutor_time_slots")
+}
+
+// Updated queries would now be much simpler:
+// 
+// Get available slots:     WHERE status = 'AVAILABLE'
+// Get all booked slots:    WHERE status IN ('BOOKED', 'PENDING')  
+// Get only confirmed:      WHERE status = 'BOOKED'
+// Get awaiting payment:    WHERE status = 'PENDING'

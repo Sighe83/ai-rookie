@@ -159,6 +159,14 @@ class DatabaseService {
 
   // Helper methods for common database operations
   async findUnique(model, args) {
+    console.log('🔍 DatabaseService.findUnique called for model:', model);
+    console.log('🔍 this.prisma:', typeof this.prisma, this.prisma ? 'exists' : 'undefined');
+    console.log('🔍 this.isConnected:', this.isConnected);
+    
+    if (!this.prisma) {
+      throw new Error('Database not initialized. Call initialize() first.');
+    }
+    
     return this.prisma[model].findUnique(args);
   }
 

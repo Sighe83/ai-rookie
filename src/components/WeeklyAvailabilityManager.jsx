@@ -199,7 +199,7 @@ const WeeklyAvailabilityManager = () => {
           if (slot.time_slots && Array.isArray(slot.time_slots)) {
             // New structure with time_slots array
             slot.time_slots.forEach(timeSlot => {
-              if (timeSlot.time && timeSlot.available) {
+              if (timeSlot.time && timeSlot.status === 'AVAILABLE') {
                 const hour = parseInt(timeSlot.time.split(':')[0]);
                 const timeSlotStr = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
                 if (!template[dayKey].includes(timeSlotStr)) {

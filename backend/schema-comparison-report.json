@@ -1,0 +1,32 @@
+{
+  "timestamp": "2025-08-07T11:25:11.640Z",
+  "tablesChecked": [],
+  "totalMismatches": 0,
+  "summary": {
+    "users": {
+      "status": "ERROR",
+      "mismatches": [],
+      "error": "self-signed certificate in certificate chain"
+    },
+    "tutors": {
+      "status": "ERROR",
+      "mismatches": [],
+      "error": "self-signed certificate in certificate chain"
+    },
+    "sessions": {
+      "status": "ERROR",
+      "mismatches": [],
+      "error": "self-signed certificate in certificate chain"
+    },
+    "bookings": {
+      "status": "ERROR",
+      "mismatches": [],
+      "error": "self-signed certificate in certificate chain"
+    },
+    "tutor_time_slots": {
+      "status": "ERROR",
+      "mismatches": [],
+      "error": "self-signed certificate in certificate chain"
+    }
+  }
+}
