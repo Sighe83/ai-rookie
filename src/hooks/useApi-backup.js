@@ -1,0 +1,616 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '../services/supabase';
+
+// Simplified API hooks that use Supabase directly
+// This eliminates CORS issues with external API endpoints
+
+// Generic hook for Supabase calls with improved error handling
+export const useSupabaseQuery = (queryFn, dependencies = []) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+
+  const fetchData = useCallback(async () => {
+    if (!mountedRef.current) return;
+    
+    // Generate unique request ID to handle race conditions
+    const currentRequestId = ++requestIdRef.current;
+    console.log('useSupabaseQuery: fetchData called, mounted:', mountedRef.current);
+    
+    console.log('useSupabaseQuery: Starting request', currentRequestId);
+    
+    // Only set loading if this is the latest request and component is mounted
+    if (currentRequestId === requestIdRef.current && mountedRef.current) {
+      console.log('useSupabaseQuery: Setting loading true');
+      setLoading(true);
+      setError(null);
+    }
+    
+    console.log('useSupabaseQuery: Calling queryFn');
+    try {
+      const result = await queryFn();
+      console.log('useSupabaseQuery: QueryFn returned:', result);
+      
+      // Only update state if this is still the latest request and component is mounted
+      if (currentRequestId === requestIdRef.current && mountedRef.current) {
+        console.log('useSupabaseQuery: Setting data and clearing loading');
+        setData(result);
+        setError(null); // Clear any previous errors
+        setLoading(false); // Set loading false here too
+      }
+    } catch (error) {
+      console.error('Supabase query error:', error);
+      
+      // Only update error state if this is still the latest request and component is mounted
+      if (currentRequestId === requestIdRef.current && mountedRef.current) {
+        let errorMessage = 'Der opstod en fejl';
+        
+        if (error.message?.includes('JWT') || error.message?.includes('expired')) {
+          errorMessage = 'Login session udløbet';
+        } else if (error.message?.includes('permission denied')) {
+          errorMessage = 'Adgang nægtet';
+        } else if (error.message?.includes('relation') && error.message?.includes('does not exist')) {
+          errorMessage = 'Database tabel ikke fundet';
+        } else if (error.message?.includes('fetch')) {
+          errorMessage = 'Netværksfejl - tjek din internetforbindelse';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        setError(errorMessage);
+      }
+    } finally {
+      // Always set loading to false when request completes
+      if (currentRequestId === requestIdRef.current && mountedRef.current) {
+        console.log('useSupabaseQuery: Setting loading to false');
+        setLoading(false);
+      }
+    }
+  }, dependencies);
+
+  useEffect(() => {
+    if (!mountedRef.current) return;
+    fetchData();
+  }, [fetchData]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const refetch = useCallback(() => {
+    if (mountedRef.current) {
+      fetchData();
+    }
+  }, [fetchData]);
+
+  return { data, loading, error, refetch };
+};
+
+// Hook for tutors data
+export const useTutors = (siteMode = 'B2B') => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchTutors = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get tutors first
+        const { data: tutors, error: tutorError } = await supabase
+          .from('tutors')
+          .select(`
+            *,
+            user:users(name, email)
+          `)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+
+        if (tutorError) {
+          throw tutorError;
+        }
+
+        // Get active sessions for each tutor
+        const tutorsWithSessions = await Promise.all(
+          tutors.map(async (tutor) => {
+            const { data: sessions, error: sessionsError } = await supabase
+              .from('sessions')
+              .select('*')
+              .eq('tutor_id', tutor.id)
+              .eq('is_active', true)
+              .order('created_at', { ascending: false });
+
+            if (sessionsError) throw sessionsError;
+            
+            return {
+              ...tutor,
+              name: tutor.user?.name || 'Unavngivet Tutor',
+              email: tutor.user?.email || 'No email',
+              sessions: sessions || []
+            };
+          })
+        );
+        
+        setData(tutorsWithSessions);
+        
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTutors();
+  }, [siteMode]);
+  
+  return { data: data || [], loading, error };
+};
+
+// Hook for getting tutor by user ID
+export const useTutorByUserId = (userId) => {
+  return useSupabaseQuery(async () => {
+    if (!userId) {
+      return null;
+    }
+
+    // Use backend API instead of direct Supabase
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/tutors/by-user/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error('Failed to fetch tutor');
+    }
+
+    const result = await response.json();
+    return result.data;
+  }, [userId]);
+};
+
+// Hook for single tutor  
+export const useTutor = (id, siteMode = 'B2B') => {
+  return useSupabaseQuery(async () => {
+    // Use backend API instead of direct Supabase
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/tutors/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch tutor');
+    }
+
+    const result = await response.json();
+    return result.data;
+  }, [id, siteMode]);
+};
+
+// Hook for bookings using backend API
+export const useBookings = (filters = {}) => {
+  return useSupabaseQuery(async () => {
+    console.log('useBookings: Starting fetch with filters:', filters);
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Session fetch error:', sessionError);
+      throw new Error('Login session udløbet');
+    }
+    
+    if (!session?.access_token) {
+      console.warn('No authenticated session found');
+      return [];
+    }
+
+    console.log('useBookings: User authenticated');
+
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+    if (filters.siteMode) params.append('siteMode', filters.siteMode);
+    
+    const queryString = params.toString();
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/bookings${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch bookings');
+    }
+
+    const result = await response.json();
+    return result.data;
+  }, [filters.status, filters.siteMode]);
+};
+
+// Hook for mutations (create/update operations) with rate limiting
+export const useMutation = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const mountedRef = useRef(true);
+  const lastRequestRef = useRef(0);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const mutate = useCallback(async (supabaseCall) => {
+    if (!mountedRef.current) {
+      return { success: false, error: null };
+    }
+    
+    // Simple rate limiting - prevent multiple rapid requests
+    const now = Date.now();
+    if (now - lastRequestRef.current < 1000) { // 1 second cooldown
+      return { success: false, error: 'For hurtige forespørgsler. Vent venligst.' };
+    }
+    
+    lastRequestRef.current = now;
+    
+    try {
+      if (mountedRef.current) {
+        setLoading(true);
+        setError(null);
+      }
+      
+      const result = await supabaseCall();
+      
+      if (!mountedRef.current) {
+        return { success: false, error: null };
+      }
+      
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('Mutation error:', error);
+      
+      let errorMsg = 'Operation failed';
+      
+      if (error.message?.includes('duplicate key')) {
+        errorMsg = 'Data findes allerede';
+      } else if (error.message?.includes('permission denied')) {
+        errorMsg = 'Adgang nægtet';
+      } else if (error.message?.includes('not authenticated')) {
+        errorMsg = 'Ikke logget ind';
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      if (mountedRef.current) {
+        setError(errorMsg);
+      }
+      
+      return { success: false, error: errorMsg };
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  const clearError = useCallback(() => {
+    if (mountedRef.current) {
+      setError(null);
+    }
+  }, []);
+
+  return { mutate, loading, error, clearError };
+};
+
+// Hook for booking creation using backend API with Stripe payment integration
+export const useCreateBooking = () => {
+  const { mutate, loading, error, clearError } = useMutation();
+  const { api } = useApi();
+
+  const createBooking = useCallback(async (bookingData) => {
+    return await mutate(async () => {
+      // Validate booking data
+      if (!bookingData.tutorId || !bookingData.sessionId) {
+        throw new Error('Tutor og session er påkrævet');
+      }
+      
+      if (!bookingData.contactName?.trim() || !bookingData.contactEmail?.trim()) {
+        throw new Error('Kontakt navn og email er påkrævet');
+      }
+      
+      if (!bookingData.selectedDateTime) {
+        throw new Error('Vælg venligst en tid for sessionen');
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(bookingData.contactEmail.trim())) {
+        throw new Error('Ugyldig email adresse');
+      }
+
+      // Prepare booking data for backend API
+      const apiBookingData = {
+        tutorId: bookingData.tutorId,
+        sessionId: bookingData.sessionId,
+        selectedDateTime: bookingData.selectedDateTime,
+        contactName: bookingData.contactName.trim(),
+        contactEmail: bookingData.contactEmail.trim(),
+        contactPhone: bookingData.contactPhone?.trim() || null,
+        company: bookingData.company?.trim() || null,
+        department: bookingData.department?.trim() || null,
+        participants: bookingData.participants || 1,
+        format: bookingData.format || 'INDIVIDUAL',
+        siteMode: bookingData.siteMode || 'B2C',
+        notes: bookingData.notes?.trim() || null
+      };
+
+      // Call backend API to create booking and get payment URL
+      const response = await api.post('/api/bookings', apiBookingData);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to create booking');
+      }
+
+      return response;
+    });
+  }, [mutate, api]);
+
+  return { createBooking, loading, error, clearError };
+};
+
+// Simple API hook for backend requests
+export const useApi = () => {
+  const api = {
+    get: async (url) => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${url}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('API GET error:', error);
+        throw error;
+      }
+    },
+    
+    post: async (url, data) => {
+      try {
+        console.log('Making POST request to:', `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${url}`);
+        console.log('Request data:', data);
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${url}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Response error:', errorText);
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Response data:', result);
+        return result;
+      } catch (error) {
+        console.error('API POST error:', error);
+        throw error;
+      }
+    }
+  };
+  
+  return { api };
+};
+
+// Hook for tutor dashboard statistics
+export const useTutorStats = (tutorId) => {
+  return useSupabaseQuery(async () => {
+    if (!tutorId) {
+      // Return null instead of throwing error to handle loading state gracefully
+      return null;
+    }
+
+    const now = new Date();
+    
+    // Fix date ranges - 7 dage (i dag + 6 dage frem) men kun kommende tider
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0); // Start of today
+    
+    const endOf7Days = new Date(now);
+    endOf7Days.setDate(now.getDate() + 6);
+    endOf7Days.setHours(23, 59, 59, 999); // End of 6th day from today
+    
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    // Get next 7 days' bookings (confirmed or pending) - only future start times
+    const { data: allNext7DaysBookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('id, total_price, status, selected_date_time')
+      .eq('tutor_id', tutorId)
+      .in('status', ['CONFIRMED', 'PENDING']) // Include both confirmed and pending
+      .gte('selected_date_time', startOfToday.toISOString())
+      .lte('selected_date_time', endOf7Days.toISOString());
+    
+    // Count only future bookings, but keep all for potential display
+    let futureBookingsCount = 0;
+    allNext7DaysBookings?.forEach(booking => {
+      const bookingDateTime = new Date(booking.selected_date_time);
+      const isFuture = bookingDateTime > now;
+      
+      // Debug individual bookings
+      console.log('Booking filter debug:', {
+        bookingId: booking.id,
+        bookingTime: booking.selected_date_time,
+        bookingDateTime: bookingDateTime.toISOString(),
+        currentTime: now.toISOString(),
+        isFuture,
+        timeDiff: bookingDateTime.getTime() - now.getTime()
+      });
+      
+      if (isFuture) {
+        futureBookingsCount++;
+      }
+    });
+    
+    // Keep all bookings for display, but count only future ones
+    const next7DaysBookings = allNext7DaysBookings || [];
+    const next7DaysCount = futureBookingsCount;
+      
+    if (bookingsError) {
+      console.error('Error fetching next 7 days bookings:', bookingsError);
+    }
+    
+    console.log('Next 7 days bookings query result:', {
+      tutorId,
+      dateRange: `${startOfToday.toISOString()} to ${endOf7Days.toISOString()}`,
+      totalBookingsInRange: allNext7DaysBookings?.length || 0,
+      futureBookingsOnly: next7DaysBookings?.length || 0,
+      currentTime: now.toISOString(),
+      bookings: next7DaysBookings
+    });
+
+    // Get this month's earnings - only completed sessions count for earnings
+    const { data: thisMonthBookings, error: earningsError } = await supabase
+      .from('bookings')
+      .select('total_price, status, selected_date_time')
+      .eq('tutor_id', tutorId)
+      .eq('status', 'COMPLETED') // Only completed sessions count for earnings
+      .gte('selected_date_time', startOfMonth.toISOString())
+      .lte('selected_date_time', endOfMonth.toISOString());
+      
+    if (earningsError) {
+      console.error('Error fetching monthly earnings:', earningsError);
+    }
+    
+    console.log('Monthly earnings query result:', {
+      tutorId,
+      monthRange: `${startOfMonth.toISOString()} to ${endOfMonth.toISOString()}`,
+      bookingsFound: thisMonthBookings?.length || 0,
+      totalEarnings: thisMonthBookings?.reduce((sum, booking) => sum + (booking.total_price || 0), 0) || 0,
+      bookings: thisMonthBookings
+    });
+
+    // Get total completed sessions
+    const { data: completedSessions, error: completedError } = await supabase
+      .from('bookings')
+      .select('id, selected_date_time')
+      .eq('tutor_id', tutorId)
+      .eq('status', 'COMPLETED');
+      
+    if (completedError) {
+      console.error('Error fetching completed sessions:', completedError);
+    }
+    
+    console.log('Completed sessions query result:', {
+      tutorId,
+      completedFound: completedSessions?.length || 0,
+      sessions: completedSessions
+    });
+
+    // Get actual available slots for the next 7 days (same period as bookings)
+    
+    // Get available time slots for the next 7 days from the new table
+    let availableSlots = 0;
+    const todayDate = startOfToday.toISOString().split('T')[0];
+    const endDate = endOf7Days.toISOString().split('T')[0];
+    
+    try {
+      const { data: allAvailableTimeSlots, error: timeSlotsError } = await supabase
+        .from('tutor_time_slots')
+        .select('id, date, start_time, status')
+        .eq('tutor_id', tutorId)
+        .eq('status', 'AVAILABLE')
+        .gte('date', todayDate)
+        .lte('date', endDate);
+      
+      if (!timeSlotsError && allAvailableTimeSlots) {
+        // Count only future slots, but keep all for potential display
+        let futureAvailableSlotsCount = 0;
+        allAvailableTimeSlots.forEach(slot => {
+          const slotDateTime = new Date(`${slot.date}T${slot.start_time}`);
+          if (slotDateTime > now) {
+            futureAvailableSlotsCount++;
+          }
+        });
+        
+        availableSlots = futureAvailableSlotsCount;
+        console.log('Available slots from tutor_time_slots:', {
+          tutorId,
+          dateRange: `${todayDate} to ${endDate}`,
+          totalSlotsInRange: allAvailableTimeSlots.length,
+          futureSlotsOnly: availableSlots,
+          currentTime: now.toISOString(),
+          allSlots: allAvailableTimeSlots
+        });
+      } else {
+        // Fallback: Use old estimation method if new table doesn't exist
+        console.warn('Could not fetch from tutor_time_slots, using fallback calculation', timeSlotsError);
+        const estimatedWeeklySlots = 70; // 10 hours/day * 7 days (8:00-18:00 = 10 timer per dag)
+        const { data: next7DaysBookingsForSlots } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('tutor_id', tutorId)
+          .gte('selected_date_time', startOfToday.toISOString())
+          .lte('selected_date_time', endOf7Days.toISOString());
+        availableSlots = Math.max(0, estimatedWeeklySlots - (next7DaysBookingsForSlots?.length || 0));
+      }
+    } catch (error) {
+      console.warn('Error fetching available slots:', error);
+      availableSlots = 0;
+    }
+
+    // next7DaysCount already defined above as futureBookingsCount
+    const monthlyEarnings = thisMonthBookings?.reduce((sum, booking) => sum + (booking.total_price || 0), 0) || 0;
+    const completedCount = completedSessions?.length || 0;
+
+    // Debug logging
+    console.log('Tutor Stats Debug:', {
+      tutorId,
+      next7DaysCount,
+      availableSlots,
+      monthlyEarnings,
+      completedCount,
+      availableSlotsDateRange: `${todayDate} to ${endDate}`
+    });
+
+    return {
+      next7DaysBookings: next7DaysCount,
+      nextWeekAvailableSlots: availableSlots,
+      monthlyEarnings: monthlyEarnings, // Already in kroner, no conversion needed
+      totalCompletedSessions: completedCount
+    };
+  }, [tutorId]);
+};
