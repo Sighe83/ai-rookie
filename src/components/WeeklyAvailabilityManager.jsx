@@ -269,25 +269,110 @@ const WeeklyAvailabilityManager = () => {
   };
 
 
-  const clearWeek = () => {
-    setWeeklyTemplates(prev => {
-      const currentTemplate = { ...getCurrentTemplate() };
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+  const clearWeek = async () => {
+    if (!confirm('Er du sikker på at du vil slette ALLE fremtidige tilgængelige tider? Dette kan ikke fortrydes.')) {
+      return;
+    }
+
+    if (!tutorId) {
+      showErrorToast('Tutor ID ikke fundet');
+      return;
+    }
+
+    try {
+      setSaving(true);
       
-      // Only clear future slots
-      dayKeys.forEach((dayKey, dayIndex) => {
-        const dayDate = getDateForDay(currentWeekView, dayIndex);
-        if (dayDate >= today) {
-          currentTemplate[dayKey] = [];
+      console.log('🗑️ Sletter alle fremtidige tilgængelige tider...');
+
+      // Use the new API method to clear all future availability
+      const response = await availabilityApi.clearAllFutureAvailability(tutorId);
+
+      if (!response.success) {
+        throw new Error('API call failed');
+      }
+
+      const { deletedCount, fromDate } = response.data;
+      console.log(`✅ Slettet ${deletedCount} fremtidige tidsslots fra ${fromDate}`);
+
+      // Calculate tomorrow for local state clearing
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      // Clear local state for all future weeks
+      setWeeklyTemplates(prev => {
+        const updated = { ...prev };
+        
+        // Clear current week and future weeks
+        for (let weekOffset = 0; weekOffset <= 52; weekOffset++) {
+          const weekTemplate = { ...createEmptyTemplate() };
+          
+          // For each day in this week
+          dayKeys.forEach((dayKey, dayIndex) => {
+            const dayDate = getDateForDay(weekOffset, dayIndex);
+            if (dayDate >= tomorrow) {
+              weekTemplate[dayKey] = []; // Clear future days
+            } else if (prev[weekOffset]) {
+              // Keep past days unchanged
+              weekTemplate[dayKey] = prev[weekOffset][dayKey] || [];
+            }
+          });
+          
+          // Only update if this week had any data or has future dates
+          const hasFutureDates = dayKeys.some((dayKey, dayIndex) => {
+            const dayDate = getDateForDay(weekOffset, dayIndex);
+            return dayDate >= tomorrow;
+          });
+          
+          if (hasFutureDates || prev[weekOffset]) {
+            updated[weekOffset] = weekTemplate;
+          }
         }
+        
+        return updated;
       });
+
+      // Clear saved templates for future weeks
+      setSavedTemplates(prev => {
+        const updated = { ...prev };
+        
+        for (let weekOffset = 0; weekOffset <= 52; weekOffset++) {
+          const weekTemplate = { ...createEmptyTemplate() };
+          
+          dayKeys.forEach((dayKey, dayIndex) => {
+            const dayDate = getDateForDay(weekOffset, dayIndex);
+            if (dayDate >= tomorrow) {
+              weekTemplate[dayKey] = [];
+            } else if (prev[weekOffset]) {
+              weekTemplate[dayKey] = prev[weekOffset][dayKey] || [];
+            }
+          });
+          
+          const hasFutureDates = dayKeys.some((dayKey, dayIndex) => {
+            const dayDate = getDateForDay(weekOffset, dayIndex);
+            return dayDate >= tomorrow;
+          });
+          
+          if (hasFutureDates || prev[weekOffset]) {
+            updated[weekOffset] = weekTemplate;
+          }
+        }
+        
+        return updated;
+      });
+
+      // Reload availability data to ensure UI is in sync
+      await loadExistingAvailability();
+
+      // Show success message
+      showSuccessToast(`Alle fremtidige tilgængeligheder er slettet (${deletedCount} tidsslots)`);
       
-      return {
-        ...prev,
-        [currentWeekView]: currentTemplate
-      };
-    });
+    } catch (error) {
+      console.error('❌ Fejl ved sletning af fremtidige tider:', error);
+      showErrorToast(`Fejl ved sletning: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Helper functions for interval selection
@@ -901,10 +986,20 @@ const WeeklyAvailabilityManager = () => {
                 <>
                   <button
                     onClick={clearWeek}
-                    className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                    disabled={saving}
+                    className="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <RotateCcw className="w-4 h-4" />
-                    Nulstil fremtidige
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Sletter...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="w-4 h-4" />
+                        Slet ALLE fremtidige
+                      </>
+                    )}
                   </button>
                   
                   <button

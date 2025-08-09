@@ -23,6 +23,7 @@ model User {
   updatedAt     DateTime  @updatedAt @map("updated_at")
   bookings      Booking[]
   tutor         Tutor?
+  availabilityChanges TutorAvailabilityLog[]
 
   @@map("users")
 }
@@ -40,7 +41,8 @@ model Tutor {
   updatedAt    DateTime            @updatedAt @map("updated_at")
   bookings     Booking[]
   sessions     Session[]
-  timeSlots   TutorTimeSlot[]
+  timeSlots    TutorTimeSlot[]
+  availabilityLogs TutorAvailabilityLog[]
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("tutors")
@@ -57,6 +59,7 @@ model Session {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   bookings    Booking[]
+  availabilityLogs TutorAvailabilityLog[]
   tutor       Tutor     @relation(fields: [tutorId], references: [id], onDelete: Cascade)
 
   @@index([tutorId])
@@ -133,4 +136,28 @@ model SystemSettings {
   value Json
 
   @@map("system_settings")
+}
+
+model TutorAvailabilityLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tutorId   String   @map("tutor_id") @db.Uuid
+  date      DateTime @db.Date
+  startTime DateTime @map("start_time") @db.Time
+  endTime   DateTime? @map("end_time") @db.Time
+  action    String   // 'ADDED' or 'REMOVED'
+  reason    String?  @default("tutor_edit")
+  changedAt DateTime @default(now()) @map("changed_at")
+  changedBy String   @map("changed_by") @db.Uuid
+  sessionId String?  @map("session_id") @db.Uuid
+  notes     String?
+  
+  // Relations
+  tutor     Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  changedByUser User @relation(fields: [changedBy], references: [id], onDelete: Cascade)
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([tutorId, date])
+  @@index([changedAt])
+  @@index([action])
+  @@map("tutor_availability_log")
 }

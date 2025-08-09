@@ -97,7 +97,7 @@ export const availabilityApi = {
     // Get all active bookings for this tutor in the date range
     let bookingsQuery = supabase
       .from('bookings')
-      .select('selected_date_time, status, payment_status, payment_expires_at')
+      .select('selected_date_time, unified_status, payment_expires_at, paid_at')
       .eq('tutor_id', tutorId);
     
     if (startDate) bookingsQuery = bookingsQuery.gte('selected_date_time', startDate);
@@ -112,9 +112,9 @@ export const availabilityApi = {
     const now = new Date();
     bookings?.forEach(booking => {
       // Only consider confirmed bookings or pending payments that haven't expired
-      const isActiveBooking = booking.status === 'CONFIRMED' || 
-        (booking.status === 'AWAITING_PAYMENT' && 
-         booking.payment_status === 'PENDING' && 
+      const isActiveBooking = booking.unified_status === 'CONFIRMED' || 
+        (booking.unified_status === 'AWAITING_PAYMENT' && 
+         booking.payment_expires_at && 
          new Date(booking.payment_expires_at) > now);
       
       if (isActiveBooking) {
@@ -167,6 +167,27 @@ export const availabilityApi = {
         throw new ApiError('Unauthorized: Tutor not found or access denied', 403, tutorError);
       }
 
+      // HYBRID APPROACH: Get current slots for change tracking (before deletion)
+      const { data: currentSlots, error: fetchError } = await supabase
+        .from('tutor_time_slots')
+        .select('*')
+        .eq('tutor_id', tutorId)
+        .eq('date', date);
+
+      if (fetchError) {
+        console.error('Error fetching current slots for audit:', fetchError);
+        // Don't fail - audit logging is secondary
+      }
+
+      // Calculate changes for audit log
+      const currentTimes = new Set(currentSlots?.map(slot => 
+        slot.start_time.substring(0, 5)) || []);
+      const newTimes = new Set(timeSlots.map(slot => slot.time));
+      
+      const added = [...newTimes].filter(time => !currentTimes.has(time));
+      const removed = [...currentTimes].filter(time => !newTimes.has(time));
+
+      // SINGLE SOURCE OF TRUTH UPDATE (unchanged)
       // Delete existing time slots for this date
       const { error: deleteError } = await supabase
         .from('tutor_time_slots')
@@ -179,6 +200,19 @@ export const availabilityApi = {
         throw new ApiError(deleteError.message, 400, deleteError);
       }
 
+      // Helper function to generate UUID
+      const generateUUID = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        // Fallback UUID generation
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c == 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+
       // Insert new time slots
       const slotsToInsert = timeSlots.map(slot => {
         const [startHour] = slot.time.split(':');
@@ -186,11 +220,13 @@ export const availabilityApi = {
         const endHour = (parseInt(startHour) + 1).toString().padStart(2, '0');
         
         return {
+          id: generateUUID(), // Generate UUID for each slot
           tutor_id: tutorId,
           date: date,
           start_time: `${startHour.padStart(2, '0')}:${startMinute}:00`,
           end_time: `${endHour}:${startMinute}:00`,
-          // No status needed - slots are just time definitions
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
       });
 
@@ -212,11 +248,18 @@ export const availabilityApi = {
         }
         
         console.log('Availability operation successful:', data);
-        return { data, success: true };
       } else {
-        // No slots to insert, return success
-        return { data: [], success: true };
+        console.log('No slots to insert');
       }
+
+      // HYBRID APPROACH: Log changes for audit (secondary - never affects main logic)
+      await logAvailabilityChanges(tutorId, date, added, removed, user.id);
+
+      return { 
+        data: timeSlots, 
+        success: true,
+        changes: { added: added.length, removed: removed.length }
+      };
     } catch (err) {
       console.error('updateAvailability error:', err);
       if (err instanceof ApiError) throw err;
@@ -287,6 +330,97 @@ export const availabilityApi = {
 
     if (error) throw new ApiError(error.message, 400, error);
     return { data, success: true };
+  },
+
+  // Clear all future availability for a tutor
+  clearAllFutureAvailability: async (tutorId) => {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new ApiError('Authentication required', 401, authError);
+      }
+
+      // Verify the tutorId belongs to the authenticated user
+      const { data: tutorCheck, error: tutorError } = await supabase
+        .from('tutors')
+        .select('id, user_id')
+        .eq('id', tutorId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (tutorError || !tutorCheck) {
+        throw new ApiError('Unauthorized: Tutor not found or access denied', 403, tutorError);
+      }
+
+      // Calculate tomorrow's date (all future dates)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      console.log('🗑️ Clearing all future availability from:', tomorrowStr);
+
+      // Get current future slots for audit logging
+      const { data: currentSlots, error: fetchError } = await supabase
+        .from('tutor_time_slots')
+        .select('*')
+        .eq('tutor_id', tutorId)
+        .gte('date', tomorrowStr);
+
+      if (fetchError) {
+        console.warn('⚠️ Could not fetch current slots for audit:', fetchError.message);
+      }
+
+      // Delete ALL future time slots from database
+      const { error: deleteError } = await supabase
+        .from('tutor_time_slots')
+        .delete()
+        .eq('tutor_id', tutorId)
+        .gte('date', tomorrowStr);
+
+      if (deleteError) {
+        throw new ApiError(`Database error: ${deleteError.message}`, 400, deleteError);
+      }
+
+      const deletedCount = currentSlots?.length || 0;
+
+      // AUDIT LOGGING: Log all deleted slots
+      if (currentSlots && currentSlots.length > 0) {
+        const auditChanges = currentSlots.map(slot => ({
+          id: generateAuditUUID(),
+          tutor_id: tutorId,
+          date: slot.date,
+          start_time: slot.start_time,
+          action: 'REMOVED',
+          reason: 'bulk_clear_future',
+          changed_at: new Date().toISOString(),
+          changed_by: user.id,
+          notes: 'Bulk deletion of all future availability'
+        }));
+
+        try {
+          await supabase.from('tutor_availability_log').insert(auditChanges);
+          console.log(`✅ Logged ${auditChanges.length} deleted slots to audit log`);
+        } catch (auditError) {
+          console.warn('⚠️ Audit logging failed (non-critical):', auditError.message);
+        }
+      }
+
+      console.log(`✅ Deleted ${deletedCount} future availability slots`);
+
+      return { 
+        data: { 
+          deletedCount,
+          fromDate: tomorrowStr
+        }, 
+        success: true 
+      };
+
+    } catch (err) {
+      console.error('clearAllFutureAvailability error:', err);
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to clear future availability', 500, err);
+    }
   }
 };
 
@@ -306,7 +440,7 @@ export const bookingsApi = {
       `)
       .eq('user_id', user.id);
 
-    if (filters.status) query = query.eq('status', filters.status.toUpperCase());
+    if (filters.status) query = query.eq('unified_status', filters.status.toUpperCase());
     if (filters.siteMode) query = query.eq('site_mode', filters.siteMode.toUpperCase());
 
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -454,7 +588,7 @@ export const bookingsApi = {
       const { data, error } = await supabase
         .from('bookings')
         .update({ 
-          status: status.toUpperCase(),
+          unified_status: status.toUpperCase(),
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
@@ -631,7 +765,7 @@ export const tutorManagementApi = {
       `)
       .eq('tutor_id', tutorData.id);
 
-    if (filters.status) query = query.eq('status', filters.status.toUpperCase());
+    if (filters.status) query = query.eq('unified_status', filters.status.toUpperCase());
 
     const { data, error } = await query.order('created_at', { ascending: false });
     
@@ -656,7 +790,7 @@ export const tutorManagementApi = {
     const { data, error } = await supabase
       .from('bookings')
       .update({ 
-        status: status.toUpperCase(),
+        unified_status: status.toUpperCase(),
         updated_at: new Date().toISOString(),
         ...(status.toUpperCase() === 'CONFIRMED' && { confirmed_at: new Date().toISOString() }),
         ...(status.toUpperCase() === 'CANCELLED' && { cancelled_at: new Date().toISOString() })
@@ -916,17 +1050,151 @@ export const sessionsApi = {
   }
 };
 
+// HYBRID APPROACH: Audit logging helpers (secondary functionality)
+// These functions log availability changes without affecting core logic
+
+async function logAvailabilityChanges(tutorId, date, added, removed, userId) {
+  try {
+    const changes = [];
+    
+    // Log added slots
+    added.forEach(time => {
+      changes.push({
+        id: generateAuditUUID(),
+        tutor_id: tutorId,
+        date: date,
+        start_time: time + ':00',
+        action: 'ADDED',
+        reason: 'tutor_edit',
+        changed_at: new Date().toISOString(),
+        changed_by: userId
+      });
+    });
+    
+    // Log removed slots
+    removed.forEach(time => {
+      changes.push({
+        id: generateAuditUUID(),
+        tutor_id: tutorId,
+        date: date,
+        start_time: time + ':00',
+        action: 'REMOVED',
+        reason: 'tutor_edit',
+        changed_at: new Date().toISOString(),
+        changed_by: userId
+      });
+    });
+
+    // Insert audit records (background logging)
+    if (changes.length > 0) {
+      await supabase.from('tutor_availability_log').insert(changes);
+      console.log(`✅ Logged ${changes.length} availability changes for audit`);
+    }
+  } catch (error) {
+    // CRITICAL: Audit logging failures should never break main functionality
+    console.warn('⚠️ Audit logging failed (non-critical):', error.message);
+    // Don't throw - this should never break the availability update
+  }
+}
+
+function generateAuditUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// New API methods for accessing audit data
+export const auditApi = {
+  // Get change history for a tutor
+  getAvailabilityHistory: async (tutorId, days = 30) => {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new ApiError('Authentication required', 401, authError);
+      }
+
+      // Verify tutor ownership
+      const { data: tutorCheck, error: tutorError } = await supabase
+        .from('tutors')
+        .select('id, user_id')
+        .eq('id', tutorId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (tutorError || !tutorCheck) {
+        throw new ApiError('Unauthorized: Tutor not found or access denied', 403, tutorError);
+      }
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const { data, error } = await supabase
+        .from('tutor_availability_log')
+        .select('*')
+        .eq('tutor_id', tutorId)
+        .gte('changed_at', startDate.toISOString())
+        .order('changed_at', { ascending: false });
+
+      if (error) throw new ApiError(error.message, 400, error);
+      return { data, success: true };
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to get availability history', 500, err);
+    }
+  },
+
+  // Get change statistics
+  getChangeStats: async (tutorId, days = 30) => {
+    try {
+      const { data: changes } = await auditApi.getAvailabilityHistory(tutorId, days);
+      
+      const stats = {
+        totalChanges: changes?.length || 0,
+        slotsAdded: changes?.filter(c => c.action === 'ADDED').length || 0,
+        slotsRemoved: changes?.filter(c => c.action === 'REMOVED').length || 0,
+        mostActiveDay: null,
+        avgChangesPerDay: 0
+      };
+
+      // Calculate most active day
+      const dayCount = {};
+      changes?.forEach(change => {
+        const day = new Date(change.changed_at).toISOString().split('T')[0];
+        dayCount[day] = (dayCount[day] || 0) + 1;
+      });
+
+      if (Object.keys(dayCount).length > 0) {
+        stats.mostActiveDay = Object.keys(dayCount).reduce((a, b) => 
+          dayCount[a] > dayCount[b] ? a : b);
+      }
+      
+      stats.avgChangesPerDay = days > 0 ? stats.totalChanges / days : 0;
+
+      return { data: stats, success: true };
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(err.message || 'Failed to get change statistics', 500, err);
+    }
+  }
+};
+
 // Export utilities
 export { ApiError, supabase, authHelpers };
 
-// Default export - Pure Supabase RLS API
+// Default export - Pure Supabase RLS API with Hybrid Audit
 const api = {
   tutors: tutorsApi,
   availability: availabilityApi,
   bookings: bookingsApi,
   tutorManagement: tutorManagementApi,
   sessions: sessionsApi,
-  health: healthApi
+  health: healthApi,
+  audit: auditApi
 };
 
 export default api;
